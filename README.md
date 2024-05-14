@@ -52,9 +52,8 @@ The `processed_patient_dict.json` (output of `process_data.py`) contains the fol
 
 ### Output
 
-`main.py` outputs multiple visualizations of the output of the gibbs sampler. In the main script a `.pkl` file is created for caching sampler results. The `.pkl`file is not part of this repo due to it's significant size (>1GB). The following files are present in this repo:
-- Diffusvity spectra boxplots of sampler output per patient categorized by anatomical region, as `npz.pdf`, `ntz.pdf`, `tpz.pdf`, `ttz.pdf` referring to normal peripheral zone, normal transition zone, tumor peripheral zone, tumor transition zone respectively.
-- `correlation_matrix.pdf`
+`main.py` outputs multiple visualizations of sampling results. In the main script a `.pkl` file is created for caching sampler results. The `.pkl`file is not part of this repo due to its significant size (>1GB). The following files are present in this repo:
+- Diffusivity spectra boxplots of sampler output per patient categorized by anatomical region, as `npz.pdf`, `ntz.pdf`, `tpz.pdf`, `ttz.pdf` referring to normal peripheral zone, normal transition zone, tumor peripheral zone, tumor transition zone respectively.
 - `roi_avg.pdf`: 4 boxplots describing averaged diffusivity spectra per anatomical region for all patients and regions of interest
 - Downstream analysis (preliminary!): `correlation_matrix.pdf`, `log_classifier_all.pdf`, `log_classifier_db.pdf`, `pr_visualization_025.pdf`
 
