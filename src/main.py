@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import pickle
@@ -708,20 +709,28 @@ def main():
                         my_sample.sample = my_sample.sample[10000:]
                         my_sample.normalize()
 
-                        # calculate age based on date of birth and current date (e.g. 13.01.1949
+                        # calculate age based on date of birth and current date (e.g. 13.01.1949)
                         try:
                             gs = df_gsdob.loc[patient_key, "gs"]
+                        except KeyError:
+                            print("gs not found for patient_key:", patient_key)
+                            gs = FILL_STR
+
+                        try:
                             dob = df_gsdob.loc[patient_key, "dob"]
+                            age = (
+                                datetime.datetime.now()
+                                - datetime.datetime.strptime(dob, "%Y-%m-%d")
+                            ).days / 365.25
+                        except KeyError:
+                            print("dob not found for patient_key:", patient_key)
+                            age = FILL_STR
+
+                        try:
                             target = df_gsdob.loc[patient_key, "targets"]
-                        except:
-                            print("Patient not found in gsdob.csv")
-                            gs = "NaN"
-                            dob = "NaN"
-                            target = "NaN"
-                        # if dob == FILL_STR or not dob or dob == 'nan':
-                        #     age = dob
-                        # else:
-                        #     age = (datetime.datetime.now() - datetime.datetime.strptime(dob, '%Y-%m-%d')).days / 365.25
+                        except KeyError:
+                            print("targets not found for patient_key:", patient_key)
+                            target = FILL_STR
 
                         # Add meta data
                         sample_dict = {
@@ -731,7 +740,7 @@ def main():
                             "patient_key": patient_key,
                             "gs": gs,
                             "target": target,
-                            "patient_age": dob,
+                            "patient_age": age,
                         }
 
                         # Aggregate samples per roi for later plotting
