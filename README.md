@@ -10,7 +10,7 @@ There is great interest to quantify the spectrum of diffusivities that underlie 
 
 ## How to run sampler
 
-Git clone repository to local environment and simply run `main.py` file. For first time execution sampling will take about 25min (standard macbook pro M1). After first execution `.pkl` file will be created to avoid running sampler for every new experiment (if sampler settings are changed, delete `.pkl` file before running for fresh results).
+Git clone repository to local environment and simply run `main.py` file. First time execution will take about 25min (standard macbook pro M1). After first execution `.pkl` file will be created caching results to avoid running sampler for every new experiment (if sampler settings are changed, delete `.pkl` file before running for fresh results).
 
 ## File structure
 ````
