@@ -122,6 +122,7 @@ def print_avg(rois: dict, diffusivities: list, m: int, n: int) -> None:
         )
         # store avg sample under roi key in dict
         avg_dict[zone_key] = avg_sample_obj
+
     # Create pdf with 4 boxplots
     with PdfPages(os.path.join(OUTPUT_DIR_PATH + "/roi_avg.pdf")) as pdf:
         f, axarr, subplots = init_plot_matrix(m, n, diffusivities)
@@ -133,6 +134,39 @@ def print_avg(rois: dict, diffusivities: list, m: int, n: int) -> None:
                 print("Neglected sample!")
         pdf.savefig()
         plt.close(f)
+
+    # Calculate basic stastitics to save in spreadsheet
+    df = pd.DataFrame()
+    for avg_sample_dict in avg_dict.items():
+        title = avg_sample_dict[0]
+        diff_dict = avg_sample_dict[1]
+        for diff, sample in dict(
+            zip(diff_dict.diffusivities, diff_dict.sample.T)
+        ).items():
+            min_val = np.min(sample)
+            q1 = np.percentile(sample, 25)
+            median = np.median(sample)
+            mean = np.mean(sample)
+            q3 = np.percentile(sample, 75)
+            max_val = np.max(sample)
+            # Calculate outliers (if any)
+            iqr = q3 - q1
+            lower_bound = q1 - 1.5 * iqr
+            upper_bound = q3 + 1.5 * iqr
+            outliers = sample[(sample < lower_bound) | (sample > upper_bound)]
+            boxplot_stats = {
+                "ROI": title,
+                "Diffusivity": diff,
+                "Min": min_val,
+                "Q1": q1,
+                "Median": median,
+                "Mean": mean,
+                "Q3": q3,
+                "Max": max_val,
+            }
+            df_temp = pd.DataFrame([boxplot_stats])
+            df = pd.concat([df, df_temp], ignore_index=True)
+    df.to_csv(os.path.join(OUTPUT_DIR_PATH + "/avg_boxplot_values.csv"), index=False)
 
 
 def gs_log_classifier(rois: dict, save_filename: str, save_filename_db: str) -> None:
