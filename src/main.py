@@ -19,12 +19,21 @@ CURRENT_DIR = os.path.dirname(__file__)
 DATA_DIR_PATH = os.path.join(CURRENT_DIR, "..", "data")
 OUTPUT_DIR_PATH = os.path.join(CURRENT_DIR, "..", "output")
 FILL_STR = "NaN"
+AVG_BOXPLOT_CSV = "/avgs/roi_avgs.csv"
+AVG_BOXPLOT_PDF = "/avgs/roi_avgs.pdf"
 KEY_TO_PDF_NAME = {
-    "normal_pz_s2": "/npz.pdf",
-    "normal_tz_s3": "/ntz.pdf",
-    "tumor_pz_s1": "/tpz.pdf",
-    "tumor_tz_s1": "/ttz.pdf",
-    "Neglected!": "/neglected.pdf",
+    "normal_pz_s2": "/rois/npz.pdf",
+    "normal_tz_s3": "/rois/ntz.pdf",
+    "tumor_pz_s1": "/rois/tpz.pdf",
+    "tumor_tz_s1": "/rois/ttz.pdf",
+    "Neglected!": "/rois/neglected.pdf",
+}
+KEY_TO_CSV_NAME = {
+    "normal_pz_s2": "/rois/npz.csv",
+    "normal_tz_s3": "/rois/ntz.csv",
+    "tumor_pz_s1": "/rois/tpz.csv",
+    "tumor_tz_s1": "/rois/ttz.csv",
+    "Neglected!": "/rois/neglected.csv",
 }
 
 
@@ -94,6 +103,45 @@ def print_all(rois: dict, m: int, n: int) -> None:
             pdf.savefig()
             plt.close(f)
 
+        # Calculate basic stastitics to save in spreadsheet
+        df = pd.DataFrame()
+        for sample_dict in zone_list:
+            diff_dict = sample_dict["object"]
+            for diff, sample in dict(
+                zip(diff_dict.diffusivities, np.transpose(diff_dict.sample))
+            ).items():
+                min_val = np.min(sample)
+                q1 = np.percentile(sample, 25)
+                median = np.median(sample)
+                mean = np.mean(sample)
+                q3 = np.percentile(sample, 75)
+                max_val = np.max(sample)
+                # Calculate outliers (if any)
+                iqr = q3 - q1
+                lower_bound = q1 - 1.5 * iqr
+                upper_bound = q3 + 1.5 * iqr
+                outliers = sample[(sample < lower_bound) | (sample > upper_bound)]
+                boxplot_stats = {
+                    "Patient": sample_dict["patient_key"],
+                    "ROI": sample_dict["a_region"],
+                    "SNR": sample_dict["snr"],
+                    "Gleason Score": sample_dict["gs"],
+                    "Target": sample_dict["target"],
+                    "Patient Age": sample_dict["patient_age"],
+                    "Diffusivity": diff,
+                    "Min": min_val,
+                    "Q1": q1,
+                    "Median": median,
+                    "Mean": mean,
+                    "Q3": q3,
+                    "Max": max_val,
+                }
+                df_temp = pd.DataFrame([boxplot_stats])
+                df = pd.concat([df, df_temp], ignore_index=True)
+        df.to_csv(
+            os.path.join(OUTPUT_DIR_PATH + KEY_TO_CSV_NAME[zone_key]), index=False
+        )
+
 
 def print_avg(rois: dict, diffusivities: list, m: int, n: int) -> None:
     """
@@ -124,7 +172,7 @@ def print_avg(rois: dict, diffusivities: list, m: int, n: int) -> None:
         avg_dict[zone_key] = avg_sample_obj
 
     # Create pdf with 4 boxplots
-    with PdfPages(os.path.join(OUTPUT_DIR_PATH + "/roi_avg.pdf")) as pdf:
+    with PdfPages(os.path.join(OUTPUT_DIR_PATH + AVG_BOXPLOT_PDF)) as pdf:
         f, axarr, subplots = init_plot_matrix(m, n, diffusivities)
         for i, avg_sample_dict in enumerate(avg_dict.items()):
             if avg_sample_dict[0] != "Neglected!":
@@ -141,7 +189,7 @@ def print_avg(rois: dict, diffusivities: list, m: int, n: int) -> None:
         title = avg_sample_dict[0]
         diff_dict = avg_sample_dict[1]
         for diff, sample in dict(
-            zip(diff_dict.diffusivities, diff_dict.sample.T)
+            zip(diff_dict.diffusivities, np.transpose(diff_dict.sample))
         ).items():
             min_val = np.min(sample)
             q1 = np.percentile(sample, 25)
@@ -166,7 +214,7 @@ def print_avg(rois: dict, diffusivities: list, m: int, n: int) -> None:
             }
             df_temp = pd.DataFrame([boxplot_stats])
             df = pd.concat([df, df_temp], ignore_index=True)
-    df.to_csv(os.path.join(OUTPUT_DIR_PATH + "/avg_boxplot_values.csv"), index=False)
+    df.to_csv(os.path.join(OUTPUT_DIR_PATH + AVG_BOXPLOT_CSV), index=False)
 
 
 def gs_log_classifier(rois: dict, save_filename: str, save_filename_db: str) -> None:
@@ -700,7 +748,7 @@ def main():
     )
 
     # check if already cached
-    if not os.path.isfile(os.path.join(OUTPUT_DIR_PATH + "/processed_data.pkl")):
+    if not os.path.isfile(os.path.join(DATA_DIR_PATH + "/processed_data.pkl")):
         # Loop through all patients
         for patient_key in tqdm(data, desc="Patients", position=0):
             # Loop through all ROIs for the current patient
@@ -795,10 +843,10 @@ def main():
             #     break
 
         # save ROI for efficiency
-        with open(os.path.join(OUTPUT_DIR_PATH + "/processed_data.pkl"), "wb") as f:
+        with open(os.path.join(DATA_DIR_PATH + "/processed_data.pkl"), "wb") as f:
             pickle.dump(roi_print, f)
     else:
-        with open(os.path.join(OUTPUT_DIR_PATH + "/processed_data.pkl"), "rb") as f:
+        with open(os.path.join(DATA_DIR_PATH + "/processed_data.pkl"), "rb") as f:
             roi_print = pickle.load(f)
 
     # Plot PDFs with all boxplots per roi
@@ -818,18 +866,18 @@ def main():
 
     gs_corr_matrix(
         rois=roi_print,
-        save_filename=os.path.join(OUTPUT_DIR_PATH + "/correlation_matrix.pdf"),
+        save_filename=os.path.join(OUTPUT_DIR_PATH + "/other/correlation_matrix.pdf"),
     )
 
     gs_log_classifier(
         rois=roi_print,
-        save_filename=os.path.join(OUTPUT_DIR_PATH + "/log_classifier_all.pdf"),
-        save_filename_db=os.path.join(OUTPUT_DIR_PATH + "/log_classifier_db.pdf"),
+        save_filename=os.path.join(OUTPUT_DIR_PATH + "/other/log_classifier_all.pdf"),
+        save_filename_db=os.path.join(OUTPUT_DIR_PATH + "/other/log_classifier_db.pdf"),
     )
 
     pr_visualization(
         rois=roi_print,
-        save_filename=os.path.join(OUTPUT_DIR_PATH + "/pr_visualization_025.pdf"),
+        save_filename=os.path.join(OUTPUT_DIR_PATH + "/other/pr_visualization_025.pdf"),
     )
 
 
