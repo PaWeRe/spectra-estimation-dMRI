@@ -677,11 +677,57 @@ def gs_corr_matrix(rois: dict, save_filename: str) -> None:
 
     plt.figure(figsize=(14, 8))
     sns.set_theme(style="white")
-    corr = df_features.corr()
+    corr = df_features.corr("spearman")
     heatmap = sns.heatmap(corr, annot=True, cmap="Blues", fmt=".3g")
 
     # Save the plots to a PDF file
     plt.savefig(save_filename)
+    plt.show()
+
+
+def gs_stratified_boxplot(rois: dict, save_filename: str) -> None:
+    # TODO: modify and harmonize boxplots from print_all and print_avg fcts
+    gs_stratification_025 = {
+        "GS 6": [],
+        "GS 7 (3+4)": [],
+        "GS 7 (4+3)": [],
+        "GS 8-10": [],
+    }
+    for zone_key, zone_list in rois.items():
+        if "tumor" in zone_key:
+            for element in zone_list:
+                # feature .25
+                sample_025 = np.transpose(element["object"].sample)[0]
+                # TODO: check why new53 has pd.Series stored for gs and target (try can be removed after fix)
+                try:
+                    target = element["target"]
+                    if target == "1.0":
+                        gs_stratification_025["GS 6"].append(sample_025)
+                    elif target == "2.0":
+                        gs_stratification_025["GS 7 (3+4)"].append(sample_025)
+                    elif target == "3.0":
+                        gs_stratification_025["GS 7 (4+3)"].append(sample_025)
+                    elif target == "4.0":
+                        gs_stratification_025["GS 8-10"].append(sample_025)
+                    else:
+                        continue
+                except ValueError:
+                    p_key = element["patient_key"]
+                    print(f"Smt wrong with print_roi, patient: {p_key}")
+    # vertically stack samples, then take mean
+    for gs, sample_list in gs_stratification_025.items():
+        avg_sample = np.mean(np.vstack(sample_list), axis=0)
+        gs_stratification_025[gs] = avg_sample
+    # create boxplot and save as pdf
+    plt.figure(figsize=(6, 6))
+    gs_cats = [sample for sample in gs_stratification_025.values()]
+    labels = list(gs_stratification_025.keys())
+    plt.boxplot(gs_cats, labels=labels)
+    plt.ylabel("Relative Fraction at 0.25 Diffusivity")
+    plt.title("Boxplot of Relative Fraction at 0.25 Diffusivity by GS Stratification")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(save_filename, format="pdf")
     plt.show()
 
 
@@ -878,6 +924,13 @@ def main():
     pr_visualization(
         rois=roi_print,
         save_filename=os.path.join(OUTPUT_DIR_PATH + "/other/pr_visualization_025.pdf"),
+    )
+
+    gs_stratified_boxplot(
+        rois=roi_print,
+        save_filename=os.path.join(
+            OUTPUT_DIR_PATH + "/other/gs_stratified_boxplot.pdf"
+        ),
     )
 
 
