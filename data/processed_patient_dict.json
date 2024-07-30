@@ -185,7 +185,7 @@
         2250.0, 2500.0, 2750.0, 3000.0, 3250.0, 3500.0
       ],
       "v_count": 122,
-      "anatomical_region": "Neglected!"
+      "anatomical_region": "tumor_tz_s1"
     },
     "roi2": {
       "signal_values": [
@@ -200,7 +200,7 @@
         2250.0, 2500.0, 2750.0, 3000.0, 3250.0, 3500.0
       ],
       "v_count": 180,
-      "anatomical_region": "Neglected!"
+      "anatomical_region": "normal_pz_s2"
     },
     "roi3": {
       "signal_values": [
@@ -215,7 +215,7 @@
         2250.0, 2500.0, 2750.0, 3000.0, 3250.0, 3500.0
       ],
       "v_count": 151,
-      "anatomical_region": "Neglected!"
+      "anatomical_region": "normal_tz_s3"
     }
   },
   "new06": {
