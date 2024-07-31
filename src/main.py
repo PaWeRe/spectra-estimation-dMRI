@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import pickle
+from typing import List, Tuple, Union
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -35,6 +36,26 @@ KEY_TO_CSV_NAME = {
     "tumor_tz_s1": "/rois/ttz.csv",
     "Neglected!": "/rois/neglected.csv",
 }
+
+
+def filter_processed_data(rois: dict, analysis_dataset: dict) -> dict:
+    """
+    filter processed data to only include ROIs that are present in the analysis dataset
+    """
+    filtered_rois = {}
+    object_list = []
+    for roi_name, roi_data in rois.items():
+        for object in roi_data:
+            # check if patient is in analysis dataset and also if anatomical region the same
+            # (in normal case multiple rois that are not used because no matching pair!)
+            if object["patient_key"].lower() in analysis_dataset and any(
+                roi["anatomical_region"] == object["a_region"].lower()
+                for roi in analysis_dataset[object["patient_key"]].values()
+            ):
+                object_list.append(object)
+        filtered_rois[roi_name] = object_list
+        object_list = []
+    return filtered_rois
 
 
 def init_plot_matrix(m, n, diffusivities):
@@ -217,551 +238,289 @@ def print_avg(rois: dict, diffusivities: list, m: int, n: int) -> None:
     df.to_csv(os.path.join(OUTPUT_DIR_PATH + AVG_BOXPLOT_CSV), index=False)
 
 
-def gs_log_classifier(rois: dict, save_filename: str, save_filename_db: str) -> None:
+def gs_stratified_boxplot(rois: dict, save_filename: str, features: list) -> None:
     """
-    Desc
-        3) How well am I able to distinguish between (0,1) with x1 (nROI), and x2 (tROI), using a logisticregression classifier?
+    Create boxplots for multiple features stratified by Gleason Score.
 
     Args:
-        - TBD
-        -
-    Return:
-        None
+    - rois: dict of ROIs
+    - save_filename: str, path to save the PDF
+    - features: list of tuples, each containing (feature_name, diffusivity_index)
+                e.g. [('.25', 0), ('.50', 1), ('3.0', 8)]
     """
-    ggg = []
-    # preprocessing
-    for zone_key, zone_list in rois.items():
-        for element in zone_list:
-            try:
-                if (
-                    element["target"] == "0.0"
-                    or element["target"] == "1.0"
-                    or element["target"] == "2.0"
-                    or element["target"] == "3.0"
-                    or element["target"] == "4.0"
-                ):
-                    if "tumor" in element["a_region"]:
-                        ggg.append(element)
-                    else:
-                        a_r = element["a_region"]
-                        print(f"Not tumor ROI! {a_r}")
-                else:
-                    print("No ggg!")
-            except ValueError:
-                p_key = element["patient_key"]
-                print(f"Smt wrong with print_roi, patient: {p_key}")
-
-    # list comprehensions for getting features for correlation matrix and classifier
-    # .25
-    xm_025 = np.array(
-        [np.mean([d025["object"].sample[i][0] for i in range(90000)]) for d025 in ggg]
-    )
-    # .5
-    xm_05 = np.array(
-        [np.mean([d025["object"].sample[i][1] for i in range(90000)]) for d025 in ggg]
-    )
-    # .75
-    xm_075 = np.array(
-        [np.mean([d025["object"].sample[i][2] for i in range(90000)]) for d025 in ggg]
-    )
-    # 3.0
-    xm_3 = np.array(
-        [np.mean([d025["object"].sample[i][8] for i in range(90000)]) for d025 in ggg]
-    )
-    # 2.5
-    xm_25 = np.array(
-        [np.mean([d025["object"].sample[i][7] for i in range(90000)]) for d025 in ggg]
-    )
-    # 0.25/3.0
-    xm_0253 = xm_025 / xm_3
-    # 0.25/(3.0+2.5)
-    xm_025325 = xm_025 / (xm_3 + xm_25)
-    # (0.25+0.5+0.75)/(2.5+3.0)
-    xm_025575325 = (xm_025 + xm_05 + xm_075) / (xm_25 + xm_3)
-    # y
-    y = np.array([ycs for ycs in [tcs_element["target"] for tcs_element in ggg]])
-    y = y.astype(float).astype(int)
-    y_binary = np.where(y <= 1, 0, 1)
-
-    # 3)
-    # # use .25 diff fraction as feature to predict
-    # #X = xm_025.reshape(-1,1)
-    # X = xm_025575325.reshape(-1,1)
-
-    # # Split the data into training and testing sets
-    # X_train, X_test, y_train, y_test = train_test_split(X, y_binary, test_size=0.3, random_state=42)
-
-    # # fit a logistic regression model
-    # model = LogisticRegression()
-    # model.fit(X_train, y_train)
-
-    # # Predict probabilities of the positive class for the test set
-    # y_pred_proba = model.predict_proba(X_test)[:, 1]
-
-    # # Calculate the AUC-ROC score
-    # auc = roc_auc_score(y_test, y_pred_proba)
-    # print("AUC-ROC Score:", auc)
-
-    # # Compute the false positive rate, true positive rate, and thresholds for the ROC curve
-    # fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
-
-    # # Plot the ROC curve
-    # plt.plot(fpr, tpr, label='ROC Curve (AUC = %0.3f)' % auc)
-    # plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label='Random')
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # plt.title(f'ROC Curve | xm_025575325 | test size 0.3 (11)')
-    # plt.legend()
-    # if save_filename is not None:
-    #     plt.savefig(save_filename)
-    # plt.show()
-
-    # Set random seed for reproducibility
-    np.random.seed(42)
-
-    # Define your features and target variable
-    X = xm_025575325.reshape(-1, 1)
-    y = y_binary
-
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.4, random_state=42
-    )
-
-    # Fit a logistic regression model
-    model = LogisticRegression()
-    model.fit(X_train, y_train)
-
-    # Predict probabilities of the positive class for the test set
-    y_pred_proba = model.predict_proba(X_test)[:, 1]
-
-    # Calculate the AUC-ROC score
-    auc = roc_auc_score(y_test, y_pred_proba)
-    print("AUC-ROC Score:", auc)
-
-    # Compute the false positive rate, true positive rate, and thresholds for the ROC curve
-    fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
-
-    # Plot the ROC curve
-    plt.plot(fpr, tpr, label="ROC Curve (AUC = %0.3f)" % auc)
-    plt.plot([0, 1], [0, 1], linestyle="--", color="gray", label="Random")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title(f"ROC Curve | xm_025575325 | test size 0.4 (14)")
-    plt.legend()
-    if save_filename is not None:
-        plt.savefig(save_filename)
-    plt.show()
-
-    # Plot the decision boundary
-    plt.scatter(X_test, y_test, color="black", label="Actual")
-    plt.scatter(
-        X_test, model.predict(X_test), color="red", marker="x", label="Predicted"
-    )
-    plt.xlabel("Feature")
-    plt.ylabel("Target")
-    plt.title("Logistic Regression Decision Boundary")
-    if save_filename_db is not None:
-        plt.savefig(save_filename_db)
-    plt.legend()
-    plt.show()
-
-
-def pr_visualization(rois: dict, save_filename: str) -> None:
-    """
-    Desc
-        2) Visualize fitted line for x1 (nROI) and all 0 cases {0,1}, and fitted line for x2 (tROI) and all 1 cases {2,3,4} (visualize anatomical regions!)
-
-    Args:
-        - TBD
-        -
-    Return:
-        None
-    """
-    ggg = []
-    # preprocessing
-    for zone_key, zone_list in rois.items():
-        for element in zone_list:
-            try:
-                if (
-                    element["target"] == "0.0"
-                    or element["target"] == "1.0"
-                    or element["target"] == "2.0"
-                    or element["target"] == "3.0"
-                    or element["target"] == "4.0"
-                ):
-                    if "tumor" in element["a_region"]:
-                        ggg.append(element)
-                    else:
-                        a_r = element["a_region"]
-                        print(f"Not tumor ROI! {a_r}")
-                else:
-                    print("No ggg!")
-            except ValueError:
-                p_key = element["patient_key"]
-                print(f"Smt wrong with print_roi, patient: {p_key}")
-
-    # list comprehensions for getting features for correlation matrix and classifier
-    # .25
-    xm_025 = np.array(
-        [np.mean([d025["object"].sample[i][0] for i in range(90000)]) for d025 in ggg]
-    )
-    # .5
-    xm_05 = np.array(
-        [np.mean([d025["object"].sample[i][1] for i in range(90000)]) for d025 in ggg]
-    )
-    # .75
-    xm_075 = np.array(
-        [np.mean([d025["object"].sample[i][2] for i in range(90000)]) for d025 in ggg]
-    )
-    # 3.0
-    xm_3 = np.array(
-        [np.mean([d025["object"].sample[i][8] for i in range(90000)]) for d025 in ggg]
-    )
-    # 2.5
-    xm_25 = np.array(
-        [np.mean([d025["object"].sample[i][7] for i in range(90000)]) for d025 in ggg]
-    )
-    # 0.25/3.0
-    xm_0253 = xm_025 / xm_3
-    # 0.25/(3.0+2.5)
-    xm_025325 = xm_025 / (xm_3 + xm_25)
-    # (0.25+0.5+0.75)/(2.5+3.0)
-    xm_025575325 = (xm_025 + xm_05 + xm_075) / (xm_25 + xm_3)
-    # y
-    y = np.array([ycs for ycs in [tcs_element["target"] for tcs_element in ggg]])
-    y = y.astype(float).astype(int)
-    y_binary = np.where(y <= 1, 0, 1)
-
-    # 2)
-    slope, intercept, r, p, stderr = stats.linregress(y, xm_025575325)
-    line = f"Regression line: xm_025575325={intercept:.2f}+{slope:.2f}x, r={r:.2f}"
-    fig, ax = plt.subplots()
-    ax.plot(
-        y,
-        xm_025575325,
-        linewidth=0,
-        marker="s",
-        label="Mean diffusivity rel fraction ratio",
-    )
-    ax.plot(y, intercept + slope * y, label=line)
-    ax.set_ylabel("(0.25+0.5+0.75)/(2.5+3.0)")
-    ax.set_xlabel("Gleason Grade Groups")
-    ax.set_title("Pearsons r for GGGs and mean diffusivity relative fraction ratio")
-    ax.legend(facecolor="white")
-    plt.savefig(save_filename)
-
-
-def gs_corr_matrix(rois: dict, save_filename: str) -> None:
-    """
-    Desc
-        1) How do x1 (nROI), x2 (tROI) correlate with (0,1) based on correlation matrix and pearson's r?
-
-    Args:
-        - rois: dict of ROIS (anatomical regions, ntz, ttz, npz, tpz)
-        - diff_compartment: Specifying which diffusivity fraction we want to use for calculating the correlation
-    Return:
-        None
-    """
-    # tcs = []
-    # tncs = []
-    # ncs = []
-    # nncs = []
-    # # preprocessing
-    # # getting all tROI for the ncs and cs cases (for retrieving correct ncs case afterwards)
-    # for zone_key,zone_list in rois.items():
-    #     for element in zone_list:
-    #         try:
-    #             if (element['target'] == "2.0" or element['target'] == "3.0" or element['target'] == "4.0"):
-    #                     if 'tumor' in element['a_region']:
-    #                         tcs.append(element)
-    #                     else:
-    #                         print('Tumor case!')
-    #             elif (element['target'] == "0.0" or element['target'] == "1.0"):
-    #                     if 'tumor' in element['a_region']:
-    #                         tncs.append(element)
-    #                     else:
-    #                         print('Normal case!')
-    #         except(ValueError):
-    #             p_key = element['patient_key']
-    #             print(f'Smt wrong with print_roi, patient: {p_key}')
-    # # getting the matching nROIs for ncs and cs (there can be up to two nROIs!)
-    # for zone_key,zone_list in rois.items():
-    #     for element in zone_list:
-    #         try:
-    #             if (element['target'] == "0.0" or element['target'] == "1.0"):
-    #                 for ncs_element in tncs:
-    #                     if ("normal" in element["a_region"] and "pz" in ncs_element["a_region"] and "pz" in element["a_region"]) and (ncs_element["patient_key"] == element["patient_key"]):
-    #                         nncs.append(element)
-    #                     elif ("normal" in element["a_region"] and "tz" in ncs_element["a_region"] and "tz" in element["a_region"]) and (ncs_element["patient_key"] == element["patient_key"]):
-    #                         nncs.append(element)
-    #                     else:
-    #                         print("Wrong normal case to tumor case!")
-    #             elif (element['target'] == "2.0" or element['target'] == "3.0" or element['target'] == "4.0"):
-    #                 for cs_element in tcs:
-    #                     if ("normal" in element["a_region"] and "pz" in cs_element["a_region"] and "pz" in element["a_region"]) and (cs_element["patient_key"] == element["patient_key"]):
-    #                         ncs.append(element)
-    #                     elif ("normal" in element["a_region"] and "tz" in cs_element["a_region"] and "tz" in element["a_region"]) and (cs_element["patient_key"] == element["patient_key"]):
-    #                         ncs.append(element)
-    #                     else:
-    #                         print("Wrong normal case to tumor case!")
-    #         except(ValueError):
-    #                     p_key = element['patient_key']
-    #                     print(f'Smt wrong with print_roi, patient: {p_key}')
-    # # make sure that tncs&nncs and tcs&ncs are of equal length, if not delete all items that occur only in one list
-    # if len(ncs) != len(tcs):
-    #     ncs = [ncs_element for ncs_element in ncs if ncs_element['patient_key'] in [tcs_element['patient_key'] for tcs_element in tcs]]
-    #     tcs = [tcs_element for tcs_element in tcs if tcs_element['patient_key'] in [ncs_element['patient_key'] for ncs_element in ncs]]
-    # if len(nncs) != len(tncs):
-    #     nncs = [nncs_element for nncs_element in nncs if nncs_element['patient_key'] in [tncs_element['patient_key'] for tncs_element in tncs]]
-    #     tcs = [tncs_element for tncs_element in tncs if tncs_element['patient_key'] in [nncs_element['patient_key'] for nncs_element in nncs]]
-
-    # # list comprehensions for getting features for correlation matrix and classifier
-    # # .25
-    # xm_025tcs = np.array([np.mean([d025['object'].sample[i][0] for i in range(90000)]) for d025 in tcs])
-    # xm_025ncs = np.array([np.mean([d025['object'].sample[i][0] for i in range(90000)]) for d025 in ncs])
-    # xm_025tncs = np.array([np.mean([d025['object'].sample[i][0] for i in range(90000)]) for d025 in tncs])
-    # xm_025nncs = np.array([np.mean([d025['object'].sample[i][0] for i in range(90000)]) for d025 in nncs])
-    # # 3.0
-    # xm_3tcs = np.array([np.mean([d025['object'].sample[i][8] for i in range(90000)]) for d025 in tcs])
-    # xm_3ncs = np.array([np.mean([d025['object'].sample[i][8] for i in range(90000)]) for d025 in ncs])
-    # xm_3tncs = np.array([np.mean([d025['object'].sample[i][8] for i in range(90000)]) for d025 in tncs])
-    # xm_3nncs = np.array([np.mean([d025['object'].sample[i][8] for i in range(90000)]) for d025 in tncs])
-    # # 2.5
-    # xm_25tcs = np.array([np.mean([d025['object'].sample[i][7] for i in range(90000)]) for d025 in tcs])
-    # xm_25ncs = np.array([np.mean([d025['object'].sample[i][7] for i in range(90000)]) for d025 in ncs])
-    # xm_25tncs = np.array([np.mean([d025['object'].sample[i][7] for i in range(90000)]) for d025 in tncs])
-    # xm_25nncs = np.array([np.mean([d025['object'].sample[i][7] for i in range(90000)]) for d025 in nncs])
-    # # 0.25/3.0
-    # xm_0253ncs = xm_025ncs / xm_3ncs
-    # xm_0253tcs = xm_025tcs / xm_3tcs
-    # xm_0253nncs = xm_025nncs / xm_3nncs
-    # xm_0253tncs = xm_025tncs / xm_3tncs
-    # # 0.25/(3.0+2.5)
-    # xm_025325ncs = xm_025ncs / (xm_3ncs + xm_25ncs)
-    # xm_025325tcs = xm_025tcs / (xm_3tcs + xm_25tcs)
-    # xm_025325nncs = xm_025nncs / (xm_3nncs + xm_25nncs)
-    # xm_025325tncs = xm_025tncs / (xm_3tncs + xm_25tncs)
-    # # y_cs and y_ncs (both tcs+tncs and ncs+nncs can be used)
-    # y_cs = np.array([ycs for ycs in [tcs_element['target'] for tcs_element in tcs]])
-    # y_ncs = np.array([yncs for yncs in [tncs_element['target'] for tncs_element in tncs]])
-    # # binarize y_cs and y_ncs, so that we have one y with values 0-nonsignificant, 1-significant
-    # y_cs = y_cs.astype(float).astype(int)
-    # y_ncs = y_ncs.astype(float).astype(int)
-    # y = np.concatenate((y_cs, y_ncs))
-    # y_binary = np.where(y <= 1, 0, 1)
-    # #1)
-    # cs_matrix = np.column_stack((
-    #     xm_025tcs,
-    #     xm_025ncs,
-    #     xm_0253tcs,
-    #     xm_0253ncs,
-    #     xm_025325tcs,
-    #     xm_025325ncs,
-    #     y_cs,
-    # ))
-    # ncs_matrix = np.column_stack((
-    #     xm_025tncs,
-    #     xm_025nncs,
-    #     xm_0253tncs,
-    #     xm_0253nncs,
-    #     xm_025325tncs,
-    #     xm_025325nncs,
-    #     y_ncs,
-    # ))
-    # # Plot correlation matrix of all features for cs_matrix (using Pearson's r)
-    # corr_matrix_cs = np.corrcoef(cs_matrix, rowvar=False).round(decimals=2)
-    # corr_matrix_ncs = np.corrcoef(ncs_matrix, rowvar=False).round(decimals=2)
-
-    # fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-
-    # # Plot for cs_matrix
-    # cs_im = axs[0].imshow(corr_matrix_cs, vmin=-1, vmax=1)
-    # axs[0].set_title('cs_matrix')
-    # axs[0].set_xticks(range(7))
-    # axs[0].set_xticklabels(('xm_025tcs', 'xm_025ncs', 'xm_0253tcs', 'xm_0253ncs', 'xm_025325tcs', 'xm_025325ncs', 'y_cs'), rotation=45)
-    # axs[0].set_yticks(range(7))
-    # axs[0].set_yticklabels(('xm_025tcs', 'xm_025ncs', 'xm_0253tcs', 'xm_0253ncs', 'xm_025325tcs', 'xm_025325ncs', 'y_cs'))
-    # for i in range(7):
-    #     for j in range(7):
-    #         axs[0].text(j, i, corr_matrix_cs[i, j], ha='center', va='center', color='r')
-
-    # # Plot for ncs_matrix
-    # ncs_im = axs[1].imshow(corr_matrix_ncs, vmin=-1, vmax=1)
-    # axs[1].set_title('ncs_matrix')
-    # axs[1].set_xticks(range(7))
-    # axs[1].set_xticklabels(('xm_025tncs', 'xm_025nncs', 'xm_0253tncs', 'xm_0253nncs', 'xm_025325tncs', 'xm_025325nncs', 'y_ncs'), rotation=45)
-    # axs[1].set_yticks(range(7))
-    # axs[1].set_yticklabels(('xm_025tncs', 'xm_025nncs', 'xm_0253tncs', 'xm_0253nncs', 'xm_025325tncs', 'xm_025325nncs', 'y_ncs'))
-    # for i in range(7):
-    #     for j in range(7):
-    #         axs[1].text(j, i, corr_matrix_ncs[i, j], ha='center', va='center', color='r')
-
-    # # Create a common colorbar
-    # cax = fig.add_axes([0.89, 0.15, 0.02, 0.7])  # [left, bottom, width, height]
-    # cbar = fig.colorbar(cs_im, cax=cax)
-    # cbar.set_label('Pearson correlation')
-
-    # # Adjust spacing between subplots
-    # plt.subplots_adjust(wspace=0.4, left=0.1, right=0.84)
-
-    # # Save the plots to a PDF file
-    # with PdfPages(save_filename) as pdf:
-    #     pdf.savefig(fig)
-
-    # plt.show()
-
-    ggg = []
-    # preprocessing
-    for zone_key, zone_list in rois.items():
-        for element in zone_list:
-            try:
-                if (
-                    element["target"] == "0.0"
-                    or element["target"] == "1.0"
-                    or element["target"] == "2.0"
-                    or element["target"] == "3.0"
-                    or element["target"] == "4.0"
-                ):
-                    if "tumor" in element["a_region"]:
-                        ggg.append(element)
-                    else:
-                        a_r = element["a_region"]
-                        print(f"Not tumor ROI! {a_r}")
-                else:
-                    print("No ggg!")
-            except ValueError:
-                p_key = element["patient_key"]
-                print(f"Smt wrong with print_roi, patient: {p_key}")
-
-    # list comprehensions for getting features for correlation matrix and classifier
-    # .25
-    xm_025 = np.array(
-        [np.mean([d025["object"].sample[i][0] for i in range(90000)]) for d025 in ggg]
-    )
-    # .5
-    xm_05 = np.array(
-        [np.mean([d025["object"].sample[i][1] for i in range(90000)]) for d025 in ggg]
-    )
-    # .75
-    xm_075 = np.array(
-        [np.mean([d025["object"].sample[i][2] for i in range(90000)]) for d025 in ggg]
-    )
-    # 3.0
-    xm_3 = np.array(
-        [np.mean([d025["object"].sample[i][8] for i in range(90000)]) for d025 in ggg]
-    )
-    # 2.5
-    xm_25 = np.array(
-        [np.mean([d025["object"].sample[i][7] for i in range(90000)]) for d025 in ggg]
-    )
-    # 0.25/3.0
-    xm_0253 = xm_025 / xm_3
-    # 0.25/(3.0+2.5)
-    xm_025325 = xm_025 / (xm_3 + xm_25)
-    # (0.25+0.5+0.75)/(2.5+3.0)
-    xm_025575325 = (xm_025 + xm_05 + xm_075) / (xm_25 + xm_3)
-    # y
-    y = np.array([ycs for ycs in [tcs_element["target"] for tcs_element in ggg]])
-    y = y.astype(float).astype(int)
-    y_binary = np.where(y <= 1, 0, 1)
-
-    # 1)
-    # Create the DataFrame
-    df_features = pd.DataFrame(
-        [xm_025, xm_0253, xm_025325, xm_025575325, y]
-    ).T  # Transpose the data to have arrays as columns
-
-    # Assign column names
-    df_features.columns = ["xm_025", "xm_0253", "xm_025325", "xm_025575325", "y"]
-
-    plt.figure(figsize=(14, 8))
-    sns.set_theme(style="white")
-    corr = df_features.corr("spearman")
-    heatmap = sns.heatmap(corr, annot=True, cmap="Blues", fmt=".3g")
-
-    # Save the plots to a PDF file
-    plt.savefig(save_filename)
-    plt.show()
-
-
-def gs_stratified_boxplot(rois: dict, save_filename: str) -> None:
-    # TODO: modify and harmonize boxplots from print_all and print_avg fcts
-    gs_stratification_025 = {
+    gs_stratification = {
         "GS 6": [],
         "GS 7 (3+4)": [],
         "GS 7 (4+3)": [],
         "GS 8-10": [],
     }
+
+    # Collect data for all features
     for zone_key, zone_list in rois.items():
         if "tumor" in zone_key:
             for element in zone_list:
-                # feature .25
-                sample_025 = np.transpose(element["object"].sample)[0]
-                # TODO: check why new53 has pd.Series stored for gs and target (try can be removed after fix)
                 try:
                     target = element["target"]
+                    samples = [
+                        np.transpose(element["object"].sample)[idx]
+                        for _, idx in features
+                    ]
+
                     if target == "1.0":
-                        gs_stratification_025["GS 6"].append(sample_025)
+                        gs_stratification["GS 6"].append(samples)
                     elif target == "2.0":
-                        gs_stratification_025["GS 7 (3+4)"].append(sample_025)
+                        gs_stratification["GS 7 (3+4)"].append(samples)
                     elif target == "3.0":
-                        gs_stratification_025["GS 7 (4+3)"].append(sample_025)
+                        gs_stratification["GS 7 (4+3)"].append(samples)
                     elif target == "4.0":
-                        gs_stratification_025["GS 8-10"].append(sample_025)
-                    else:
-                        continue
+                        gs_stratification["GS 8-10"].append(samples)
+                    elif target == "5.0":
+                        gs_stratification["GS 8-10"].append(samples)
                 except ValueError:
                     p_key = element["patient_key"]
+                    print(f"Something wrong with print_roi, patient: {p_key}")
+
+    # Calculate averages and counts
+    for gs, sample_list in gs_stratification.items():
+        if sample_list:
+            avg_samples = np.mean(np.array(sample_list), axis=0)
+            gs_stratification[gs] = [avg_samples, len(sample_list)]
+        else:
+            gs_stratification[gs] = [np.zeros(len(features)), 0]
+
+    # Create PDF with multiple plots
+    with PdfPages(save_filename) as pdf:
+        n_features = len(features)
+        n_cols = min(2, n_features)
+        n_rows = (n_features + 1) // 2
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(10 * n_cols, 6 * n_rows))
+        if n_features == 1:
+            axes = np.array([axes])
+
+        for idx, (feature_name, _) in enumerate(features):
+            ax = axes.flat[idx] if n_features > 1 else axes
+
+            gs_cats = [sample[0][idx] for sample in gs_stratification.values()]
+            labels = [f"{a}, n={b[1]}" for a, b in gs_stratification.items()]
+
+            ax.boxplot(gs_cats, labels=labels)
+            ax.set_ylabel(f"Relative Fraction at {feature_name} Diffusivity")
+            ax.set_title(
+                f"Boxplot of Relative Fraction at {feature_name} Diffusivity by GS Stratification"
+            )
+            ax.tick_params(axis="x", rotation=45)
+
+        plt.tight_layout()
+        pdf.savefig(fig)
+        plt.close(fig)
+
+
+def calculate_auc_table(
+    rois: dict,
+    features: List[Union[Tuple[str, int], Tuple[str, List[Tuple[int, float]]]]],
+) -> pd.DataFrame:
+    """
+    Calculate AUC of ROC curves and p-values for discriminating normal and tumor tissue for each prostatic zone and feature.
+    """
+    results = []
+    zone_data = {"PZ": {"normal": [], "tumor": []}, "TZ": {"normal": [], "tumor": []}}
+
+    for roi_list in rois.values():
+        for roi in roi_list:
+            zone = "PZ" if "pz" in roi["a_region"].lower() else "TZ"
+            tissue_type = "normal" if "normal" in roi["a_region"].lower() else "tumor"
+
+            samples = roi["object"].sample
+            feature_values = []
+            for _, feat in features:
+                if isinstance(feat, int):
+                    feature_values.append(np.mean([sample[feat] for sample in samples]))
+                else:
+                    feature_values.append(
+                        np.mean(
+                            [
+                                sum(coef * sample[idx] for idx, coef in feat)
+                                for sample in samples
+                            ]
+                        )
+                    )
+
+            zone_data[zone][tissue_type].append(feature_values)
+
+    # Convert lists to numpy arrays
+    for zone in zone_data:
+        for tissue_type in zone_data[zone]:
+            zone_data[zone][tissue_type] = np.array(zone_data[zone][tissue_type])
+
+    # Count the number of cases in each group
+    case_counts = {
+        f"{zone}_{tissue_type}_count": len(data)
+        for zone in zone_data
+        for tissue_type, data in zone_data[zone].items()
+    }
+
+    # Add case counts to results
+    results.append({"Feature": "Case Counts", **case_counts})
+
+    for i, (feature_name, _) in enumerate(features):
+        feature_results = {"Feature": feature_name}
+
+        for zone in ["PZ", "TZ"]:
+            normal_data = zone_data[zone]["normal"]
+            tumor_data = zone_data[zone]["tumor"]
+
+            if len(normal_data) > 0 and len(tumor_data) > 0:
+                # Calculate p-value
+                t_stat, p_value = stats.ttest_ind(normal_data[:, i], tumor_data[:, i])
+
+                # Calculate AUC
+                y_true = np.concatenate(
+                    [np.zeros(len(normal_data)), np.ones(len(tumor_data))]
+                )
+                y_scores = np.concatenate([normal_data[:, i], tumor_data[:, i]])
+                auc = roc_auc_score(y_true, y_scores)
+
+                # Calculate optimal cutoff using Youden's index
+                fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+                optimal_idx = np.argmax(tpr - fpr)
+                optimal_cutoff = thresholds[optimal_idx]
+
+                feature_results[f"{zone}_AUC"] = auc
+                feature_results[f"{zone}_p_value"] = p_value
+                feature_results[f"{zone}_cutoff"] = optimal_cutoff
+            else:
+                feature_results[f"{zone}_AUC"] = np.nan
+                feature_results[f"{zone}_p_value"] = np.nan
+                feature_results[f"{zone}_cutoff"] = np.nan
+
+        results.append(feature_results)
+
+    return pd.DataFrame(results)
+
+
+def calculate_gleason_prediction(
+    rois: dict,
+    features: List[Union[Tuple[str, int], Tuple[str, List[Tuple[int, float]]]]],
+) -> pd.DataFrame:
+    """
+    Calculate probability of parameters to predict Gleason Grade Groups for (PZ) tumors.
+    Calculates AUC and p-value for pairwise comparisons between groups and an additional
+    comparison of (GS 6 and GS 3+4) vs (GS 4+3 and GS 8-10).
+    """
+    results = []
+    gs_data = {"GS 6": [], "GS 7 (3+4)": [], "GS 7 (4+3)": [], "GS 8-10": []}
+
+    for roi_list in rois.values():
+        for roi in roi_list:
+            if "tumor" in roi["a_region"]:
+                samples = roi["object"].sample
+                feature_values = []
+                for _, feat in features:
+                    if isinstance(feat, int):
+                        feature_values.append(
+                            np.mean([sample[feat] for sample in samples])
+                        )
+                    else:
+                        feature_values.append(
+                            np.mean(
+                                [
+                                    sum(coef * sample[idx] for idx, coef in feat)
+                                    for sample in samples
+                                ]
+                            )
+                        )
+
+                try:
+                    if roi["target"] == "1.0":  # GS 6
+                        gs_data["GS 6"].append(feature_values)
+                    elif roi["target"] == "2.0":  # GS 7 (3+4)
+                        gs_data["GS 7 (3+4)"].append(feature_values)
+                    elif roi["target"] == "3.0":  # GS 7 (4+3)
+                        gs_data["GS 7 (4+3)"].append(feature_values)
+                    elif roi["target"] == "4.0":  # GS 8
+                        gs_data["GS 8-10"].append(feature_values)
+                    elif roi["target"] == "5.0":  # GS 9-10
+                        gs_data["GS 8-10"].append(feature_values)
+                except ValueError:
+                    p_key = roi["patient_key"]
                     print(f"Smt wrong with print_roi, patient: {p_key}")
-    # vertically stack samples, then take mean
-    for gs, sample_list in gs_stratification_025.items():
-        avg_sample = np.mean(np.vstack(sample_list), axis=0)
-        gs_stratification_025[gs] = avg_sample
-    # create boxplot and save as pdf
-    plt.figure(figsize=(6, 6))
-    gs_cats = [sample for sample in gs_stratification_025.values()]
-    labels = list(gs_stratification_025.keys())
-    plt.boxplot(gs_cats, labels=labels)
-    plt.ylabel("Relative Fraction at 0.25 Diffusivity")
-    plt.title("Boxplot of Relative Fraction at 0.25 Diffusivity by GS Stratification")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(save_filename, format="pdf")
-    plt.show()
+
+    for group in gs_data:
+        gs_data[group] = np.array(gs_data[group])
+
+    # Count the number of cases in each group
+    case_counts = {group: len(data) for group, data in gs_data.items()}
+
+    # Add case counts to results
+    results.append(
+        {
+            "Feature": "Case Counts",
+            **{f"{group}_count": count for group, count in case_counts.items()},
+        }
+    )
+
+    comparisons = [
+        ("GS 6_vs_GS 7 (3+4)", "GS 6", "GS 7 (3+4)"),
+        ("GS 6_vs_GS 7 (4+3)", "GS 6", "GS 7 (4+3)"),
+        ("GS 6_vs_GS 8-10", "GS 6", "GS 8-10"),
+        ("GS 7 (3+4)_vs_GS 7 (4+3)", "GS 7 (3+4)", "GS 7 (4+3)"),
+        ("GS 7 (3+4)_vs_GS 8-10", "GS 7 (3+4)", "GS 8-10"),
+        ("GS 7 (4+3)_vs_GS 8-10", "GS 7 (4+3)", "GS 8-10"),
+        (
+            "(GS 6, GS 3+4)_vs_(GS 4+3, GS 8-10)",
+            ["GS 6", "GS 7 (3+4)"],
+            ["GS 7 (4+3)", "GS 8-10"],
+        ),
+    ]
+
+    for i, (feature_name, _) in enumerate(features):
+        feature_results = {"Feature": feature_name}
+
+        for comp_name, group1, group2 in comparisons:
+            if isinstance(group1, list):
+                group1_data = np.concatenate([gs_data[g] for g in group1])
+                group2_data = np.concatenate([gs_data[g] for g in group2])
+            else:
+                group1_data = gs_data[group1]
+                group2_data = gs_data[group2]
+
+            if len(group1_data) > 0 and len(group2_data) > 0:
+                # Calculate p-value
+                t_stat, p_value = stats.ttest_ind(group1_data[:, i], group2_data[:, i])
+
+                # Calculate AUC
+                y_true = np.concatenate(
+                    [np.zeros(len(group1_data)), np.ones(len(group2_data))]
+                )
+                y_scores = np.concatenate([group1_data[:, i], group2_data[:, i]])
+                auc = roc_auc_score(y_true, y_scores)
+
+                feature_results[f"{comp_name}_p_value"] = p_value
+                feature_results[f"{comp_name}_auc"] = auc
+            else:
+                feature_results[f"{comp_name}_p_value"] = np.nan
+                feature_results[f"{comp_name}_auc"] = np.nan
+
+        results.append(feature_results)
+
+    return pd.DataFrame(results)
 
 
 def main():
 
-    with open(
-        os.path.join(DATA_DIR_PATH + "/processed_patient_dict.json"),
-        "r",
-    ) as f:
+    # Load the original processed_patient_dict.json
+    with open(os.path.join(DATA_DIR_PATH, "processed_patient_dict.json"), "r") as f:
         data = json.load(f)
 
-    count = 0
-    count1 = 0
+    # Load ggg_aggressiveness_d2.json
+    with open(os.path.join(DATA_DIR_PATH, "ggg_aggressiveness_d2.json"), "r") as f:
+        ggg_data = json.load(f)
 
-    # Diffusivities
-    # Exp0
-    # recon_diffusivities = np.arange(0.25, 3.1, 3.0 / 12)
-    # Ex1
-    # recon_diffusivities = np.arange(0.25, 3.1, 3.0 / 12)
-    # recon_diffusivities = np.append(recon_diffusivities, 20.0)
-    # recon_diffusivities = np.append(recon_diffusivities, 100.0)
-    # Ex2
-    # recon_diffusivities = np.array([0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00])
-    # Ex3
-    # recon_diffusivities = np.array([0.0, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00])
-    # Ex4
-    # recon_diffusivities = np.array([0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 10.00])
-    # Ex5
-    # recon_diffusivities = np.array([0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00])
-    # Ex6
-    # recon_diffusivities = np.array([0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 100.00])
-    # Ex7
-    # recon_diffusivities = np.array([0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 10.00])
-    # Ex8
+    # Load tumor_normal_d1.json
+    with open(os.path.join(DATA_DIR_PATH, "tumor_normal_d1.json"), "r") as f:
+        tumor_normal_data = json.load(f)
+
     recon_diffusivities = np.array(
         [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
     )
@@ -895,84 +654,70 @@ def main():
         with open(os.path.join(DATA_DIR_PATH + "/processed_data.pkl"), "rb") as f:
             roi_print = pickle.load(f)
 
-    # Plot PDFs with all boxplots per roi
-    print_all(
-        rois=roi_print,
-        m=3,
-        n=2,
-    )
+    # generate donwstream analysis datasets (only temporary tachtic as very inefficient)
+    roi_tn = filter_processed_data(roi_print, tumor_normal_data)
+    roi_ggg = filter_processed_data(roi_print, ggg_data)
 
-    # Plot extra PDF with avg boxplots per roi
-    print_avg(
-        rois=roi_print,
-        diffusivities=recon_diffusivities,
-        m=2,
-        n=2,
-    )
+    # # Plot PDFs with all boxplots per roi
+    # print_all(
+    #     rois=roi_print,
+    #     m=3,
+    #     n=2,
+    # )
 
-    gs_corr_matrix(
-        rois=roi_print,
-        save_filename=os.path.join(OUTPUT_DIR_PATH + "/other/correlation_matrix.pdf"),
-    )
+    # # Plot extra PDF with avg boxplots per roi
+    # print_avg(
+    #     rois=roi_print,
+    #     diffusivities=recon_diffusivities,
+    #     m=2,
+    #     n=2,
+    # )
 
-    gs_log_classifier(
-        rois=roi_print,
-        save_filename=os.path.join(OUTPUT_DIR_PATH + "/other/log_classifier_all.pdf"),
-        save_filename_db=os.path.join(OUTPUT_DIR_PATH + "/other/log_classifier_db.pdf"),
-    )
-
-    pr_visualization(
-        rois=roi_print,
-        save_filename=os.path.join(OUTPUT_DIR_PATH + "/other/pr_visualization_025.pdf"),
-    )
-
+    # Calculate diffusivity feature gleason score correlation plot
     gs_stratified_boxplot(
-        rois=roi_print,
+        rois=roi_ggg,
         save_filename=os.path.join(
-            OUTPUT_DIR_PATH + "/other/gs_stratified_boxplot.pdf"
+            OUTPUT_DIR_PATH + "/other/gs_stratified_boxplot_multi.pdf"
         ),
+        features=[
+            (".25", 0),
+            (".50", 1),
+            (".75", 2),
+            ("1.", 3),
+            ("1.25", 4),
+            ("1.50", 5),
+            ("2.", 6),
+            ("2.50", 7),
+            ("3.", 8),
+            ("20.", 9),
+        ],
+    )
+
+    # Calculate AUC table
+    features = [
+        (".25", 0),
+        (".50", 1),
+        (".75", 2),
+        ("1.", 3),
+        ("1.25", 4),
+        ("1.50", 5),
+        ("2.", 6),
+        ("2.50", 7),
+        ("3.", 8),
+        ("20.", 9),
+    ]
+    auc_table = calculate_auc_table(roi_tn, features)
+    auc_table.to_csv(
+        os.path.join(OUTPUT_DIR_PATH + "/other/auc_table_all.csv"), index=False
+    )
+
+    # Calculate Gleason prediction table
+    gleason_table = calculate_gleason_prediction(roi_ggg, features)
+    gleason_table.to_csv(
+        os.path.join(OUTPUT_DIR_PATH + "/other/gleason_prediction_table_ggg.csv"),
+        index=False,
     )
 
 
 if __name__ == "__main__":
     main()
-
-# TODO:
-# - Run Gibbs sampler experiments with following configurations
-# Exp0 (gibbs_exp0.pkl):
-# Do NOT include signal for b0 and use max signal to signal_value[1]
-# Diffusivity range [0.25,   0.5 ,   0.75,   1.  ,   1.25,   1.5 ,   1.75,   2.  , 2.25,   2.5 ,   2.75,   3.]
-# Exp1 (gibbs_exp1.pkl):
-# Include signal for b0 and adjust max signal to signal_value[0]
-# Diffusivity range [0.25,   0.5 ,   0.75,   1.  ,   1.25,   1.5 ,   1.75,   2.  , 2.25,   2.5 ,   2.75,   3.  ,  20.  , 100.  ]
-# Exp2 gibbs_exp2.pkl:
-# Include signal for b0 and adjust max signal to signal_value[0]
-# Diffusivity range [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
-# Exp3 gibbs_exp3.pkl:
-##Include signal for b0 and adjust max signal to signal_value[0]
-# Diffusivity range [0.0, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
-# Exp4 gibbs_exp4.pkl:
-# Include signal for b0 and adjust max signal to signal_value[0]
-# Diffusivity range [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 10.00]
-# Exp5 gibbs_exp5.pkl:
-# Include signal for b0 and adjust max signal to signal_value[0]
-# Diffusivity range [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
-# Exp6 gibbs_exp6.pkl:
-# Include signal for b0 and adjust max signal to signal_value[0]
-# Diffusivity range [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 100.00]
-# Exp7 gibbs_exp7.pkl:
-# Include signal for b0 and adjust max signal to signal_value[0]
-# Diffusivity range [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 10.00]
-# Only on subset of 36 subjects with gleason scoring
-# Pearson's correlation coefficient between mean .25 diffusivity fraction and GGG for every subject
-# Pearson's correlation coefficient for all significant vs. non-significant GGG
-# Correlation heatmap (matrix) for all diffusivities ...
-
-# Run and compare
-# 10, 20, 100 with 0.0 compartment
-# Generate average and standard deviation
-# Average: Concatenate all
-# Show average in visualizations (in addition and also without mean)
-# Calculate correlation between GS and .25 diffusivity tissue compartment!!
-# Needs to be one score
-# Ask Stephan for ADC calculate
