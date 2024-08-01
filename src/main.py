@@ -316,35 +316,139 @@ def gs_stratified_boxplot(rois: dict, save_filename: str, features: list) -> Non
         plt.close(fig)
 
 
-def calculate_auc_table(
-    rois: dict,
-    features: List[Union[Tuple[str, int], Tuple[str, List[Tuple[int, float]]]]],
-) -> pd.DataFrame:
+def ggg_stat_analysis(rois, features, ggg_data, comparison):
     """
-    Calculate AUC of ROC curves and p-values for discriminating normal and tumor tissue for each prostatic zone and feature.
+    Calculate statistics for Gleason Grade Group comparisons, combining PZ and TZ.
     """
+    results = []
+    ggg_data_processed = {}
+
+    for patient_key, patient_data in ggg_data.items():
+        for roi_key, roi_data in patient_data.items():
+            a_region = roi_data["anatomical_region"]
+            if "tumor" not in a_region.lower():
+                continue  # Skip non-tumor regions
+
+            b_values = np.array(roi_data["b_values"])
+            signal_values = np.array(roi_data["signal_values"])
+
+            # Find corresponding ROI in rois
+            roi = next(
+                (r for r in rois[a_region] if r["patient_key"] == patient_key), None
+            )
+            if roi is None:
+                continue
+
+            samples = roi["object"].sample
+
+            # Calculate features for Gibbs Sampler
+            feature_values = [
+                np.mean([sample[feat] for sample in samples]) for _, feat in features
+            ]
+
+            # Calculate ADC
+            adc = calculate_adc_multi(signal_values, b_values)
+            feature_values.append(adc)
+
+            ggg = int(float(roi["target"]))  # Convert '3.0' to 3
+            if ggg not in ggg_data_processed:
+                ggg_data_processed[ggg] = []
+            ggg_data_processed[ggg].append(feature_values)
+
+    # Define GGG groupings based on the comparison
+    if comparison == "GGG1 vs GGG2":
+        group1, group2 = [1], [2]
+        group1_name, group2_name = "GS ≤ 6", "GS 3+4"
+    elif comparison == "GGG1 vs GGG3":
+        group1, group2 = [1], [3]
+        group1_name, group2_name = "GS ≤ 6", "GS 4+3"
+    elif comparison == "GGG1 vs GGG4-5":
+        group1, group2 = [1], [4, 5]
+        group1_name, group2_name = "GS ≤ 6", "GS ≥ 8"
+    elif comparison == "GGG1-3 vs GGG4-5":
+        group1, group2 = [1, 2, 3], [4, 5]
+        group1_name, group2_name = "GS ≤ 7", "GS ≥ 8"
+    else:
+        raise ValueError("Invalid comparison")
+
+    # Calculate statistics
+    for i, (feature_name, _) in enumerate(features + [("ADC", None)]):
+        group1_data = np.concatenate([ggg_data_processed.get(g, []) for g in group1])
+        group2_data = np.concatenate([ggg_data_processed.get(g, []) for g in group2])
+
+        if len(group1_data) > 0 and len(group2_data) > 0:
+            group1_feature = group1_data[:, i]
+            group2_feature = group2_data[:, i]
+
+            # Calculate p-value
+            _, p_value = stats.ttest_ind(group1_feature, group2_feature)
+
+            # Calculate AUC
+            y_true = np.concatenate(
+                [np.zeros(len(group1_feature)), np.ones(len(group2_feature))]
+            )
+            y_scores = np.concatenate([group1_feature, group2_feature])
+            auc = roc_auc_score(y_true, y_scores)
+
+            model = "Gibbs Sampler" if feature_name != "ADC" else "Monoexponential"
+            results.append(
+                {
+                    "Model": model,
+                    "Parameters": feature_name,
+                    "B-Values": "0-3500",
+                    "Comparison": f"{group1_name} vs {group2_name}",
+                    "AUC": auc,
+                    "P-Value": p_value,
+                    f"{group1_name} Count": len(group1_feature),
+                    f"{group2_name} Count": len(group2_feature),
+                }
+            )
+
+    return pd.DataFrame(results)
+
+
+def calculate_adc_multi(signal_values, b_values):
+    """
+    Calculate ADC using monoexponential model. Mask out b-values above 1000s/mm2.
+    Higher b-values may introduce non-Gaussian diffusion effects that can affect the ADC calculation.
+    TODO: very low AUC for unknown reason?
+    """
+    mask = b_values <= 1000
+    log_signal = np.log(signal_values[mask])
+    slope, intercept = np.polyfit(b_values[mask], log_signal, 1)
+    return -slope
+
+
+def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
     results = []
     zone_data = {"PZ": {"normal": [], "tumor": []}, "TZ": {"normal": [], "tumor": []}}
 
-    for roi_list in rois.values():
-        for roi in roi_list:
-            zone = "PZ" if "pz" in roi["a_region"].lower() else "TZ"
-            tissue_type = "normal" if "normal" in roi["a_region"].lower() else "tumor"
+    for patient_key, patient_data in normal_tumor_data.items():
+        for roi_key, roi_data in patient_data.items():
+            a_region = roi_data["anatomical_region"]
+            zone = "PZ" if "pz" in a_region.lower() else "TZ"
+            tissue_type = "normal" if "normal" in a_region.lower() else "tumor"
+
+            b_values = np.array(roi_data["b_values"])
+            signal_values = np.array(roi_data["signal_values"])
+
+            # Find corresponding ROI in rois
+            roi = next(
+                (r for r in rois[a_region] if r["patient_key"] == patient_key), None
+            )
+            if roi is None:
+                continue
 
             samples = roi["object"].sample
-            feature_values = []
-            for _, feat in features:
-                if isinstance(feat, int):
-                    feature_values.append(np.mean([sample[feat] for sample in samples]))
-                else:
-                    feature_values.append(
-                        np.mean(
-                            [
-                                sum(coef * sample[idx] for idx, coef in feat)
-                                for sample in samples
-                            ]
-                        )
-                    )
+
+            # Calculate features for Gibbs Sampler
+            feature_values = [
+                np.mean([sample[feat] for sample in samples]) for _, feat in features
+            ]
+
+            # Calculate ADC
+            adc = calculate_adc_multi(signal_values, b_values)
+            feature_values.append(adc)
 
             zone_data[zone][tissue_type].append(feature_values)
 
@@ -353,156 +457,35 @@ def calculate_auc_table(
         for tissue_type in zone_data[zone]:
             zone_data[zone][tissue_type] = np.array(zone_data[zone][tissue_type])
 
-    # Count the number of cases in each group
-    case_counts = {
-        f"{zone}_{tissue_type}_count": len(data)
-        for zone in zone_data
-        for tissue_type, data in zone_data[zone].items()
-    }
-
-    # Add case counts to results
-    results.append({"Feature": "Case Counts", **case_counts})
-
-    for i, (feature_name, _) in enumerate(features):
-        feature_results = {"Feature": feature_name}
-
+    # Calculate statistics
+    for i, (feature_name, _) in enumerate(features + [("ADC", None)]):
         for zone in ["PZ", "TZ"]:
-            normal_data = zone_data[zone]["normal"]
-            tumor_data = zone_data[zone]["tumor"]
+            normal_data = zone_data[zone]["normal"][:, i]
+            tumor_data = zone_data[zone]["tumor"][:, i]
 
             if len(normal_data) > 0 and len(tumor_data) > 0:
                 # Calculate p-value
-                t_stat, p_value = stats.ttest_ind(normal_data[:, i], tumor_data[:, i])
+                _, p_value = stats.ttest_ind(normal_data, tumor_data)
 
                 # Calculate AUC
                 y_true = np.concatenate(
                     [np.zeros(len(normal_data)), np.ones(len(tumor_data))]
                 )
-                y_scores = np.concatenate([normal_data[:, i], tumor_data[:, i]])
+                y_scores = np.concatenate([normal_data, tumor_data])
                 auc = roc_auc_score(y_true, y_scores)
 
-                # Calculate optimal cutoff using Youden's index
-                fpr, tpr, thresholds = roc_curve(y_true, y_scores)
-                optimal_idx = np.argmax(tpr - fpr)
-                optimal_cutoff = thresholds[optimal_idx]
-
-                feature_results[f"{zone}_AUC"] = auc
-                feature_results[f"{zone}_p_value"] = p_value
-                feature_results[f"{zone}_cutoff"] = optimal_cutoff
-            else:
-                feature_results[f"{zone}_AUC"] = np.nan
-                feature_results[f"{zone}_p_value"] = np.nan
-                feature_results[f"{zone}_cutoff"] = np.nan
-
-        results.append(feature_results)
-
-    return pd.DataFrame(results)
-
-
-def calculate_gleason_prediction(
-    rois: dict,
-    features: List[Union[Tuple[str, int], Tuple[str, List[Tuple[int, float]]]]],
-) -> pd.DataFrame:
-    """
-    Calculate probability of parameters to predict Gleason Grade Groups for (PZ) tumors.
-    Calculates AUC and p-value for pairwise comparisons between groups and an additional
-    comparison of (GS 6 and GS 3+4) vs (GS 4+3 and GS 8-10).
-    """
-    results = []
-    gs_data = {"GS 6": [], "GS 7 (3+4)": [], "GS 7 (4+3)": [], "GS 8-10": []}
-
-    for roi_list in rois.values():
-        for roi in roi_list:
-            if "tumor" in roi["a_region"]:
-                samples = roi["object"].sample
-                feature_values = []
-                for _, feat in features:
-                    if isinstance(feat, int):
-                        feature_values.append(
-                            np.mean([sample[feat] for sample in samples])
-                        )
-                    else:
-                        feature_values.append(
-                            np.mean(
-                                [
-                                    sum(coef * sample[idx] for idx, coef in feat)
-                                    for sample in samples
-                                ]
-                            )
-                        )
-
-                try:
-                    if roi["target"] == "1.0":  # GS 6
-                        gs_data["GS 6"].append(feature_values)
-                    elif roi["target"] == "2.0":  # GS 7 (3+4)
-                        gs_data["GS 7 (3+4)"].append(feature_values)
-                    elif roi["target"] == "3.0":  # GS 7 (4+3)
-                        gs_data["GS 7 (4+3)"].append(feature_values)
-                    elif roi["target"] == "4.0":  # GS 8
-                        gs_data["GS 8-10"].append(feature_values)
-                    elif roi["target"] == "5.0":  # GS 9-10
-                        gs_data["GS 8-10"].append(feature_values)
-                except ValueError:
-                    p_key = roi["patient_key"]
-                    print(f"Smt wrong with print_roi, patient: {p_key}")
-
-    for group in gs_data:
-        gs_data[group] = np.array(gs_data[group])
-
-    # Count the number of cases in each group
-    case_counts = {group: len(data) for group, data in gs_data.items()}
-
-    # Add case counts to results
-    results.append(
-        {
-            "Feature": "Case Counts",
-            **{f"{group}_count": count for group, count in case_counts.items()},
-        }
-    )
-
-    comparisons = [
-        ("GS 6_vs_GS 7 (3+4)", "GS 6", "GS 7 (3+4)"),
-        ("GS 6_vs_GS 7 (4+3)", "GS 6", "GS 7 (4+3)"),
-        ("GS 6_vs_GS 8-10", "GS 6", "GS 8-10"),
-        ("GS 7 (3+4)_vs_GS 7 (4+3)", "GS 7 (3+4)", "GS 7 (4+3)"),
-        ("GS 7 (3+4)_vs_GS 8-10", "GS 7 (3+4)", "GS 8-10"),
-        ("GS 7 (4+3)_vs_GS 8-10", "GS 7 (4+3)", "GS 8-10"),
-        (
-            "(GS 6, GS 3+4)_vs_(GS 4+3, GS 8-10)",
-            ["GS 6", "GS 7 (3+4)"],
-            ["GS 7 (4+3)", "GS 8-10"],
-        ),
-    ]
-
-    for i, (feature_name, _) in enumerate(features):
-        feature_results = {"Feature": feature_name}
-
-        for comp_name, group1, group2 in comparisons:
-            if isinstance(group1, list):
-                group1_data = np.concatenate([gs_data[g] for g in group1])
-                group2_data = np.concatenate([gs_data[g] for g in group2])
-            else:
-                group1_data = gs_data[group1]
-                group2_data = gs_data[group2]
-
-            if len(group1_data) > 0 and len(group2_data) > 0:
-                # Calculate p-value
-                t_stat, p_value = stats.ttest_ind(group1_data[:, i], group2_data[:, i])
-
-                # Calculate AUC
-                y_true = np.concatenate(
-                    [np.zeros(len(group1_data)), np.ones(len(group2_data))]
+                model = "Gibbs Sampler" if feature_name != "ADC" else "Monoexponential"
+                results.append(
+                    {
+                        "Model": model,
+                        "Parameters": feature_name,
+                        "B-Values": "0-3500",
+                        f"AUC for {zone}": auc,
+                        f"P-Value for {zone}": p_value,
+                        f"{zone} Normal Count": len(normal_data),
+                        f"{zone} Tumor Count": len(tumor_data),
+                    }
                 )
-                y_scores = np.concatenate([group1_data[:, i], group2_data[:, i]])
-                auc = roc_auc_score(y_true, y_scores)
-
-                feature_results[f"{comp_name}_p_value"] = p_value
-                feature_results[f"{comp_name}_auc"] = auc
-            else:
-                feature_results[f"{comp_name}_p_value"] = np.nan
-                feature_results[f"{comp_name}_auc"] = np.nan
-
-        results.append(feature_results)
 
     return pd.DataFrame(results)
 
@@ -539,6 +522,24 @@ def main():
         "Neglected!": [],
     }
 
+    # Define features for statistical analysis
+    features = [
+        (".25", 0),
+        (".50", 1),
+        (".75", 2),
+        ("1.", 3),
+        ("1.25", 4),
+        ("1.50", 5),
+        ("2.", 6),
+        ("2.50", 7),
+        ("3.", 8),
+        ("20.", 9),
+    ]
+
+    # GGG comparisons
+    comparisons = ["GGG1 vs GGG2", "GGG1 vs GGG3", "GGG1 vs GGG4-5", "GGG1-3 vs GGG4-5"]
+    all_results = []  # to show all comparisons in one csv
+
     # Get GS and DOB for all patients (if available)
     df_gsdob = (
         pd.read_csv(
@@ -552,7 +553,7 @@ def main():
         .set_index("patient_key")
     )
 
-    # check if already cached
+    # Check if already cached
     if not os.path.isfile(os.path.join(DATA_DIR_PATH + "/processed_data.pkl")):
         # Loop through all patients
         for patient_key in tqdm(data, desc="Patients", position=0):
@@ -654,18 +655,18 @@ def main():
         with open(os.path.join(DATA_DIR_PATH + "/processed_data.pkl"), "rb") as f:
             roi_print = pickle.load(f)
 
-    # generate donwstream analysis datasets (only temporary tachtic as very inefficient)
+    # Generate donwstream analysis datasets (only temporary tachtic as very inefficient)
     roi_tn = filter_processed_data(roi_print, tumor_normal_data)
     roi_ggg = filter_processed_data(roi_print, ggg_data)
 
-    # # Plot PDFs with all boxplots per roi
+    # Plot PDFs with all boxplots per roi
     # print_all(
     #     rois=roi_print,
     #     m=3,
     #     n=2,
     # )
 
-    # # Plot extra PDF with avg boxplots per roi
+    # Plot extra PDF with avg boxplots per roi
     # print_avg(
     #     rois=roi_print,
     #     diffusivities=recon_diffusivities,
@@ -674,47 +675,34 @@ def main():
     # )
 
     # Calculate diffusivity feature gleason score correlation plot
-    gs_stratified_boxplot(
-        rois=roi_ggg,
-        save_filename=os.path.join(
-            OUTPUT_DIR_PATH + "/other/gs_stratified_boxplot_multi.pdf"
-        ),
-        features=[
-            (".25", 0),
-            (".50", 1),
-            (".75", 2),
-            ("1.", 3),
-            ("1.25", 4),
-            ("1.50", 5),
-            ("2.", 6),
-            ("2.50", 7),
-            ("3.", 8),
-            ("20.", 9),
-        ],
+    # gs_stratified_boxplot(
+    #     rois=roi_ggg,
+    #     save_filename=os.path.join(
+    #         OUTPUT_DIR_PATH + "/other/gs_stratified_boxplot_multi.pdf"
+    #     ),
+    #     features=features
+    # )
+
+    # Calculate MR-based tumor v normal statistics
+    stat_analysis_table = normal_v_tumor_stat_analysis(
+        roi_tn, features, tumor_normal_data
+    )
+    stat_analysis_table.to_csv(
+        os.path.join(OUTPUT_DIR_PATH + "/other/normal_v_tumor_stat_analysis.csv"),
+        index=False,
     )
 
-    # Calculate AUC table
-    features = [
-        (".25", 0),
-        (".50", 1),
-        (".75", 2),
-        ("1.", 3),
-        ("1.25", 4),
-        ("1.50", 5),
-        ("2.", 6),
-        ("2.50", 7),
-        ("3.", 8),
-        ("20.", 9),
-    ]
-    auc_table = calculate_auc_table(roi_tn, features)
-    auc_table.to_csv(
-        os.path.join(OUTPUT_DIR_PATH + "/other/auc_table_all.csv"), index=False
-    )
+    # Calculate Gleason Grade Group statistics
+    for comparison in comparisons:
+        ggg_analysis_table = ggg_stat_analysis(roi_ggg, features, ggg_data, comparison)
+        all_results.append(ggg_analysis_table)
 
-    # Calculate Gleason prediction table
-    gleason_table = calculate_gleason_prediction(roi_ggg, features)
-    gleason_table.to_csv(
-        os.path.join(OUTPUT_DIR_PATH + "/other/gleason_prediction_table_ggg.csv"),
+    # Combine all results into a single DataFrame
+    combined_results = pd.concat(all_results, ignore_index=True)
+
+    # Save the combined results to a single CSV file
+    combined_results.to_csv(
+        os.path.join(OUTPUT_DIR_PATH, "other/ggg_stat_analysis_combined.csv"),
         index=False,
     )
 
