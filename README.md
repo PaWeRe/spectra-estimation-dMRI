@@ -8,33 +8,59 @@ All derived data is free from HIPAA PHI and repo should not contain any sensitiv
 
 There is great interest to quantify the spectrum of diffusivities that underlie the observed diffusion signal decay; separate tissue compartments can be identified by their spectral peaks. This spectrum is defined by the inverse Laplace transform, but unfortunately this transform is very sensitive to noise omnipresent in diffusion MRI. We present a Bayesian method of inverse Laplace transform that uses Gibbs sampling to provide spectra along with an estimate of the noise related to uncertainty in the spectra; this uncertainty information is valuable in interpreting the results. We show preliminary results estimating distributions on diffusivity spectra for normal and tumor tissues.
 
-## How to run sampler
+## Methods
 
-Git clone repository to local environment and simply run `main.py` file. First time execution will take about 25min (standard macbook pro M1). After first execution `.pkl` file will be created caching results to avoid running sampler for every new experiment (if sampler settings are changed, delete `.pkl` file before running for fresh results).
+Gibbs Sampler + Mean-Field Variational Bayes (TBD).
+
 
 ## File structure
 ````
 .
 ├── README.md
 ├── data
-│   ├── patient_gleason_grading.csv
-│   ├── processed_patient_dict.json
-│   └── prostate_rois.csv
+│   ├── jsons
+│   │   ├── ggg_aggressiveness_d2.json
+│   │   ├── ggg_aggressiveness_d2_discarded.json
+|   |   ├── processed_patient_dict.json
+│   │   ├── tumor_normal_d1.json
+|   |   └── tumor_normal_d1_discarded.json
+│   └── metadata
+│   |   ├── patient_gleason_grading.csv
+│   |   └── prostate_rois.csv
+|   └── processed
+|       └── processed_data.pkl
 ├── output
-│   ├── correlation_matrix.pdf
-│   ├── log_classifier_all.pdf
-│   ├── log_classifier_db.pdf
-│   ├── neglected.pdf
-│   ├── npz.pdf
-│   ├── ntz.pdf
-│   ├── pr_visualization_025.pdf
-│   ├── roi_avg.pdf
-│   ├── tpz.pdf
-│   └── ttz.pdf
+|   ├── gibbs
+|   |   ├── roi_avgs.csv
+|   |   ├── roi_avgs.pdf
+|   |   ├── npz.csv
+|   |   ├── npz.pdf
+|   |   ├── ntz.csv
+|   |   ├── ntz.pdf
+|   |   ├── tpz.csv
+|   |   ├── tpz.pdf
+|   |   ├── ttz.csv
+|   |   ├── ttz.pdf
+|   |   ├── neglected.csv
+|   |   └── neglected.pdf 
+│   └── eval
+│   |   ├── ggg_stat_analysis_combined.csv
+|   |   ├── gs_stratified_boxplot_multi.pdf
+|   |   ├── gs_stratified_boxplot.pdf
+|   |   └── normal_v_tumor_stat_analysis.csv
+|   └── mfvb
 └── src
-    ├── diffusivity_spectra.py
-    ├── main.py
-    └── process_data.py
+    ├── models
+    │   ├── gibbs.py
+    |   └── mfvb.py
+    ├── utils
+    │   ├── generate_analysis_datasets.py
+    │   └── process_data.py
+    ├── testing
+    │   └── simulation.py
+    └── eval
+         └── eval.py
+
 ````
 
 ### Data
@@ -52,14 +78,12 @@ The `processed_patient_dict.json` (output of `process_data.py`) contains the fol
 
 ### Output
 
-`main.py` outputs multiple visualizations of sampling results. In the main script a `.pkl` file is created for caching sampler results. The `.pkl`file is not part of this repo due to its significant size (>1GB). The following files are present in this repo:
-- Diffusivity spectra boxplots of sampler output per patient categorized by anatomical region, as `npz.pdf`, `ntz.pdf`, `tpz.pdf`, `ttz.pdf` referring to normal peripheral zone, normal transition zone, tumor peripheral zone, tumor transition zone respectively.
-- `roi_avg.pdf`: 4 boxplots describing averaged diffusivity spectra per anatomical region for all patients and regions of interest
-- Downstream analysis (preliminary!): `correlation_matrix.pdf`, `log_classifier_all.pdf`, `log_classifier_db.pdf`, `pr_visualization_025.pdf`
+TBD.
 
 ### Src
 
-Three python files are used:
-- `diffusivity_spectra.py`: core sampler logic
-- `main.py`: main script responsible for plotting gibbs sampler results (and downstream analyses) on PDFs
-- `process_data.py`: getting from image data to `process_data.py` dict
+TBD.
+
+### Instructions on how to run code
+
+TBD.

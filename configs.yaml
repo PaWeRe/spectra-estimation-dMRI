@@ -1,0 +1,26 @@
+### GENERAL FILE STORAGE ###
+DATA_DIR_PATH: "./spectra-estimation-dMRI/data/"
+JSON_INPUT_DIR_PATH: "./spectra-estimation-dMRI/data/jsons/input/"
+JSON_OUTPUT_DIR_PATH: "./spectra-estimation-dMRI/data/jsons/output/"
+NUMERICAL_DIR_PATH: "./spectra-estimation-dMRI/data/numerical/"
+OUTPUT_DIR_PATH: "./spectra-estimation-dMRI/output/"
+METADATA_DIR: "./spectra-estimation-dMRI/data/meta/"
+
+### EVAL ###
+INPUT_ALL_DICT: "./spectra-estimation-dMRI/data/jsons/input/processed_patient_dict.json"
+INPUT_D1_DICT: "./spectra-estimation-dMRI/data/jsons/input/tumor_normal_d1.json"
+INPUT_D2_DICT: "./spectra-estimation-dMRI/data/jsons/input/ggg_aggressiveness_d2.json"
+GIBBS_ALL_HDF5: "./spectra-estimation-dMRI/data/numerical/processed_data.h5"
+GIBBS_ALL_JSON: "./spectra-estimation-dMRI/data/jsons/output/processed_data.json"
+GIBBS_D1_HDF5: "./spectra-estimation-dMRI/data/numerical/tvn_d1.h5"
+GIBBS_D1_JSON: "./spectra-estimation-dMRI/data/jsons/output/tvn_d1.json"
+GIBBS_D2_HDF5: "./spectra-estimation-dMRI/data/numerical/ggg_d2.h5"
+GIBBS_D2_JSON: "./spectra-estimation-dMRI/data/jsons/output/ggg_d2.json"
+EVAL_DIR_PATH: "./spectra-estimation-dMRI/output/eval/"
+
+### GIBBS ###
+INPUT_DICT_PATH: "./spectra-estimation-dMRI/data/jsons/input/tumor_normal_d1.json"
+OUTPUT_HDF5_PATH: "./spectra-estimation-dMRI/data/numerical/tvn_d1.h5"
+OUTPUT_JSON_PATH: "./spectra-estimation-dMRI/data/jsons/output/tvn_d1.json"
+METADATA_PATH: "./spectra-estimation-dMRI/data/meta/patient_gleason_grading.csv"
+OUTPUT_PRINT_ROI_PATH: "./spectra-estimation-dMRI/output/gibbs/"

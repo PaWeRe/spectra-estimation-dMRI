@@ -1,1 +1,5 @@
-data/processed_data.pkl
+.env
+.DS_Store
+__pycache__
+data/numerical/ggg_d2.h5
+data/numerical/tvn_d1.h5

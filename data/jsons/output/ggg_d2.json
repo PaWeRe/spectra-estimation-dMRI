@@ -1,0 +1,597 @@
+{
+  "normal_pz_s2": [],
+  "normal_tz_s3": [],
+  "tumor_pz_s1": [
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 369.3321675673539,
+      "patient_key": "new02",
+      "gs": "4+3",
+      "target": "3",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new02_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 566.2375826453062,
+      "patient_key": "new03",
+      "gs": "4+3+5",
+      "target": "5",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new03_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 221.8529918662356,
+      "patient_key": "new04",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new04_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 331.1910324872943,
+      "patient_key": "new07",
+      "gs": "3+3",
+      "target": "1",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new07_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 333.30729064933456,
+      "patient_key": "new16",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new16_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 329.0611645272046,
+      "patient_key": "new18",
+      "gs": "4+3",
+      "target": "3",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new18_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 472.85700798444344,
+      "patient_key": "new21",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new21_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 318.19805153394634,
+      "patient_key": "new30",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new30_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 631.9612329882269,
+      "patient_key": "new33",
+      "gs": "3+3",
+      "target": "1",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new33_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 405.6245184896988,
+      "patient_key": "new34",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new34_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 335.4101966249685,
+      "patient_key": "new38",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new38_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 254.33737436719755,
+      "patient_key": "new49",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new49_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 187.5,
+      "patient_key": "new50",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new50_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 245.903944661325,
+      "patient_key": "new51",
+      "gs": "3+3",
+      "target": "1",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new51_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 191.2132317597294,
+      "patient_key": "new54",
+      "gs": "3+3",
+      "target": "1",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new54_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 1228.9477206130455,
+      "patient_key": "new55",
+      "gs": "4+4",
+      "target": "4",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new55_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 225.0,
+      "patient_key": "new59",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new59_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 578.5218232703068,
+      "patient_key": "new61",
+      "gs": "3+3",
+      "target": "1",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new61_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 292.8843628464995,
+      "patient_key": "new62",
+      "gs": "3+3",
+      "target": "1",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new62_roi1"
+    },
+    {
+      "a_region": "tumor_pz_s1",
+      "snr": 331.1910324872943,
+      "patient_key": "new63",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new63_roi1"
+    }
+  ],
+  "tumor_tz_s1": [
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 434.0938838546335,
+      "patient_key": "new01",
+      "gs": "4+3",
+      "target": "3",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new01_roi1"
+    },
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 414.2010381445223,
+      "patient_key": "new05",
+      "gs": "4+3",
+      "target": "3",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new05_roi1"
+    },
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 343.693177121688,
+      "patient_key": "new20",
+      "gs": "3+3",
+      "target": "1",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new20_roi1"
+    },
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 497.49371855331,
+      "patient_key": "new28",
+      "gs": "3+5",
+      "target": "4",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new28_roi1"
+    },
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 285.5914914698966,
+      "patient_key": "new36",
+      "gs": "4+3",
+      "target": "3",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new36_roi1"
+    },
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 466.8712349245775,
+      "patient_key": "new44",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new44_roi1"
+    },
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 477.29707730091957,
+      "patient_key": "new45",
+      "gs": "4+3+5",
+      "target": "5",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new45_roi1"
+    },
+    {
+      "a_region": "tumor_tz_s1",
+      "snr": 462.3310502226732,
+      "patient_key": "new47",
+      "gs": "3+4",
+      "target": "2",
+      "patient_age": "NaN",
+      "diffusivities": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        20.0
+      ],
+      "hdf5_dataset": "new47_roi1"
+    }
+  ],
+  "Neglected!": []
+}
