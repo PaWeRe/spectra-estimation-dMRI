@@ -120,9 +120,17 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
                 np.mean([sample[feat] for sample in samples]) for _, feat in features
             ]
 
-            # Calculate ADC
-            adc = calculate_adc_multi(signal_values, b_values, a_region, plot=False)
-            feature_values.append(adc)
+            # Calculate ADC for all three b-value ranges
+            adc_0_1000 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="0-1000"
+            )
+            adc_0_1250 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="0-1250"
+            )
+            adc_250_1250 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="250-1250"
+            )
+            feature_values.extend([adc_0_1000, adc_0_1250, adc_250_1250])
 
             ggg = int(float(roi["target"]))  # Convert '3.0' to 3
             if ggg not in ggg_data_processed:
@@ -146,7 +154,10 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
         raise ValueError("Invalid comparison")
 
     # Calculate statistics
-    for i, (feature_name, _) in enumerate(features + [("ADC", None)]):
+    for i, (feature_name, _) in enumerate(
+        features
+        + [("ADC (0-1000)", None), ("ADC (0-1250)", None), ("ADC (250-1250)", None)]
+    ):
         group1_data = np.concatenate([ggg_data_processed.get(g, []) for g in group1])
         group2_data = np.concatenate([ggg_data_processed.get(g, []) for g in group2])
 
@@ -154,26 +165,28 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
             group1_feature = group1_data[:, i]
             group2_feature = group2_data[:, i]
 
-            # Calculate p-value
             _, p_value = stats.ttest_ind(group1_feature, group2_feature)
 
-            # Calculate AUC
             y_true = np.concatenate(
                 [np.zeros(len(group1_feature)), np.ones(len(group2_feature))]
             )
             y_scores = np.concatenate([group1_feature, group2_feature])
 
-            # Inverse for ADC
-            if feature_name == "ADC":
+            if "ADC" in feature_name:
                 y_scores = 1 / y_scores
             auc = roc_auc_score(y_true, y_scores)
 
-            model = "Gibbs Sampler" if feature_name != "ADC" else "Monoexponential"
+            model = "Gibbs Sampler" if "ADC" not in feature_name else "Monoexponential"
+            b_values = (
+                "0-3500"
+                if "ADC" not in feature_name
+                else feature_name.split()[-1][1:-1]
+            )
             results.append(
                 {
                     "Model": model,
                     "Parameters": feature_name,
-                    "B-Values": "0-3500",
+                    "B-Values": b_values,
                     "Comparison": f"{group1_name} vs {group2_name}",
                     "AUC": auc,
                     "P-Value": p_value,
@@ -185,18 +198,21 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
     return pd.DataFrame(results)
 
 
-def calculate_adc_multi(signal_values, b_values, a_region, plot=False):
+def calculate_adc_multi(
+    signal_values, b_values, a_region, b_range="0-1250", plot=False
+):
     """
-    Calculate ADC using a monoexponential model. Mask out b-values above 1000 s/mm².
-    Higher b-values may introduce non-Gaussian diffusion effects that can affect the ADC calculation.
-    This approach fits the monoexponential model S = S0 * exp(-b * ADC)
-    to your data by transforming it to a linear problem: log(S) = log(S0) - b * ADC.
+    Calculate ADC using a monoexponential model.
 
     Parameters:
     signal_values : array-like
         The measured signal intensities
     b_values : array-like
         The corresponding b-values
+    a_region : str
+        The anatomical region
+    b_range : str, optional
+        The range of b-values to use. Either '0-1000', '0-1250' or '250-1250'
     plot : bool, optional
         If True, plot the signal decay and fitted line
 
@@ -204,7 +220,15 @@ def calculate_adc_multi(signal_values, b_values, a_region, plot=False):
     adc : float
         The calculated Apparent Diffusion Coefficient
     """
-    mask = b_values <= 1000
+    if b_range == "0-1000":
+        mask = b_values <= 1000
+    elif b_range == "0-1250":
+        mask = b_values <= 1250
+    elif b_range == "250-1250":
+        mask = (b_values >= 250) & (b_values <= 1250)
+    else:
+        raise ValueError("Invalid b_range. Use '0-1000', '0-1250' or '250-1250'")
+
     valid_mask = (signal_values > 0) & mask  # Exclude non-positive signal values
 
     if not np.any(valid_mask):
@@ -218,23 +242,18 @@ def calculate_adc_multi(signal_values, b_values, a_region, plot=False):
 
     if plot:
         plt.figure(figsize=(10, 6))
-
-        # Plot original data points
         plt.scatter(b_values, signal_values, label="Original data")
         plt.scatter(valid_b_values, np.exp(log_signal), label="Used for fitting")
-
-        # Plot fitted line
-        fit_b_values = np.linspace(0, max(valid_b_values), 100)
+        fit_b_values = np.linspace(min(valid_b_values), max(valid_b_values), 100)
         fit_signal = np.exp(intercept - adc * fit_b_values)
         plt.plot(fit_b_values, fit_signal, "r-", label="Fitted line")
-
         plt.xlabel("b-value (s/mm²)")
         plt.ylabel("Signal intensity")
-        plt.title(f"Signal Decay and ADC Fit (ADC = {adc:.4f} mm²/s)|{a_region}")
+        plt.title(
+            f"Signal Decay and ADC Fit (ADC = {adc:.4f} mm²/s)|{a_region}|{b_range}"
+        )
         plt.legend()
-        plt.yscale(
-            "log"
-        )  # Use log scale for y-axis to better visualize exponential decay
+        plt.yscale("log")
         plt.grid(True)
         plt.show()
 
@@ -254,7 +273,6 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
             b_values = np.array(roi_data["b_values"])
             signal_values = np.array(roi_data["signal_values"])
 
-            # Find corresponding ROI in rois
             roi = next(
                 (r for r in rois[a_region] if r["patient_key"] == patient_key), None
             )
@@ -263,49 +281,61 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
 
             samples = roi["sample"]
 
-            # Calculate features for Gibbs Sampler
             feature_values = [
                 np.mean([sample[feat] for sample in samples]) for _, feat in features
             ]
 
-            # Calculate ADC
-            adc = calculate_adc_multi(signal_values, b_values, a_region, plot=False)
-            feature_values.append(adc)
+            # Calculate ADC for all three b-value ranges
+            adc_0_1000 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="0-1000"
+            )
+            adc_0_1250 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="0-1250"
+            )
+            adc_250_1250 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="250-1250"
+            )
+            feature_values.extend([adc_0_1000, adc_0_1250, adc_250_1250])
 
             zone_data[zone][tissue_type].append(feature_values)
 
-    # Convert lists to numpy arrays
     for zone in zone_data:
         for tissue_type in zone_data[zone]:
             zone_data[zone][tissue_type] = np.array(zone_data[zone][tissue_type])
 
-    # Calculate statistics
-    for i, (feature_name, _) in enumerate(features + [("ADC", None)]):
+    for i, (feature_name, _) in enumerate(
+        features
+        + [("ADC (0-1000)", None), ("ADC (0-1250)", None), ("ADC (250-1250)", None)]
+    ):
         for zone in ["PZ", "TZ"]:
             normal_data = zone_data[zone]["normal"][:, i]
             tumor_data = zone_data[zone]["tumor"][:, i]
 
             if len(normal_data) > 0 and len(tumor_data) > 0:
-                # Calculate p-value
                 _, p_value = stats.ttest_ind(normal_data, tumor_data)
 
-                # Calculate AUC
                 y_true = np.concatenate(
                     [np.zeros(len(normal_data)), np.ones(len(tumor_data))]
                 )
                 y_scores = np.concatenate([normal_data, tumor_data])
 
-                # Inverse for ADC
-                if feature_name == "ADC":
+                if "ADC" in feature_name:
                     y_scores = 1 / y_scores
                 auc = roc_auc_score(y_true, y_scores)
 
-                model = "Gibbs Sampler" if feature_name != "ADC" else "Monoexponential"
+                model = (
+                    "Gibbs Sampler" if "ADC" not in feature_name else "Monoexponential"
+                )
+                b_values = (
+                    "0-3500"
+                    if "ADC" not in feature_name
+                    else feature_name.split()[-1][1:-1]
+                )
                 results.append(
                     {
                         "Model": model,
                         "Parameters": feature_name,
-                        "B-Values": "0-3500",
+                        "B-Values": b_values,
                         f"AUC for {zone}": auc,
                         f"P-Value for {zone}": p_value,
                         f"{zone} Normal Count": len(normal_data),
