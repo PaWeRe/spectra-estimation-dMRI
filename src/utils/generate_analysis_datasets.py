@@ -165,9 +165,7 @@ def main(configs: dict) -> None:
 if __name__ == "__main__":
     # load in YAML configuration
     configs = {}
-    base_config_path = os.path.join(
-        os.getcwd() + "/spectra-estimation-dMRI/configs.yaml"
-    )
+    base_config_path = os.path.join(os.getcwd() + " /configs.yaml")
     with open(base_config_path, "r") as file:
         configs.update(yaml.safe_load(file))
     main(configs)

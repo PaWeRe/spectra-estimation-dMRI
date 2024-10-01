@@ -116,6 +116,30 @@ class d_spectra_sample:
             self.sample[i] = self.sample[i] / sum
 
 
+# A multi compartment signal generator
+#
+# predict a single or multiple signals corresponding to the specified b value(s),
+# fractions are the mixing coefficients of the corresponding diffusivities
+# they are supposed to sum to one
+def predict_signal(s_0, b_value, diffusivities, fractions):
+    signal = 0
+    for i in range(len(diffusivities)):
+        signal += s_0 * fractions[i] * np.exp(-b_value * diffusivities[i])
+    return signal
+
+
+# make a vector of signals that correspond to a vector of b_values
+# with optional noise added
+# (with noise, sigs can be negative)
+def generate_signals(s_0, b_values, d_spectrum, sigma=0.0):
+    predictions = predict_signal(
+        s_0, b_values, d_spectrum.diffusivities, d_spectrum.fractions
+    )
+    if sigma > 0.0:
+        predictions += npr.normal(0, sigma, len(predictions))
+    return signal_data(predictions, b_values)
+
+
 ###################################################################
 # Calculate the parameters of the multivariate normal that characterizes
 # the posterior distribution on R, the 'concentrations'
@@ -175,6 +199,45 @@ def calculate_trunc_MVN_mode(M, Sigma_inverse, Sigma_inverse_M):
     sol = solvers.qp(P, Q, G, H)
     mode = sol["x"]
     return mode
+    #  M, Sigma_inverse, and mode are established
+
+
+# given signals etc, calculate the MVN parameters, then solve for the mode
+def trunc_MVN_mode(
+    signal_data,
+    recon_diffusivities,
+    sigma,
+    inverse_prior_covariance=None,
+    L1_lambda=0.0,
+    L2_lambda=0.0,
+):
+    M, Sigma_inverse, Sigma_inverse_M = calculate_MVN_posterior_params(
+        signal_data,
+        recon_diffusivities,
+        sigma,
+        inverse_prior_covariance,
+        L1_lambda=L1_lambda,
+        L2_lambda=L2_lambda,
+    )
+    mode = calculate_trunc_MVN_mode(M, Sigma_inverse, Sigma_inverse_M)
+    return d_spectrum(np.asarray(mode), recon_diffusivities)
+
+
+#############################################################################
+## this one had problems, so coded custom one (next)
+## sample from specified univariate normal dist truncated to non zero values
+# def sample_normal_non_neg(mu, sigma):
+#     z = mu / sigma
+#     # if z < -10.0:
+#     if z < -5.0:
+#         value = 0.0
+#     else:
+#         X = stats.truncnorm(
+#             - mu / sigma, np.inf, loc=mu, scale=sigma)
+#         value = X.rvs(1)[0]
+#     # print('mu: {}, sigma: {}, value: {}'.format(mu, sigma, value))
+#     return value
+#############################################################################
 
 
 # sample from a univariate normal distribution
@@ -262,6 +325,30 @@ def make_Gibbs_sampler(
         return the_sample
 
     return Gibbs_sampler
+
+
+###########################################################################
+# Gaussian process stuff
+# Kernel for GP prior
+def nep_kernel(i, j, k_sigma, scale):
+    return np.square(k_sigma) * np.exp(-np.square((i - j) / scale) / 2.0)
+
+
+# covariance for GP prior
+def make_prior_cov(k_sigma, scale, dims):
+    def inner_nep_kernel(i, j):
+        return nep_kernel(i, j, k_sigma, scale)
+
+    return np.fromfunction(inner_nep_kernel, (dims, dims))
+
+
+############################################################################
+def predict_signals_from_diffusivity_sample(d_specta_sample, b_values):
+    diffusivities = d_spectra_sample.diffusivities
+    for i in range(len(d_spectra_sample.sample)):
+        fractions = d_spectra_sample.sample[i]
+        sigs = generate_signals(1.0, b_values, diffusivities, fractions)
+        print(sigs)
 
 
 def init_plot_matrix(m, n, diffusivities):
