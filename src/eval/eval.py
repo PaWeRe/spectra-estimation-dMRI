@@ -5,12 +5,114 @@ import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.preprocessing import StandardScaler
 import yaml
 import sys
 
-sys.path.append(os.path.join(os.getcwd() + "/spectra-estimation-dMRI/src/models/"))
+sys.path.append(os.path.join(os.getcwd() + "/src/models/"))
 import gibbs
+
+
+def create_feature_combo(features, importances) -> float:
+    """
+    Create a linear combination feature: .25 / 2.0.
+
+    Args:
+    - features: list of feature values where index 0 corresponds to '.25' and index 6 corresponds to '2.0'
+
+    Returns:
+    - float: The computed feature (.25 / 2.0)
+    """
+    # Normalize weights
+    weights = importances / np.sum(importances)
+
+    # Select features and apply weights
+    feature_025 = features[0] * weights[0]
+    feature_050 = features[1] * weights[1]
+    feature_075 = features[2] * weights[2]
+    feature_1_0 = features[3] * weights[3]
+    feature_1_25 = features[4] * weights[4]
+    feature_1_50 = features[5] * weights[5]
+    feature_2_0 = 1 / (features[6]) * weights[6]
+    feature_2_50 = 1 / features[7] * weights[7]
+    feature_3_0 = 1 / features[8] * weights[8]
+
+    # Combine features non-linearly
+    feature_combo = feature_025 + 1 / feature_2_0 + 1 / feature_2_50
+
+    # Apply log transformation
+    # feature_combo = np.log1p(feature_combo)
+
+    return feature_combo
+
+
+def calculate_adc_multi(
+    signal_values, b_values, a_region, b_range="0-1250", plot=False
+):
+    """
+    Calculate ADC using a monoexponential model.
+
+    Parameters:
+    signal_values : array-like
+        The measured signal intensities
+    b_values : array-like
+        The corresponding b-values
+    a_region : str
+        The anatomical region
+    b_range : str, optional
+        The range of b-values to use. Either '0-1000', '0-1250' or '250-1250'
+    plot : bool, optional
+        If True, plot the signal decay and fitted line
+
+    Returns:
+    adc : float
+        The calculated Apparent Diffusion Coefficient
+    """
+    if b_range == "0-1000":
+        mask = b_values <= 1000
+    elif b_range == "0-1250":
+        mask = b_values <= 1250
+    elif b_range == "250-1000":
+        mask = (b_values >= 250) & (b_values <= 1000)
+    elif b_range == "250-1250":
+        mask = (b_values >= 250) & (b_values <= 1250)
+    else:
+        raise ValueError(
+            "Invalid b_range. Use '0-1000', '0-1250', '250-1000' or '250-1250'"
+        )
+
+    valid_mask = (signal_values > 0) & mask  # Exclude non-positive signal values
+
+    if not np.any(valid_mask):
+        raise ValueError("No valid signal values available for ADC calculation.")
+
+    log_signal = np.log(signal_values[valid_mask])
+    valid_b_values = b_values[valid_mask]
+
+    slope, intercept = np.polyfit(valid_b_values, log_signal, 1)
+    adc = -slope
+
+    if plot:
+        plt.figure(figsize=(10, 6))
+        plt.scatter(b_values, signal_values, label="Original data")
+        plt.scatter(valid_b_values, np.exp(log_signal), label="Used for fitting")
+        fit_b_values = np.linspace(min(valid_b_values), max(valid_b_values), 100)
+        fit_signal = np.exp(intercept - adc * fit_b_values)
+        plt.plot(fit_b_values, fit_signal, "r-", label="Fitted line")
+        plt.xlabel("b-value (s/mm²)")
+        plt.ylabel("Signal intensity")
+        plt.title(
+            f"Signal Decay and ADC Fit (ADC = {adc:.4f} mm²/s)|{a_region}|{b_range}"
+        )
+        plt.legend()
+        plt.yscale("log")
+        plt.grid(True)
+        plt.show()
+
+    return adc
 
 
 def gs_stratified_boxplot(rois: dict, save_filename: str, features: list) -> None:
@@ -120,9 +222,22 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
                 np.mean([sample[feat] for sample in samples]) for _, feat in features
             ]
 
-            # Calculate ADC for all three b-value ranges
+            # Calculate the std for each feature as a measure of uncertainty and importance
+            feature_stds = [
+                np.std([sample[feat] for sample in samples]) for _, feat in features
+            ]
+            feature_importances = [1 / std for std in feature_stds]
+
+            # Create the new feature .25/2.0
+            feature_combo = create_feature_combo(feature_values, feature_importances)
+            feature_values.append(feature_combo)
+
+            # Calculate ADC for all four b-value ranges
             adc_0_1000 = calculate_adc_multi(
                 signal_values, b_values, a_region, b_range="0-1000"
+            )
+            adc_250_1000 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="250-1000"
             )
             adc_0_1250 = calculate_adc_multi(
                 signal_values, b_values, a_region, b_range="0-1250"
@@ -130,7 +245,7 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
             adc_250_1250 = calculate_adc_multi(
                 signal_values, b_values, a_region, b_range="250-1250"
             )
-            feature_values.extend([adc_0_1000, adc_0_1250, adc_250_1250])
+            feature_values.extend([adc_0_1000, adc_250_1000, adc_0_1250, adc_250_1250])
 
             ggg = int(float(roi["target"]))  # Convert '3.0' to 3
             if ggg not in ggg_data_processed:
@@ -156,7 +271,13 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
     # Calculate statistics
     for i, (feature_name, _) in enumerate(
         features
-        + [("ADC (0-1000)", None), ("ADC (0-1250)", None), ("ADC (250-1250)", None)]
+        + [
+            (".25/2.0", None),  # Add the new feature
+            ("ADC (0-1000)", None),
+            ("ADC (250-1000)", None),
+            ("ADC (0-1250)", None),
+            ("ADC (250-1250)", None),
+        ]
     ):
         group1_data = np.concatenate([ggg_data_processed.get(g, []) for g in group1])
         group2_data = np.concatenate([ggg_data_processed.get(g, []) for g in group2])
@@ -171,12 +292,31 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
                 [np.zeros(len(group1_feature)), np.ones(len(group2_feature))]
             )
             y_scores = np.concatenate([group1_feature, group2_feature])
-
-            if "ADC" in feature_name:
-                y_scores = 1 / y_scores
             auc = roc_auc_score(y_true, y_scores)
 
-            model = "Gibbs Sampler" if "ADC" not in feature_name else "Monoexponential"
+            # Claude Sonnet 3.5 - rule of thumb:
+            # If AUC < 0.5: Use 1 - AUC (indicates inverse correlation)
+            # If AUC > 0.5: Use AUC directly (indicates positive correlation)
+            # If AUC ≈ 0.5: The feature may not be predictive
+            if (
+                "ADC" in feature_name
+                or feature_name == "2."
+                or feature_name == "2.50"
+                or feature_name == "3."
+                or feature_name == "20."
+            ):
+                auc = 1 - auc
+
+            if feature_name == ".25/2.0":
+                model = "Feature combo"
+                parameters = ".25/2.0"
+            elif "ADC" not in feature_name:
+                model = "Gibbs Sampler"
+                parameters = feature_name
+            else:
+                model = "Monoexponential"
+                parameters = feature_name.split()[-1][1:-1]
+
             b_values = (
                 "0-3500"
                 if "ADC" not in feature_name
@@ -185,7 +325,7 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
             results.append(
                 {
                     "Model": model,
-                    "Parameters": feature_name,
+                    "Parameters": parameters,
                     "B-Values": b_values,
                     "Comparison": f"{group1_name} vs {group2_name}",
                     "AUC": auc,
@@ -196,68 +336,6 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
             )
 
     return pd.DataFrame(results)
-
-
-def calculate_adc_multi(
-    signal_values, b_values, a_region, b_range="0-1250", plot=False
-):
-    """
-    Calculate ADC using a monoexponential model.
-
-    Parameters:
-    signal_values : array-like
-        The measured signal intensities
-    b_values : array-like
-        The corresponding b-values
-    a_region : str
-        The anatomical region
-    b_range : str, optional
-        The range of b-values to use. Either '0-1000', '0-1250' or '250-1250'
-    plot : bool, optional
-        If True, plot the signal decay and fitted line
-
-    Returns:
-    adc : float
-        The calculated Apparent Diffusion Coefficient
-    """
-    if b_range == "0-1000":
-        mask = b_values <= 1000
-    elif b_range == "0-1250":
-        mask = b_values <= 1250
-    elif b_range == "250-1250":
-        mask = (b_values >= 250) & (b_values <= 1250)
-    else:
-        raise ValueError("Invalid b_range. Use '0-1000', '0-1250' or '250-1250'")
-
-    valid_mask = (signal_values > 0) & mask  # Exclude non-positive signal values
-
-    if not np.any(valid_mask):
-        raise ValueError("No valid signal values available for ADC calculation.")
-
-    log_signal = np.log(signal_values[valid_mask])
-    valid_b_values = b_values[valid_mask]
-
-    slope, intercept = np.polyfit(valid_b_values, log_signal, 1)
-    adc = -slope
-
-    if plot:
-        plt.figure(figsize=(10, 6))
-        plt.scatter(b_values, signal_values, label="Original data")
-        plt.scatter(valid_b_values, np.exp(log_signal), label="Used for fitting")
-        fit_b_values = np.linspace(min(valid_b_values), max(valid_b_values), 100)
-        fit_signal = np.exp(intercept - adc * fit_b_values)
-        plt.plot(fit_b_values, fit_signal, "r-", label="Fitted line")
-        plt.xlabel("b-value (s/mm²)")
-        plt.ylabel("Signal intensity")
-        plt.title(
-            f"Signal Decay and ADC Fit (ADC = {adc:.4f} mm²/s)|{a_region}|{b_range}"
-        )
-        plt.legend()
-        plt.yscale("log")
-        plt.grid(True)
-        plt.show()
-
-    return adc
 
 
 def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
@@ -285,9 +363,22 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
                 np.mean([sample[feat] for sample in samples]) for _, feat in features
             ]
 
+            # Calculate the std for each feature as a measure of uncertainty and importance
+            feature_stds = [
+                np.std([sample[feat] for sample in samples]) for _, feat in features
+            ]
+            feature_importances = [1 / std for std in feature_stds]
+
+            # Create combo feature .25/2.0
+            feature_combo = create_feature_combo(feature_values, feature_importances)
+            feature_values.append(feature_combo)
+
             # Calculate ADC for all three b-value ranges
             adc_0_1000 = calculate_adc_multi(
                 signal_values, b_values, a_region, b_range="0-1000"
+            )
+            adc_250_1000 = calculate_adc_multi(
+                signal_values, b_values, a_region, b_range="250-1000"
             )
             adc_0_1250 = calculate_adc_multi(
                 signal_values, b_values, a_region, b_range="0-1250"
@@ -295,7 +386,7 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
             adc_250_1250 = calculate_adc_multi(
                 signal_values, b_values, a_region, b_range="250-1250"
             )
-            feature_values.extend([adc_0_1000, adc_0_1250, adc_250_1250])
+            feature_values.extend([adc_0_1000, adc_250_1000, adc_0_1250, adc_250_1250])
 
             zone_data[zone][tissue_type].append(feature_values)
 
@@ -305,7 +396,13 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
 
     for i, (feature_name, _) in enumerate(
         features
-        + [("ADC (0-1000)", None), ("ADC (0-1250)", None), ("ADC (250-1250)", None)]
+        + [
+            (".25/2.0", None),  # Add the new feature
+            ("ADC (0-1000)", None),
+            ("ADC (250-1000)", None),
+            ("ADC (0-1250)", None),
+            ("ADC (250-1250)", None),
+        ]
     ):
         for zone in ["PZ", "TZ"]:
             normal_data = zone_data[zone]["normal"][:, i]
@@ -318,14 +415,31 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
                     [np.zeros(len(normal_data)), np.ones(len(tumor_data))]
                 )
                 y_scores = np.concatenate([normal_data, tumor_data])
-
-                if "ADC" in feature_name:
-                    y_scores = 1 / y_scores
                 auc = roc_auc_score(y_true, y_scores)
 
-                model = (
-                    "Gibbs Sampler" if "ADC" not in feature_name else "Monoexponential"
-                )
+                # Claude Sonnet 3.5 - rule of thumb:
+                # If AUC < 0.5: Use 1 - AUC (indicates inverse correlation)
+                # If AUC > 0.5: Use AUC directly (indicates positive correlation)
+                # If AUC ≈ 0.5: The feature may not be predictive
+                if (
+                    "ADC" in feature_name
+                    or feature_name == "2."
+                    or feature_name == "2.50"
+                    or feature_name == "3."
+                    or feature_name == "20."
+                ):
+                    auc = 1 - auc
+
+                if feature_name == ".25/2.0":
+                    model = "Feature combo"
+                    parameters = ".25/2.0"
+                elif "ADC" not in feature_name:
+                    model = "Gibbs Sampler"
+                    parameters = feature_name
+                else:
+                    model = "Monoexponential"
+                    parameters = feature_name.split()[-1][1:-1]
+
                 b_values = (
                     "0-3500"
                     if "ADC" not in feature_name
@@ -334,7 +448,7 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
                 results.append(
                     {
                         "Model": model,
-                        "Parameters": feature_name,
+                        "Parameters": parameters,
                         "B-Values": b_values,
                         f"AUC for {zone}": auc,
                         f"P-Value for {zone}": p_value,
@@ -344,6 +458,149 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
                 )
 
     return pd.DataFrame(results)
+
+
+def weighted_feature_combination(rois, features, ggg_data, comparison):
+    print("Features:", features)  # Add this line
+    results = []
+    ggg_data_processed = {}
+
+    # Define feature_names here
+    feature_names = [name for name, _ in features] + [
+        "ADC (0-1000)",
+        "ADC (250-1000)",
+        "ADC (0-1250)",
+        "ADC (250-1250)",
+    ]
+
+    for patient_key, patient_data in ggg_data.items():
+        for roi_key, roi_data in patient_data.items():
+            a_region = roi_data["anatomical_region"]
+            if "tumor" not in a_region.lower():
+                continue  # Skip non-tumor regions
+
+            b_values = np.array(roi_data["b_values"])
+            signal_values = np.array(roi_data["signal_values"])
+
+            roi = next(
+                (r for r in rois[a_region] if r["patient_key"] == patient_key), None
+            )
+            if roi is None:
+                continue
+
+            samples = roi["sample"]
+
+            # Calculate features and their uncertainties
+            feature_values = []
+            feature_uncertainties = []
+            for i, feat in enumerate(features):
+                if isinstance(feat, tuple):
+                    _, idx = feat
+                else:
+                    idx = i
+                feature_samples = [sample[idx] for sample in samples]
+                feature_values.append(np.mean(feature_samples))
+                feature_uncertainties.append(np.std(feature_samples))
+
+            # Calculate ADC for all four b-value ranges
+            adc_values = [
+                calculate_adc_multi(signal_values, b_values, a_region, b_range)
+                for b_range in ["0-1000", "250-1000", "0-1250", "250-1250"]
+            ]
+            feature_values.extend(adc_values)
+            feature_uncertainties.extend(
+                [0.1] * 4
+            )  # Assuming fixed uncertainty for ADC
+
+            ggg = int(float(roi["target"]))
+            if ggg not in ggg_data_processed:
+                ggg_data_processed[ggg] = []
+            ggg_data_processed[ggg].append((feature_values, feature_uncertainties))
+
+    # Define GGG groupings based on the comparison
+    if comparison == "GGG1 vs GGG2":
+        group1, group2 = [1], [2]
+        group1_name, group2_name = "GS ≤ 6", "GS 3+4"
+    elif comparison == "GGG1 vs GGG3":
+        group1, group2 = [1], [3]
+        group1_name, group2_name = "GS ≤ 6", "GS 4+3"
+    elif comparison == "GGG1 vs GGG4-5":
+        group1, group2 = [1], [4, 5]
+        group1_name, group2_name = "GS ≤ 6", "GS ≥ 8"
+    elif comparison == "GGG1-3 vs GGG4-5":
+        group1, group2 = [1, 2, 3], [4, 5]
+        group1_name, group2_name = "GS ≤ 7", "GS ≥ 8"
+    else:
+        raise ValueError("Invalid comparison")
+
+    # Prepare data for logistic regression
+    X = []
+    y = []
+    sample_weights = []
+
+    for group, label in [(group1, 0), (group2, 1)]:
+        for ggg in group:
+            if ggg in ggg_data_processed:
+                for features, uncertainties in ggg_data_processed[ggg]:
+                    X.append(features)  # Use all features
+                    y.append(label)
+                    sample_weights.append(1 / np.mean(uncertainties))
+
+    X = np.array(X)
+    y = np.array(y)
+    sample_weights = np.array(sample_weights)
+
+    print("X shape:", X.shape)
+    print("y shape:", y.shape)
+    print("sample_weights shape:", sample_weights.shape)
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Perform cross-validated logistic regression
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    logistic = LogisticRegression(penalty="l2", solver="lbfgs", random_state=42)
+
+    cv_scores = cross_val_score(
+        logistic,
+        X_scaled,
+        y,
+        cv=cv,
+        scoring="roc_auc",
+        fit_params={"sample_weight": sample_weights},
+    )
+
+    # Fit the model on the entire dataset to get feature importances
+    logistic.fit(X_scaled, y, sample_weight=sample_weights)
+
+    # Calculate feature importances
+    feature_importances = np.abs(logistic.coef_[0])
+    print("Feature importances shape:", feature_importances.shape)
+
+    # Prepare results
+    result = {
+        "Model": "Weighted Linear Combination",
+        "Parameters": "All Features",
+        "B-Values": "0-3500",
+        "Comparison": f"{group1_name} vs {group2_name}",
+        "AUC": np.mean(cv_scores),
+        "AUC Std": np.std(cv_scores),
+        f"{group1_name} Count": sum(y == 0),
+        f"{group2_name} Count": sum(y == 1),
+    }
+
+    # Add feature importances to the result
+    print("Feature names:", feature_names)
+    print("Number of feature names:", len(feature_names))
+
+    for i, feature_name in enumerate(feature_names):
+        if i < len(feature_importances):
+            result[f"{feature_name} Importance"] = feature_importances[i]
+        else:
+            result[f"{feature_name} Importance"] = np.nan  # or some default value
+
+    return pd.DataFrame([result])
 
 
 def main(configs: dict) -> None:
@@ -412,13 +669,27 @@ def main(configs: dict) -> None:
         index=False,
     )
 
+    # Lin combo
+    # Calculate Gleason Grade Group statistics with weighted linear combination
+    # all_results = []
+    # comparisons = ["GGG1 vs GGG2", "GGG1 vs GGG3", "GGG1 vs GGG4-5", "GGG1-3 vs GGG4-5"]
+    # for comparison in comparisons:
+    #     weighted_analysis_table = weighted_feature_combination(
+    #         gibbs_ggg, features, ggg_data, comparison
+    #     )
+    #     all_results.append(weighted_analysis_table)
+
+    # combined_results = pd.concat(all_results, ignore_index=True)
+    # combined_results.to_csv(
+    #     os.path.join(configs["EVAL_DIR_PATH"] + "weighted_ggg_analysis_combined.csv"),
+    #     index=False,
+    # )
+
 
 if __name__ == "__main__":
     # load in YAML configuration
     configs = {}
-    base_config_path = os.path.join(
-        os.getcwd() + "/spectra-estimation-dMRI/configs.yaml"
-    )
+    base_config_path = os.path.join(os.getcwd() + "/configs.yaml")
     with open(base_config_path, "r") as file:
         configs.update(yaml.safe_load(file))
     main(configs)
