@@ -16,15 +16,93 @@ sys.path.append(os.path.join(os.getcwd() + "/src/models/"))
 import gibbs
 
 
-def create_feature_combo(features, importances) -> float:
+def create_logistic_combo(features, labels, cv_folds=5):
     """
-    Create a linear combination feature: .25 / 2.0.
+    Create a logistic regression model to combine features optimally.
 
-    Args:
-    - features: list of feature values where index 0 corresponds to '.25' and index 6 corresponds to '2.0'
+    Parameters:
+    -----------
+    features : array-like of shape (n_samples, n_features)
+        Feature matrix where each row is a sample and each column is a feature
+        (diffusivity fractions from Gibbs sampler)
+    labels : array-like of shape (n_samples,)
+        Binary labels (0 for normal/lower grade, 1 for tumor/higher grade)
+    cv_folds : int, optional (default=5)
+        Number of cross-validation folds
 
     Returns:
-    - float: The computed feature (.25 / 2.0)
+    --------
+    tuple containing:
+        - combined_score: array-like of shape (n_samples,)
+            The predicted probabilities from the logistic regression
+        - cv_auc: float
+            Cross-validated AUC score
+        - model: LogisticRegression
+            The trained logistic regression model
+    """
+    # Ensure inputs are numpy arrays
+    X = np.array(features)
+    y = np.array(labels)
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Initialize logistic regression with L2 regularization
+    # Add class_weight='balanced' to handle imbalanced datasets
+    model = LogisticRegression(
+        penalty="l2",
+        random_state=42,
+        class_weight="balanced",
+        max_iter=1000,
+        solver="lbfgs",  # Recommended for small datasets
+    )
+
+    # Perform cross-validated AUC scoring
+    cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
+    cv_scores = cross_val_score(model, X_scaled, y, scoring="roc_auc", cv=cv)
+
+    # Fit the model on the full dataset
+    model.fit(X_scaled, y)
+
+    # Get predicted probabilities
+    combined_score = model.predict_proba(X_scaled)[:, 1]
+
+    # Calculate mean cross-validated AUC
+    cv_auc = np.mean(cv_scores)
+
+    return combined_score, cv_auc, model
+
+
+def apply_logistic_combo(features, trained_model, scaler=None):
+    """
+    Apply a trained logistic regression model to new features.
+
+    Parameters:
+    -----------
+    features : array-like of shape (n_samples, n_features)
+        New feature matrix to evaluate
+    trained_model : LogisticRegression
+        Previously trained logistic regression model
+    scaler : StandardScaler, optional
+        Scaler used during training. If None, no scaling is applied
+
+    Returns:
+    --------
+    array-like of shape (n_samples,)
+        Predicted probabilities for the positive class
+    """
+    X = np.array(features)
+
+    if scaler is not None:
+        X = scaler.transform(X)
+
+    return trained_model.predict_proba(X)[:, 1]
+
+
+def create_feature_combo(features, importances) -> float:
+    """
+    Create a linear combination feature
     """
     # Normalize weights
     weights = importances / np.sum(importances)
@@ -115,83 +193,6 @@ def calculate_adc_multi(
     return adc
 
 
-def gs_stratified_boxplot(rois: dict, save_filename: str, features: list) -> None:
-    """
-    Create boxplots for multiple features stratified by Gleason Score.
-
-    Args:
-    - rois: dict of ROIs
-    - save_filename: str, path to save the PDF
-    - features: list of tuples, each containing (feature_name, diffusivity_index)
-                e.g. [('.25', 0), ('.50', 1), ('3.0', 8)]
-    """
-    gs_stratification = {
-        "GS 6": [],
-        "GS 7 (3+4)": [],
-        "GS 7 (4+3)": [],
-        "GS 8-10": [],
-    }
-
-    # Collect data for all features
-    for zone_key, zone_list in rois.items():
-        if "tumor" in zone_key:
-            for element in zone_list:
-                try:
-                    target = element["target"]
-                    samples = [
-                        np.transpose(element["sample"])[idx] for _, idx in features
-                    ]
-
-                    if target == "1":
-                        gs_stratification["GS 6"].append(samples)
-                    elif target == "2":
-                        gs_stratification["GS 7 (3+4)"].append(samples)
-                    elif target == "3":
-                        gs_stratification["GS 7 (4+3)"].append(samples)
-                    elif target == "4":
-                        gs_stratification["GS 8-10"].append(samples)
-                    elif target == "5":
-                        gs_stratification["GS 8-10"].append(samples)
-                except ValueError:
-                    p_key = element["patient_key"]
-                    print(f"Something wrong with print_roi, patient: {p_key}")
-
-    # Calculate averages and counts
-    for gs, sample_list in gs_stratification.items():
-        if sample_list:
-            avg_samples = np.mean(np.array(sample_list), axis=0)
-            gs_stratification[gs] = [avg_samples, len(sample_list)]
-        else:
-            gs_stratification[gs] = [np.zeros(len(features)), 0]
-
-    # Create PDF with multiple plots
-    with PdfPages(save_filename) as pdf:
-        n_features = len(features)
-        n_cols = min(2, n_features)
-        n_rows = (n_features + 1) // 2
-
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(10 * n_cols, 6 * n_rows))
-        if n_features == 1:
-            axes = np.array([axes])
-
-        for idx, (feature_name, _) in enumerate(features):
-            ax = axes.flat[idx] if n_features > 1 else axes
-
-            gs_cats = [sample[0][idx] for sample in gs_stratification.values()]
-            labels = [f"{a}, n={b[1]}" for a, b in gs_stratification.items()]
-
-            ax.boxplot(gs_cats, labels=labels)
-            ax.set_ylabel(f"Relative Fraction at {feature_name} Diffusivity")
-            ax.set_title(
-                f"Boxplot of Relative Fraction at {feature_name} Diffusivity by GS Stratification"
-            )
-            ax.tick_params(axis="x", rotation=45)
-
-        plt.tight_layout()
-        pdf.savefig(fig)
-        plt.close(fig)
-
-
 def ggg_stat_analysis(rois, features, ggg_data, comparison):
     """
     Calculate statistics for Gleason Grade Group comparisons, combining PZ and TZ.
@@ -228,7 +229,7 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
             ]
             feature_importances = [1 / std for std in feature_stds]
 
-            # Create the new feature .25/2.0
+            # Create the new feature
             feature_combo = create_feature_combo(feature_values, feature_importances)
             feature_values.append(feature_combo)
 
@@ -298,6 +299,7 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
             # If AUC < 0.5: Use 1 - AUC (indicates inverse correlation)
             # If AUC > 0.5: Use AUC directly (indicates positive correlation)
             # If AUC ≈ 0.5: The feature may not be predictive
+            # TODO: use different rule (calculate AUC for all and then if AUC < 0.5
             if (
                 "ADC" in feature_name
                 or feature_name == "2."
@@ -335,6 +337,25 @@ def ggg_stat_analysis(rois, features, ggg_data, comparison):
                 }
             )
 
+    # logistic regression approach
+    feature_matrix = np.vstack([group1_data, group2_data])
+    labels = np.concatenate([np.zeros(len(group1_data)), np.ones(len(group2_data))])
+
+    # Get logistic regression results
+    combined_scores, cv_auc, model = create_logistic_combo(feature_matrix, labels)
+
+    # Add results to your existing results list
+    results.append(
+        {
+            "Model": "Logistic Regression",
+            "Parameters": "all_features",
+            "B-Values": "0-3500",
+            "Comparison": f"{group1_name} vs {group2_name}",
+            "AUC": cv_auc,
+            # ... other metrics ...
+        }
+    )
+
     return pd.DataFrame(results)
 
 
@@ -369,7 +390,7 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
             ]
             feature_importances = [1 / std for std in feature_stds]
 
-            # Create combo feature .25/2.0
+            # Create combo feature
             feature_combo = create_feature_combo(feature_values, feature_importances)
             feature_values.append(feature_combo)
 
@@ -457,150 +478,28 @@ def normal_v_tumor_stat_analysis(rois, features, normal_tumor_data):
                     }
                 )
 
+    # logistic regression approach
+    # TODO: find cleaner implementation once it works
+    for zone in ["PZ", "TZ"]:
+        normal_data = zone_data[zone]["normal"]
+        tumor_data = zone_data[zone]["tumor"]
+
+        feature_matrix = np.vstack([normal_data, tumor_data])
+        labels = np.concatenate([np.zeros(len(normal_data)), np.ones(len(tumor_data))])
+
+        combined_scores, cv_auc, model = create_logistic_combo(feature_matrix, labels)
+
+        results.append(
+            {
+                "Model": "Logistic Regression",
+                "Parameters": "all_features",
+                "B-Values": "0-3500",
+                f"AUC for {zone}": cv_auc,
+                # ... other metrics ...
+            }
+        )
+
     return pd.DataFrame(results)
-
-
-def weighted_feature_combination(rois, features, ggg_data, comparison):
-    print("Features:", features)  # Add this line
-    results = []
-    ggg_data_processed = {}
-
-    # Define feature_names here
-    feature_names = [name for name, _ in features] + [
-        "ADC (0-1000)",
-        "ADC (250-1000)",
-        "ADC (0-1250)",
-        "ADC (250-1250)",
-    ]
-
-    for patient_key, patient_data in ggg_data.items():
-        for roi_key, roi_data in patient_data.items():
-            a_region = roi_data["anatomical_region"]
-            if "tumor" not in a_region.lower():
-                continue  # Skip non-tumor regions
-
-            b_values = np.array(roi_data["b_values"])
-            signal_values = np.array(roi_data["signal_values"])
-
-            roi = next(
-                (r for r in rois[a_region] if r["patient_key"] == patient_key), None
-            )
-            if roi is None:
-                continue
-
-            samples = roi["sample"]
-
-            # Calculate features and their uncertainties
-            feature_values = []
-            feature_uncertainties = []
-            for i, feat in enumerate(features):
-                if isinstance(feat, tuple):
-                    _, idx = feat
-                else:
-                    idx = i
-                feature_samples = [sample[idx] for sample in samples]
-                feature_values.append(np.mean(feature_samples))
-                feature_uncertainties.append(np.std(feature_samples))
-
-            # Calculate ADC for all four b-value ranges
-            adc_values = [
-                calculate_adc_multi(signal_values, b_values, a_region, b_range)
-                for b_range in ["0-1000", "250-1000", "0-1250", "250-1250"]
-            ]
-            feature_values.extend(adc_values)
-            feature_uncertainties.extend(
-                [0.1] * 4
-            )  # Assuming fixed uncertainty for ADC
-
-            ggg = int(float(roi["target"]))
-            if ggg not in ggg_data_processed:
-                ggg_data_processed[ggg] = []
-            ggg_data_processed[ggg].append((feature_values, feature_uncertainties))
-
-    # Define GGG groupings based on the comparison
-    if comparison == "GGG1 vs GGG2":
-        group1, group2 = [1], [2]
-        group1_name, group2_name = "GS ≤ 6", "GS 3+4"
-    elif comparison == "GGG1 vs GGG3":
-        group1, group2 = [1], [3]
-        group1_name, group2_name = "GS ≤ 6", "GS 4+3"
-    elif comparison == "GGG1 vs GGG4-5":
-        group1, group2 = [1], [4, 5]
-        group1_name, group2_name = "GS ≤ 6", "GS ≥ 8"
-    elif comparison == "GGG1-3 vs GGG4-5":
-        group1, group2 = [1, 2, 3], [4, 5]
-        group1_name, group2_name = "GS ≤ 7", "GS ≥ 8"
-    else:
-        raise ValueError("Invalid comparison")
-
-    # Prepare data for logistic regression
-    X = []
-    y = []
-    sample_weights = []
-
-    for group, label in [(group1, 0), (group2, 1)]:
-        for ggg in group:
-            if ggg in ggg_data_processed:
-                for features, uncertainties in ggg_data_processed[ggg]:
-                    X.append(features)  # Use all features
-                    y.append(label)
-                    sample_weights.append(1 / np.mean(uncertainties))
-
-    X = np.array(X)
-    y = np.array(y)
-    sample_weights = np.array(sample_weights)
-
-    print("X shape:", X.shape)
-    print("y shape:", y.shape)
-    print("sample_weights shape:", sample_weights.shape)
-
-    # Standardize features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # Perform cross-validated logistic regression
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    logistic = LogisticRegression(penalty="l2", solver="lbfgs", random_state=42)
-
-    cv_scores = cross_val_score(
-        logistic,
-        X_scaled,
-        y,
-        cv=cv,
-        scoring="roc_auc",
-        fit_params={"sample_weight": sample_weights},
-    )
-
-    # Fit the model on the entire dataset to get feature importances
-    logistic.fit(X_scaled, y, sample_weight=sample_weights)
-
-    # Calculate feature importances
-    feature_importances = np.abs(logistic.coef_[0])
-    print("Feature importances shape:", feature_importances.shape)
-
-    # Prepare results
-    result = {
-        "Model": "Weighted Linear Combination",
-        "Parameters": "All Features",
-        "B-Values": "0-3500",
-        "Comparison": f"{group1_name} vs {group2_name}",
-        "AUC": np.mean(cv_scores),
-        "AUC Std": np.std(cv_scores),
-        f"{group1_name} Count": sum(y == 0),
-        f"{group2_name} Count": sum(y == 1),
-    }
-
-    # Add feature importances to the result
-    print("Feature names:", feature_names)
-    print("Number of feature names:", len(feature_names))
-
-    for i, feature_name in enumerate(feature_names):
-        if i < len(feature_importances):
-            result[f"{feature_name} Importance"] = feature_importances[i]
-        else:
-            result[f"{feature_name} Importance"] = np.nan  # or some default value
-
-    return pd.DataFrame([result])
 
 
 def main(configs: dict) -> None:
@@ -646,15 +545,6 @@ def main(configs: dict) -> None:
         index=False,
     )
 
-    # Calculate diffusivity feature gleason score correlation plot
-    gs_stratified_boxplot(
-        rois=gibbs_ggg,
-        save_filename=os.path.join(
-            configs["EVAL_DIR_PATH"] + "gs_stratified_boxplot_multi.pdf"
-        ),
-        features=features,
-    )
-
     # Calculate Gleason Grade Group statistics
     all_results = []
     comparisons = ["GGG1 vs GGG2", "GGG1 vs GGG3", "GGG1 vs GGG4-5", "GGG1-3 vs GGG4-5"]
@@ -668,22 +558,6 @@ def main(configs: dict) -> None:
         os.path.join(configs["EVAL_DIR_PATH"] + "ggg_stat_analysis_combined.csv"),
         index=False,
     )
-
-    # Lin combo
-    # Calculate Gleason Grade Group statistics with weighted linear combination
-    # all_results = []
-    # comparisons = ["GGG1 vs GGG2", "GGG1 vs GGG3", "GGG1 vs GGG4-5", "GGG1-3 vs GGG4-5"]
-    # for comparison in comparisons:
-    #     weighted_analysis_table = weighted_feature_combination(
-    #         gibbs_ggg, features, ggg_data, comparison
-    #     )
-    #     all_results.append(weighted_analysis_table)
-
-    # combined_results = pd.concat(all_results, ignore_index=True)
-    # combined_results.to_csv(
-    #     os.path.join(configs["EVAL_DIR_PATH"] + "weighted_ggg_analysis_combined.csv"),
-    #     index=False,
-    # )
 
 
 if __name__ == "__main__":

@@ -3,3 +3,6 @@
 __pycache__
 data/numerical/ggg_d2.h5
 data/numerical/tvn_d1.h5
+*.egg-info/
+output/
+src/spectra_estimation_dmri/data/numerical/*.h5

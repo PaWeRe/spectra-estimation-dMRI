@@ -4,6 +4,7 @@ import pandas as pd
 from typing import Dict, List, Tuple
 
 import yaml
+import importlib.resources
 
 
 def create_tumor_normal_pairs(
@@ -165,7 +166,8 @@ def main(configs: dict) -> None:
 if __name__ == "__main__":
     # load in YAML configuration
     configs = {}
-    base_config_path = os.path.join(os.getcwd() + " /configs.yaml")
-    with open(base_config_path, "r") as file:
+    with importlib.resources.files("spectra_estimation_dmri").joinpath(
+        "configs.yaml"
+    ).open("r") as file:
         configs.update(yaml.safe_load(file))
     main(configs)

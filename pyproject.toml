@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectra-estimation-dmri"
+version = "0.1.0"
+description = "Bayesian estimation of diffusion spectra in MRI."
+authors = [
+    { name = "Patrick Remerscheid", email = "patrick.remerscheid@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "scipy",
+    "h5py",
+    "pandas",
+    "pyyaml",
+    "cvxopt",
+    "tqdm",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"spectra_estimation_dmri" = ["data/**/*", "output/**/*"] 

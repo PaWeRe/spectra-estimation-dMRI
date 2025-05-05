@@ -1,0 +1,33 @@
+### GENERAL FILE STORAGE ###
+DATA_DIR_PATH: ""
+JSON_INPUT_DIR_PATH: "jsons/input/"
+JSON_OUTPUT_DIR_PATH: "jsons/output/"
+NUMERICAL_DIR_PATH: "numerical/"
+OUTPUT_DIR_PATH: "output/"
+METADATA_DIR: "meta/"
+
+### EVAL ###
+INPUT_ALL_DICT: "jsons/input/processed_patient_dict.json"
+INPUT_D1_DICT: "jsons/input/tumor_normal_d1.json"
+INPUT_D2_DICT: "jsons/input/ggg_aggressiveness_d2.json"
+GIBBS_ALL_HDF5: "numerical/processed_data.h5"
+GIBBS_ALL_JSON: "jsons/output/processed_data.json"
+GIBBS_D1_HDF5: "numerical/tvn_d1.h5"
+GIBBS_D1_JSON: "jsons/output/tvn_d1.json"
+GIBBS_D2_HDF5: "numerical/ggg_d2.h5"
+GIBBS_D2_JSON: "jsons/output/ggg_d2.json"
+EVAL_DIR_PATH: "output/eval/"
+
+### GIBBS ###
+INPUT_DICT_PATH: "jsons/input/tumor_normal_d1.json"
+OUTPUT_HDF5_PATH: "numerical/tvn_d1.h5"
+OUTPUT_JSON_PATH: "jsons/output/tvn_d1.json"
+METADATA_PATH: "meta/patient_gleason_grading.csv"
+OUTPUT_PRINT_ROI_PATH: "output/gibbs/"
+
+### SIMULATION ###
+SIM_JSON_PATH: "jsons/output/tvn_d1.json"
+SIM_HDF5_PATH: "numerical/tvn_d1.h5"
+SIM_PDF: "output/testing/simulation_results.pdf"
+SIM_CSV: "output/testing/simulation_results.csv"
+USE_TEST_DATA: False
