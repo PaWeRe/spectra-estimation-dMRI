@@ -84,14 +84,17 @@ def plot_d_spectra_sample_autocorrelation(d_spectra_sample, max_lag=2000, ax=Non
     for dim in range(n_dims):
         chain = sample_array[:, dim]
         n = len(chain)
+        this_max_lag = min(max_lag, n)
         chain_centered = chain - np.mean(chain)
-        acf = np.zeros(max_lag)
+        acf = np.zeros(this_max_lag)
         variance = np.sum(chain_centered**2) / n
-        for k in range(max_lag):
+        for k in range(this_max_lag):
             acf[k] = np.sum(chain_centered[k:] * chain_centered[: (n - k)]) / (n - k)
         acf = acf / variance
         ax.plot(
-            np.arange(max_lag), acf, label=f"D={d_spectra_sample.diffusivities[dim]}"
+            np.arange(this_max_lag),
+            acf,
+            label=f"D={d_spectra_sample.diffusivities[dim]}",
         )
     ax.set_xlabel("Sample Lag")
     ax.set_ylabel("Autocorrelation")

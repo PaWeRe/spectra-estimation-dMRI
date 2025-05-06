@@ -5,6 +5,9 @@ import numpy.random as npr
 
 
 class GibbsSampler(BaseSampler):
+    def __init__(self, signal_data, diffusivities, sigma, config=None, **kwargs):
+        super().__init__(signal_data, diffusivities, sigma, config=config, **kwargs)
+
     def _calculate_MVN_posterior_params(
         self,
         signal_data,
@@ -66,7 +69,7 @@ class GibbsSampler(BaseSampler):
                 if u <= eta:
                     return mu + sigma * z
 
-    def sample(self, iterations: int):
+    def sample(self, iterations: int, initial_R=None):
         signal_data = self.signal_data
         diffusivities = self.diffusivities
         sigma = self.sigma
@@ -81,9 +84,12 @@ class GibbsSampler(BaseSampler):
             L1_lambda=L1_lambda,
             L2_lambda=L2_lambda,
         )
-        R = np.array(
-            self._calculate_trunc_MVN_mode(M, Sigma_inverse, weighted_U_vecs)
-        ).T[0]
+        if initial_R is not None:
+            R = np.copy(initial_R)
+        else:
+            R = np.array(
+                self._calculate_trunc_MVN_mode(M, Sigma_inverse, weighted_U_vecs)
+            ).T[0]
         N = Sigma_inverse.shape[0]
         sigma_i = np.empty(N, dtype=object)
         Sigma_inverse_quotient = np.empty(N, dtype=object)
@@ -98,8 +104,8 @@ class GibbsSampler(BaseSampler):
         the_sample.initial_R = np.copy(R)
         count = 0
         for j in range(iterations):
-            if (count % 100) == 0:
-                print(".", end="")
+            if (j % 100) == 0:
+                print(f"GibbsSampler iteration {j}/{iterations}")
             count += 1
             for i in range(N):
                 R_slash_i = np.delete(R, i, 0)

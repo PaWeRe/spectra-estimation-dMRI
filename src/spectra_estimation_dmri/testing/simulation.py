@@ -19,13 +19,21 @@ from dataclasses import dataclass
 from typing import List, Dict, Any
 import matplotlib.patches as patches
 from spectra_estimation_dmri.models.samplers.gibbs_sampler import GibbsSampler
+from spectra_estimation_dmri.models.samplers.slice_sampler_2d import SliceSampler2D
 from spectra_estimation_dmri.models.samplers.base import (
     d_spectrum,
     d_spectra_sample,
     signal_data,
+    BaseSampler,
 )
 from spectra_estimation_dmri.utils import plotting
 import importlib.resources
+from spectra_estimation_dmri.models.samplers.variational_sampler import (
+    VariationalSampler,
+)
+from spectra_estimation_dmri.models.samplers.hierarchicalvariational_sampler import (
+    HierarchicalVariationalSampler,
+)
 
 sys.path.append(os.path.join(os.getcwd() + "/src/models/"))
 
@@ -75,36 +83,36 @@ class SimConfig:
         base_iterations = 100000
         base_l2_lambda = 1e-5
         base_burn_in = 10000
-        base_n_runs = 1  # Default number of noise realizations
+        base_n_runs = 3  # Default number of noise realizations
 
         # 1. Ratiometric SNR variations
         uniform_bvals_3500 = np.linspace(0, 3500, 15) / 1000
         configs.extend(
             [
-                # cls(
-                #     "Match",
-                #     100,
-                #     100,
-                #     uniform_bvals_3500,
-                #     base_iterations,
-                #     base_l2_lambda,
-                #     base_burn_in,
-                #     base_n_runs,
-                # ),
-                # cls(
-                #     "Match",
-                #     300,
-                #     300,
-                #     uniform_bvals_3500,
-                #     base_iterations,
-                #     base_l2_lambda,
-                #     base_burn_in,
-                #     base_n_runs,
-                # ),
                 cls(
                     "Match",
+                    1000000,
+                    100,
+                    uniform_bvals_3500,
+                    base_iterations,
+                    base_l2_lambda,
+                    base_burn_in,
+                    base_n_runs,
+                ),
+                cls(
+                    "Match",
+                    1000000,
                     600,
-                    600,
+                    uniform_bvals_3500,
+                    base_iterations,
+                    base_l2_lambda,
+                    base_burn_in,
+                    base_n_runs,
+                ),
+                cls(
+                    "Match",
+                    1000000,
+                    1000000,
                     uniform_bvals_3500,
                     base_iterations,
                     base_l2_lambda,
@@ -205,57 +213,68 @@ def generate_signals(s_0, b_values, d_spectrum, sigma, plot=False):
 
 
 def run_simulation(
-    true_spectrum: d_spectrum, config: SimConfig, sampler_class=GibbsSampler
-) -> Dict[str, Any]:
-    """Run multiple simulations with given parameters to assess stability.
+    true_spectrum: d_spectrum, config: SimConfig, sampler_classes_labels
+) -> dict:
+    """Run multiple simulations with given parameters to assess stability for multiple samplers.
 
     Args:
         true_spectrum: The true diffusion spectrum
         config: Configuration parameters containing n_runs for noise realizations
-        sampler_class: The sampler class to use (must implement BaseSampler interface)
+        sampler_classes_labels: List of (sampler_class, sampler_label) tuples
     """
-    # Lists to store results across runs
-    all_modes = []  # Store initial R (mode) from each run
-    all_means = []  # Store mean from each run's Gibbs samples
+    # Results structure: {sampler_label: {all_modes, all_means, samples, ...}}
+    results = {
+        label: {"all_modes": [], "all_means": [], "samples": []}
+        for _, label in sampler_classes_labels
+    }
 
-    # Run simulation multiple times
-    for _ in range(config.n_runs):
+    for run_idx in range(config.n_runs):
         # Generate noisy data using data_snr
         noisy_signal_normalized = generate_signals(
             1.0, config.b_values, true_spectrum, 1 / config.data_snr
         )
-
-        # Use the pluggable sampler interface
-        sampler = sampler_class(
+        # Compute shared initial R (mode)
+        initial_R = BaseSampler.compute_trunc_MVN_mode(
             noisy_signal_normalized,
             true_spectrum.diffusivities,
-            1 / config.gibbs_snr,  # Use gibbs_snr for sampling
-            l2_lambda=config.l2_lambda,
+            1 / config.gibbs_snr,
+            L2_lambda=config.l2_lambda,
         )
-        sample = sampler.sample(config.iterations)
-        sample.sample = sample.sample[config.burn_in :]  # Discard burn-in
-
-        # Store initial R (mode) and mean of Gibbs samples
-        all_modes.append(sample.initial_R)
-        all_means.append(np.mean(sample.sample, axis=0))
+        for sampler_class, sampler_label in sampler_classes_labels:
+            sampler = sampler_class(
+                noisy_signal_normalized,
+                true_spectrum.diffusivities,
+                1 / config.gibbs_snr,
+                config=config,
+                l2_lambda=config.l2_lambda,
+            )
+            sample = sampler.sample(config.iterations, initial_R=initial_R)
+            sample.sample = sample.sample[config.burn_in :]  # Discard burn-in
+            results[sampler_label]["all_modes"].append(sample.initial_R)
+            results[sampler_label]["all_means"].append(np.mean(sample.sample, axis=0))
+            results[sampler_label]["samples"].append(sample)
 
     # Convert to numpy arrays for easier computation
-    all_modes = np.array(all_modes)
-    all_means = np.array(all_means)
+    for sampler_label in results:
+        results[sampler_label]["all_modes"] = np.array(
+            results[sampler_label]["all_modes"]
+        )
+        results[sampler_label]["all_means"] = np.array(
+            results[sampler_label]["all_means"]
+        )
+        # For plotting, only use the first run's sample
+        results[sampler_label]["sample"] = results[sampler_label]["samples"][0]
+        results[sampler_label]["mode_variances"] = np.var(
+            results[sampler_label]["all_modes"], axis=0
+        )
+        results[sampler_label]["mean_variances"] = np.var(
+            results[sampler_label]["all_means"], axis=0
+        )
+        # Clean up
+        del results[sampler_label]["samples"]
 
-    # Calculate variances across runs for each diffusivity component
-    mode_variances = np.var(all_modes, axis=0)
-    mean_variances = np.var(all_means, axis=0)
-
-    # Store the last sample for other plots
-    return {
-        "sample": sample,
-        "config": config,
-        "mode_variances": mode_variances,
-        "mean_variances": mean_variances,
-        "all_modes": all_modes,
-        "all_means": all_means,
-    }
+    results["config"] = config
+    return results
 
 
 def plot_true_spectrum(ax, true_spectrum, title):
@@ -417,28 +436,26 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
         # First page: Distribution plots
         fig = plt.figure(figsize=(15, 5 * rows))
         plt.suptitle("Complexity - Distribution", fontsize=16)
-
         gs = plt.GridSpec(rows, cols, figure=fig)
-
         for i, result in enumerate(all_results):
             row = i // cols
             col = i % cols
             ax = fig.add_subplot(gs[row, col])
-
             config = result["config"]
+            sampler_label = result.get("sampler", "Sampler")
             # Calculate b-value range
             b_min, b_max = min(config.b_values), max(config.b_values)
-
             # Plot Gibbs sampling distribution
+            zone_str = f"Zone: {result['zone']}\n" if "zone" in result else ""
             plotting.plot_d_spectra_sample_boxplot(
                 result["sample"],
                 ax=ax,
-                title=f"{config.name}\n"
-                f"Data SNR: {config.data_snr}, Gibbs SNR: {config.gibbs_snr}\n"
+                title=f"{sampler_label} | {config.name}\n"
+                f"{zone_str}"
+                f"Data SNR: {config.data_snr}, Sampler SNR: {config.gibbs_snr}\n"
                 f"L2 λ: {config.l2_lambda:.1e}, Iterations: {config.iterations} (burn-in: {config.burn_in})\n"
                 f"b-values: {b_min:.1f}-{b_max:.1f} ms/µm²",
             )
-
             # Get the appropriate true spectrum
             if "true_spectrum" in result:
                 # For test data
@@ -476,25 +493,20 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
         # Second page: Autocorrelation plots
         fig = plt.figure(figsize=(15, 5 * rows))
         plt.suptitle("Complexity - Autocorrelation", fontsize=16)
-
         gs = plt.GridSpec(rows, cols, figure=fig)
-
         for i, result in enumerate(all_results):
             row = i // cols
             col = i % cols
             ax = fig.add_subplot(gs[row, col])
-
             config = result["config"]
-
+            sampler_label = result.get("sampler", "Sampler")
             # Plot autocorrelation
             plotting.plot_d_spectra_sample_autocorrelation(result["sample"], ax=ax)
-
             # Add zone information to title for real data
-            title = f"{config.name}\n"
+            title = f"{sampler_label} | {config.name}\n"
             if "zone" in result:
                 title += f"Zone: {result['zone']}\n"
-            title += f"Data SNR: {config.data_snr}, Gibbs SNR: {config.gibbs_snr}"
-
+            title += f"Data SNR: {config.data_snr}, Sampler SNR: {config.gibbs_snr}"
             ax.set_title(title)
 
         plt.tight_layout()
@@ -504,16 +516,13 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
         # Third page: Mode vs Mean Stability Analysis with Boxplots
         fig = plt.figure(figsize=(15, 5 * rows))
         plt.suptitle("Mode vs Mean Stability Analysis", fontsize=16)
-
         gs = plt.GridSpec(rows, cols, figure=fig)
-
         for i, result in enumerate(all_results):
             row = i // cols
             col = i % cols
             ax = fig.add_subplot(gs[row, col])
-
             config = result["config"]
-
+            sampler_label = result.get("sampler", "Sampler")
             # Get the appropriate true spectrum
             if "true_spectrum" in result:
                 true_spectrum = result["true_spectrum"]
@@ -564,7 +573,7 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
 
             # Customize plot
             ax.set_ylabel("Relative Fraction")
-            title = f"{config.name}"
+            title = f"{sampler_label} | {config.name}"
             if "zone" in result:
                 title += f"\nZone: {result['zone']}\nData SNR: {config.data_snr}, Gibbs SNR: {config.gibbs_snr}"
             title += f"\nN={config.n_runs} noise realizations"
@@ -599,16 +608,13 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
         # Fourth page: Trace Plots
         fig = plt.figure(figsize=(15, 5 * rows))
         plt.suptitle("MCMC Trace Plots", fontsize=16)
-
         gs = plt.GridSpec(rows, cols, figure=fig)
-
         for i, result in enumerate(all_results):
             row = i // cols
             col = i % cols
             ax = fig.add_subplot(gs[row, col])
-
             config = result["config"]
-
+            sampler_label = result.get("sampler", "Sampler")
             # Get sample data
             sample_array = np.array(result["sample"].sample)
             n_iterations = len(sample_array)
@@ -626,7 +632,7 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
             # Customize plot
             ax.set_xlabel("Iteration")
             ax.set_ylabel("Fraction")
-            title = f"{config.name}"
+            title = f"{sampler_label} | {config.name}"
             if "zone" in result:
                 title += f"\nZone: {result['zone']}"
             title += f"\nData SNR: {config.data_snr}, Gibbs SNR: {config.gibbs_snr}"
@@ -644,16 +650,14 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
 
         # Fifth page: Gibbs Sampler Trajectory Plots (Mixing Visualization)
         fig = plt.figure(figsize=(15, 5 * rows))
-        plt.suptitle("Gibbs Sampler Trajectories (Mixing Visualization)", fontsize=16)
-
+        plt.suptitle("Sampler Trajectories (Mixing Visualization)", fontsize=16)
         gs = plt.GridSpec(rows, cols, figure=fig)
-
         for i, result in enumerate(all_results):
             row = i // cols
             col = i % cols
             ax = fig.add_subplot(gs[row, col])
-
             config = result["config"]
+            sampler_label = result.get("sampler", "Sampler")
             sample_array = np.array(result["sample"].sample)
             n_steps = min(
                 50, len(sample_array)
@@ -706,7 +710,7 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
             # Axis labels and title
             ax.set_xlabel(f"Fraction D={result['sample'].diffusivities[x_idx]}")
             ax.set_ylabel(f"Fraction D={result['sample'].diffusivities[y_idx]}")
-            title = f"{config.name}"
+            title = f"{sampler_label} | {config.name}"
             if "zone" in result:
                 title += f"\nZone: {result['zone']}"
             title += f"\nFirst {n_steps} steps, Data SNR: {config.data_snr}, Gibbs SNR: {config.gibbs_snr}"
@@ -720,6 +724,12 @@ def modified_plot_results(true_spectra, all_results, output_pdf_path, output_csv
 
 
 def main(configs: dict) -> None:
+    sampler_classes_labels = [
+        (GibbsSampler, "GibbsSampler"),
+        # (SliceSampler2D, "SliceSampler2D"),
+        # (VariationalSampler, "VariationalSampler"),
+        # (HierarchicalVariationalSampler, "HierarchicalVariationalSampler"),
+    ]
     if configs["USE_TEST_DATA"]:
         diffusivities = np.array(
             [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
@@ -737,11 +747,9 @@ def main(configs: dict) -> None:
         all_results = []
 
         # Add both complexity levels to results
-        for i in range(0, 5):  # Complexity levels 1 and 2
+        for i in range(0, 5):
             test_spectrum = generate_true_spectrum(diffusivities, i)
-            # For first config, use the SimConfig from sim_configs
             config = sim_configs[0]
-            # Create a modified copy of the config for this complexity level
             modified_config = SimConfig(
                 name=f"Complexity Level {i}",
                 data_snr=config.data_snr,
@@ -750,13 +758,20 @@ def main(configs: dict) -> None:
                 iterations=config.iterations,
                 l2_lambda=config.l2_lambda,
                 burn_in=config.burn_in,
+                n_runs=config.n_runs,
             )
-            result = run_simulation(
-                test_spectrum, modified_config, sampler_class=GibbsSampler
+            # Run all samplers together
+            results = run_simulation(
+                test_spectrum, modified_config, sampler_classes_labels
             )
-            result["zone"] = "Complexity"
-            result["true_spectrum"] = test_spectrum
-            all_results.append(result)
+            for sampler_label in sampler_classes_labels:
+                label = sampler_label[1]
+                result = results[label]
+                result["zone"] = "Complexity"
+                result["true_spectrum"] = test_spectrum
+                result["sampler"] = label
+                result["config"] = results["config"]
+                all_results.append(result)
 
         # Use our modified plotting function instead of the original
         modified_plot_results(
@@ -776,11 +791,15 @@ def main(configs: dict) -> None:
         all_results = []
         for zone_name, true_spectrum in true_spectra.items():
             for config in sim_configs:
-                result = run_simulation(
-                    true_spectrum, config, sampler_class=GibbsSampler
-                )
-                result["zone"] = zone_name
-                all_results.append(result)
+                # Run all samplers together
+                results = run_simulation(true_spectrum, config, sampler_classes_labels)
+                for sampler_label in sampler_classes_labels:
+                    label = sampler_label[1]
+                    result = results[label]
+                    result["zone"] = zone_name
+                    result["sampler"] = label
+                    result["config"] = results["config"]
+                    all_results.append(result)
 
         # Plot and save results
         modified_plot_results(
