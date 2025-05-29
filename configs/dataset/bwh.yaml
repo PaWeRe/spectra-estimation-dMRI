@@ -1,0 +1,4 @@
+# Hydra config for the bwh dataset
+name: bwh
+signal_decays_json: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/signal_decays.json
+metadata_csv: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/metadata.csv

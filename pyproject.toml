@@ -20,6 +20,7 @@ dependencies = [
     "pyyaml",
     "cvxopt",
     "tqdm",
+    "hydra-core",
 ]
 
 [tool.setuptools.packages.find]

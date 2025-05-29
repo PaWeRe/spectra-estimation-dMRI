@@ -103,3 +103,81 @@ def plot_d_spectra_sample_autocorrelation(d_spectra_sample, max_lag=2000, ax=Non
     ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.tight_layout()
     return ax
+
+
+def analyze_design_matrix(U, pdf_path):
+    """
+    Analyze and plot diagnostics for a design matrix U, saving the output as a PDF.
+    Includes: heatmap, singular value spectrum, condition number, numerical rank, and column correlation matrix.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    # Compute diagnostics
+    U = np.asarray(U)
+    cond_number = np.linalg.cond(U)
+    singular_values = np.linalg.svd(U, compute_uv=False)
+    tol = np.max(U.shape) * np.amax(singular_values) * np.finfo(float).eps
+    numerical_rank = np.sum(singular_values > tol)
+    col_corr = np.corrcoef(U.T)
+    row_norms = np.linalg.norm(U, axis=1)
+    col_norms = np.linalg.norm(U, axis=0)
+
+    with PdfPages(pdf_path) as pdf:
+        # 1. Heatmap of U
+        fig, ax = plt.subplots(figsize=(8, 6))
+        im = ax.imshow(U, aspect="auto", cmap="viridis")
+        plt.colorbar(im, ax=ax)
+        ax.set_title("Design Matrix U (heatmap)")
+        ax.set_xlabel("Columns (diffusivity bins)")
+        ax.set_ylabel("Rows (b-values)")
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # 2. Singular value spectrum (log scale)
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.semilogy(singular_values, "o-")
+        ax.set_title("Singular Value Spectrum of U")
+        ax.set_xlabel("Index")
+        ax.set_ylabel("Singular Value (log scale)")
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # 3. Condition number and numerical rank (text)
+        fig, ax = plt.subplots(figsize=(6, 2))
+        ax.axis("off")
+        text = f"Condition number: {cond_number:.2e}\nNumerical rank: {numerical_rank} / {U.shape[1]}"
+        ax.text(0.1, 0.5, text, fontsize=14, va="center")
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # 4. Correlation matrix of columns
+        fig, ax = plt.subplots(figsize=(8, 6))
+        im = ax.imshow(col_corr, aspect="auto", cmap="bwr", vmin=-1, vmax=1)
+        plt.colorbar(im, ax=ax)
+        ax.set_title("Column Correlation Matrix of U")
+        ax.set_xlabel("Column index")
+        ax.set_ylabel("Column index")
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # 5. Row and column norms
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(row_norms, label="Row norms")
+        ax.plot(col_norms, label="Column norms")
+        ax.set_title("Norms of Rows and Columns of U")
+        ax.set_xlabel("Index")
+        ax.set_ylabel("Norm")
+        ax.legend()
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    return {
+        "condition_number": cond_number,
+        "singular_values": singular_values,
+        "numerical_rank": numerical_rank,
+        "column_correlation_matrix": col_corr,
+        "row_norms": row_norms,
+        "col_norms": col_norms,
+    }

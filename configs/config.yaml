@@ -1,0 +1,11 @@
+# Main Hydra configuration file
+# Set up defaults for dataset
+
+defaults:
+  - dataset: bwh
+  - model: nonneg_gaussian
+  - inference: mcmc
+  - classifier: logistic_regression
+
+experiment_name: "spectra_estimation_test_1"
+seed: 42
