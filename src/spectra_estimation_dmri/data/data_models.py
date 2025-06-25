@@ -19,7 +19,7 @@ class SignalDecay(BaseModel):
     @computed_field
     @property
     def snr(self) -> float:
-        return np.sqrt(self.voxel_count / 16) * 150
+        return float(np.sqrt(self.voxel_count / 16) * 150)
 
     @field_validator("ggg")
     @classmethod
@@ -28,7 +28,7 @@ class SignalDecay(BaseModel):
             raise ValueError("GGG must be between 1 and 5.")
         return v
 
-    def fit_adc(self, b_range="0-1250", plot=False):
+    def fit_adc(self, b_range="0-1250", plot=True):
         """
         Calculate ADC using a monoexponential model.
 
@@ -42,35 +42,36 @@ class SignalDecay(BaseModel):
         adc : float
             The calculated Apparent Diffusion Coefficient
         """
+        # convert attributes to numpy arrays
+        signal_values, b_values = self.as_numpy()
+
         if b_range == "0-1000":
-            mask = self.b_values <= 1000
+            mask = b_values <= 1000
         elif b_range == "0-1250":
-            mask = self.b_values <= 1250
+            mask = b_values <= 1250
         elif b_range == "250-1000":
-            mask = (self.b_values >= 250) & (self.b_values <= 1000)
+            mask = (b_values >= 250) & (b_values <= 1000)
         elif b_range == "250-1250":
-            mask = (self.b_values >= 250) & (self.b_values <= 1250)
+            mask = (b_values >= 250) & (b_values <= 1250)
         else:
             raise ValueError(
                 "Invalid b_range. Use '0-1000', '0-1250', '250-1000' or '250-1250'"
             )
 
-        valid_mask = (
-            self.signal_values > 0
-        ) & mask  # Exclude non-positive signal values
+        valid_mask = (signal_values > 0) & mask  # Exclude non-positive signal values
 
         if not np.any(valid_mask):
             raise ValueError("No valid signal values available for ADC calculation.")
 
-        log_signal = np.log(self.signal_values[valid_mask])
-        valid_b_values = self.b_values[valid_mask]
+        log_signal = np.log(signal_values[valid_mask])
+        valid_b_values = b_values[valid_mask]
 
         slope, intercept = np.polyfit(valid_b_values, log_signal, 1)
         adc = -slope
 
         if plot:
             plt.figure(figsize=(10, 6))
-            plt.scatter(self.b_values, self.signal_values, label="Original data")
+            plt.scatter(b_values, signal_values, label="Original data")
             plt.scatter(valid_b_values, np.exp(log_signal), label="Used for fitting")
             fit_b_values = np.linspace(min(valid_b_values), max(valid_b_values), 100)
             fit_signal = np.exp(intercept - adc * fit_b_values)
@@ -83,6 +84,7 @@ class SignalDecay(BaseModel):
             plt.legend()
             plt.yscale("log")
             plt.grid(True)
+            # plt.savefig("adc_fit_plot.png")
             plt.show()
 
         return adc
@@ -97,6 +99,7 @@ class SignalDecay(BaseModel):
 
 
 class DiffusivitySpectrum(BaseModel):
+    inference_method: str
     signal_decay: SignalDecay
     # TODO: think of usage for finding opt diff discr for design matrix U (List of Lists?)
     diffusivities: list[float]
@@ -132,18 +135,6 @@ class DiffusivitySpectrum(BaseModel):
     def plot(self):
         pass
 
-    def compute_U(self):
-        return -np.exp(np.outer(self.signal_decay.b_values, self.diffusivities))
-
-    def compute_R_true(self, fake_data):
-        if fake_data:
-            pass
-        else:
-            pass
-
-    def compute_R_mode(self, regularizer):
-        pass
-
 
 class SignalDecayDataset(BaseModel):
     samples: list[SignalDecay]  # Forward reference if SignalDecay is defined later
@@ -155,7 +146,8 @@ class SignalDecayDataset(BaseModel):
         return self.samples[idx]
 
     def get_patient(self, pid: str) -> Optional["SignalDecay"]:
-        return next((s for s in self.samples if s.patient == pid), None)
+        matches = [m for m in self.samples if m.patient == pid]
+        return matches if matches else None
 
     def filter_tumor(self, tumor: bool = True) -> "SignalDecayDataset":
         return SignalDecayDataset(

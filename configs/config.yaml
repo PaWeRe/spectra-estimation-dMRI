@@ -2,10 +2,12 @@
 # Set up defaults for dataset
 
 defaults:
-  - dataset: bwh
+  - dataset: simulated
   - model: nonneg_gaussian
-  - inference: mcmc
+  - inference: gibbs
   - classifier: logistic_regression
+  - wandb: wandb_default
+  - _self_
 
 experiment_name: "spectra_estimation_test_1"
 seed: 42

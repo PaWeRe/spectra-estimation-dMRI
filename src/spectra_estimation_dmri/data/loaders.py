@@ -79,3 +79,12 @@ def load_bwh_signal_decays(json_path: str, metadata_path: str) -> SignalDecayDat
             )
             samples.append(sample)
     return SignalDecayDataset(samples=samples)
+
+
+def create_simulated_signal_decays(
+    true_spectrum: list, b_values: list, snr: list
+) -> SignalDecayDataset:
+    # TODO: create noise signal with torch / pyro (normal)
+    # TODO: adapt the SignalDecay class and SignalDecay class to also include snr, true spectrum optionally
+    # TODO: construct form 1 to N if I want to vary in hydra configs
+    pass

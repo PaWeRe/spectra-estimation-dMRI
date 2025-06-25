@@ -1,0 +1,3 @@
+prior_type: [dirichlet, exponential, gamma]
+prior_params:
+likelihood_cov:
