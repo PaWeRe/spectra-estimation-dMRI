@@ -1,8 +1,10 @@
 name: simulated
 snr: 600
-# TODO: do we need a dict for the titles of the plots, otherwise we don't know what anatomical region...
-true_spectrum:
-  - [
+noise_realizations: 0
+true_spectrum_name: normal_peripheral_zone
+true_spectra_dict:
+  normal_peripheral_zone:
+    [
       0.05945799,
       0.02641201,
       0.02361821,
@@ -14,7 +16,8 @@ true_spectrum:
       0.32841393,
       0.05299925,
     ]
-  - [
+  normal_transition_zone:
+    [
       0.08907393,
       0.02943757,
       0.02949968,
@@ -26,7 +29,8 @@ true_spectrum:
       0.19952549,
       0.07418436,
     ]
-  - [
+  tumor_peripheral_zone:
+    [
       0.17862015,
       0.03372368,
       0.03166436,
@@ -38,7 +42,8 @@ true_spectrum:
       0.11501056,
       0.0535998,
     ]
-  - [
+  tumor_transition_zone:
+    [
       0.26690788,
       0.03690806,
       0.03827977,
@@ -49,7 +54,7 @@ true_spectrum:
       0.09558901,
       0.07733034,
       0.07777243,
-    ] # derived from gibbs estimation of real data anatomic regions
+    ]
 diff_values: [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
 b_values:
   [0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5, 2.75, 3., 3.25, 3.5]

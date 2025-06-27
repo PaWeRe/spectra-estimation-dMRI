@@ -1,5 +1,8 @@
 import numpy as np
 import arviz as az
+from spectra_estimation_dmri.data.data_models import DiffusivitySpectrum
+import hashlib
+import os
 
 
 class MAPInference:
@@ -11,18 +14,58 @@ class MAPInference:
             getattr(config, "l2_lambda", 0.0) if config is not None else 0.0
         )
 
-    def run(self, return_idata=True):
+    # TODO: this should output a DiffusivitySpectraDataset object for easy ref in main.py
+    def run(
+        self,
+        return_idata=True,
+        save_dir=None,
+        ground_truth_spectrum=None,
+        config_hash=None,
+        config_tag=None,
+    ):
         # Compute MAP/NNLS estimate
         fractions = self.model.map_estimate(
             self.signal, regularization=self.regularization
         )
-        result = {"map_estimate": fractions}
+        idata = None
+        inference_data_path = None
         if return_idata:
-            # Wrap as ArviZ InferenceData for diagnostics/plotting
             idata = az.from_dict(
                 posterior={
                     "R": fractions[None, :]  # shape (chain, draw, dim) or (draw, dim)
                 }
             )
-            result["idata"] = idata
-        return result
+            if save_dir is not None:
+                os.makedirs(save_dir, exist_ok=True)
+                # Use config_hash and tag for filename
+                fname = f"map_inference"
+                if config_hash:
+                    fname += f"_{config_hash}"
+                if config_tag:
+                    fname += f"_{config_tag}"
+                fname += ".nc"
+                inference_data_path = os.path.join(save_dir, fname)
+                idata.to_netcdf(inference_data_path)
+        # Build DiffusivitySpectrum object
+        spectrum = DiffusivitySpectrum(
+            inference_method="map",
+            signal_decay=(
+                self.model.signal_decay if hasattr(self.model, "signal_decay") else None
+            ),
+            diffusivities=list(self.model.diffusivities),
+            design_matrix_U=self.model.U_matrix().tolist(),
+            spectrum_vector=list(fractions),
+            spectrum_samples=None,
+            spectrum_std=None,
+            ground_truth_spectrum=(
+                list(ground_truth_spectrum)
+                if ground_truth_spectrum is not None
+                else None
+            ),
+            inference_data=(
+                inference_data_path if inference_data_path is not None else ""
+            ),
+            config_hash=config_hash,
+            config_tag=config_tag,
+        )
+        return spectrum

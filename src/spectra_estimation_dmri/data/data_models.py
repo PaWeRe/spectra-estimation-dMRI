@@ -1,20 +1,21 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from pydantic import BaseModel, computed_field, field_validator
 from abc import ABC, abstractmethod
 
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
 class SignalDecay(BaseModel):
-    patient: str  # TODO: add validator with unique patient ids
+    patient: str
     signal_values: list[float]
     b_values: list[float]
     voxel_count: int  # alias for v_count in JSON
-    a_region: Literal["pz", "tz"]
+    a_region: Literal["pz", "tz", "sim"]
     is_tumor: bool = False
     ggg: Optional[int] = None
-    gs: Optional[str] = None  # TODO: add validator for strings e.g. 3+4 or 3+4+5
+    gs: Optional[str] = None
 
     @computed_field
     @property
@@ -93,46 +94,60 @@ class SignalDecay(BaseModel):
         """Return signal_values and b_values as numpy arrays."""
         return np.array(self.signal_values), np.array(self.b_values)
 
-    # TODO: implement
-    def plot(self):
-        pass
-
 
 class DiffusivitySpectrum(BaseModel):
+    """
+    Stores the result of spectrum inference for a single SignalDecay object and inference method.
+    - spectrum_vector: main estimate (MAP, posterior mean, etc.)
+    - spectrum_samples: optional, posterior samples (for Bayesian methods)
+    - spectrum_std: optional, posterior std (for Bayesian methods)
+    - ground_truth_spectrum: optional, for simulation/benchmarking
+    - inference_data: path to .nc or similar file
+    - inference_method: e.g., 'map', 'gibbs', 'vb'
+    - config_hash/config_tag: for retrieval and grouping
+    """
+
     inference_method: str
     signal_decay: SignalDecay
-    # TODO: think of usage for finding opt diff discr for design matrix U (List of Lists?)
     diffusivities: list[float]
     design_matrix_U: list[list[float]]
-    # TODO: think of usage during simulation (List of Lists for stability analysis?)
-    fractions_mode: list[float]  # posterior map estimate from reg. NNLS
-    fractions_mean: list[float]  # bayesian posterior mean from approx. inf.
-    fractions_variance: list[float]  # uncertainty / spread of posterior
-    estimated_snr: Optional[
-        float
-    ]  # TODO: check typing to work for simulation (float) and on real data (None)
-    true_fractions: Optional[list[float]]  # TODO: for simulation purposes optional
-    noise_realizations: int = 1
-    hdf5_dataset: str
-    # TODO: do I still need the raw samples for downstream analysis? If so add "hdf5_dataset" attribute!
+    spectrum_vector: list[float]
+    spectrum_samples: Optional[list[list[float]]] = None
+    spectrum_std: Optional[list[float]] = None
+    ground_truth_spectrum: Optional[list[float]] = None
+    inference_data: str
+    config_hash: Optional[str] = None
+    config_tag: Optional[str] = None
 
     def as_numpy(self):
         """Return all list fields as numpy arrays."""
         return {
             "diffusivities": np.array(self.diffusivities),
             "design_matrix_U": np.array(self.design_matrix_U),
-            "fractions_mode": np.array(self.fractions_mode),
-            "fractions_mean": np.array(self.fractions_mean),
-            "fractions_variance": np.array(self.fractions_variance),
-            "true_fractions": (
-                np.array(self.true_fractions)
-                if self.true_fractions is not None
+            "spectrum_vector": np.array(self.spectrum_vector),
+            "spectrum_samples": (
+                np.array(self.spectrum_samples)
+                if self.spectrum_samples is not None
+                else None
+            ),
+            "spectrum_std": (
+                np.array(self.spectrum_std) if self.spectrum_std is not None else None
+            ),
+            "ground_truth_spectrum": (
+                np.array(self.ground_truth_spectrum)
+                if self.ground_truth_spectrum is not None
                 else None
             ),
         }
 
-    # TODO: implement
-    def plot(self):
+    def plot(self, config_info=None, save_dir=None, show=True):
+        """
+        Plot the spectrum (MAP and posterior mean) for this object.
+        config_info: str or dict to include in the title/filename.
+        save_dir: directory to save the plot (optional).
+        show: whether to display the plot.
+        """
+        # TODO: should be implemented or deleted?
         pass
 
 
@@ -201,8 +216,150 @@ class DiffusivitySpectraDataset(BaseModel):
     def __item__(self, idx):
         return self.spectra[idx]
 
-    def plot_avg_by_region(self):
-        pass
-
     def as_numpy(self):
         return [s.as_numpy() for s in self.spectra]
+
+    @staticmethod
+    def save_index(index_dict, index_path):
+        """Save an index (dict) mapping config hashes/tags and sample IDs to file paths as JSON."""
+        import json
+
+        with open(index_path, "w") as f:
+            json.dump(index_dict, f, indent=2)
+
+    @staticmethod
+    def load_index(index_path):
+        """Load an index (dict) from JSON file."""
+        import json
+
+        with open(index_path, "r") as f:
+            return json.load(f)
+
+    def plot_group_boxplot(
+        self, group_key=None, save_dir=None, config_info=None, show=True
+    ):
+        """
+        Plot a boxplot comparison of spectra grouped by a key (e.g., ground truth, SNR, etc.).
+        - Aggregates spectrum_samples (if available) or spectrum_vector for each inference method.
+        - Plots as boxplots (one per inference method), with ground truth as vertical lines if available.
+        - Uses config info in the title/filename and filename.
+        - Follows the style of plot_d_spectra_sample_boxplot from utils/plotting.py.
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import os
+        from collections import defaultdict
+
+        # Group spectra by inference method
+        method_to_samples = defaultdict(list)
+        method_to_vectors = defaultdict(list)
+        ground_truth = None
+        d = None
+        for spec in self.spectra:
+            if d is None:
+                d = np.array(spec.diffusivities)
+            if spec.spectrum_samples is not None:
+                method_to_samples[spec.inference_method].append(
+                    np.array(spec.spectrum_samples)
+                )
+            else:
+                method_to_vectors[spec.inference_method].append(
+                    np.array(spec.spectrum_vector)
+                )
+            if spec.ground_truth_spectrum is not None:
+                ground_truth = np.array(spec.ground_truth_spectrum)
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        boxplot_positions = np.arange(1, len(d) + 1)
+        colors = ["blue", "red", "orange", "purple", "cyan", "magenta"]
+        for idx, (method, samples_list) in enumerate(method_to_samples.items()):
+            # Concatenate all samples for this method
+            all_samples = np.concatenate(
+                samples_list, axis=0
+            )  # shape [n_total_samples, n_diffusivities]
+            bp = ax.boxplot(
+                all_samples,
+                positions=boxplot_positions + 0.15 * idx,
+                widths=0.12,
+                patch_artist=True,
+                showmeans=True,
+                meanline=True,
+                boxprops=dict(facecolor=colors[idx % len(colors)], alpha=0.3),
+                medianprops=dict(color=colors[idx % len(colors)]),
+                meanprops=dict(color=colors[idx % len(colors)], linewidth=2),
+                flierprops=dict(
+                    markerfacecolor=colors[idx % len(colors)], marker="o", alpha=0.2
+                ),
+                manage_ticks=False,
+            )
+            # Add legend entry
+            bp["boxes"][0].set_label(f"{method} (samples)")
+        for idx, (method, vectors_list) in enumerate(method_to_vectors.items()):
+            # Each vector is a single spectrum estimate
+            all_vectors = np.stack(
+                vectors_list, axis=0
+            )  # shape [n_vectors, n_diffusivities]
+            bp = ax.boxplot(
+                all_vectors,
+                positions=boxplot_positions + 0.15 * (len(method_to_samples) + idx),
+                widths=0.12,
+                patch_artist=True,
+                showmeans=True,
+                meanline=True,
+                boxprops=dict(
+                    facecolor=colors[(len(method_to_samples) + idx) % len(colors)],
+                    alpha=0.3,
+                ),
+                medianprops=dict(
+                    color=colors[(len(method_to_samples) + idx) % len(colors)]
+                ),
+                meanprops=dict(
+                    color=colors[(len(method_to_samples) + idx) % len(colors)],
+                    linewidth=2,
+                ),
+                flierprops=dict(
+                    markerfacecolor=colors[
+                        (len(method_to_samples) + idx) % len(colors)
+                    ],
+                    marker="o",
+                    alpha=0.2,
+                ),
+                manage_ticks=False,
+            )
+            bp["boxes"][0].set_label(f"{method} (point)")
+        # Plot ground truth if available
+        if ground_truth is not None:
+            ax.vlines(
+                boxplot_positions,
+                0,
+                ground_truth,
+                colors="green",
+                alpha=0.8,
+                linewidth=2,
+                label="Ground Truth",
+            )
+        ax.set_xticks(boxplot_positions)
+        ax.set_xticklabels([f"{val:.2g}" for val in d], rotation=45)
+        ax.set_xlabel("Diffusivity")
+        ax.set_ylabel("Fraction")
+        title = "Spectra Boxplot Comparison"
+        if config_info:
+            if isinstance(config_info, dict):
+                title += " | " + ", ".join(f"{k}={v}" for k, v in config_info.items())
+            else:
+                title += f" | {config_info}"
+        ax.set_title(title)
+        ax.legend()
+        plt.tight_layout()
+        fname = "spectra_boxplot_comparison"
+        if self.spectra and self.spectra[0].config_hash:
+            fname += f"_{self.spectra[0].config_hash}"
+        if self.spectra and self.spectra[0].config_tag:
+            fname += f"_{self.spectra[0].config_tag}"
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            fpath = os.path.join(save_dir, fname + ".png")
+            plt.savefig(fpath)
+        if show:
+            plt.show()
+        plt.close()

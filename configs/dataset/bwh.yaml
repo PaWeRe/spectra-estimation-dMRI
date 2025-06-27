@@ -1,4 +1,7 @@
 # Hydra config for the bwh dataset
+# No b_values as they are pre-determined by protocol ran during data acquisition
 name: bwh
+true_spectrum_name: None
+diff_values: [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
 signal_decays_json: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/signal_decays.json
 metadata_csv: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/metadata.csv

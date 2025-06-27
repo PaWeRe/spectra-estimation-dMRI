@@ -4,6 +4,7 @@ import numpy as np
 import os
 
 
+# TODO: get all the az.function() into the already defined data structures themselves if possible, so that we can simplify everything and maybe don't even need this diagnostics.py
 def plot_trace(idata, var_name="R", save_path=None, wandb_run=None, **kwargs):
     fig = az.plot_trace(idata, var_names=[var_name], **kwargs)
     if save_path:

@@ -6,8 +6,11 @@ defaults:
   - model: nonneg_gaussian
   - inference: gibbs
   - classifier: logistic_regression
-  - wandb: wandb_default
+  - plot: boxplot
   - _self_
 
 experiment_name: "spectra_estimation_test_1"
 seed: 42
+
+dataset:
+  true_spectrum_name: normal_peripheral_zone

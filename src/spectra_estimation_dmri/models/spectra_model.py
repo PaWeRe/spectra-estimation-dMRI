@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.optimize import nnls
 from typing import Optional
+from sklearn.linear_model import Lasso
+from spectra_estimation_dmri.data.data_models import SignalDecay, SignalDecayDataset
 
 
 class SpectrumModel:
@@ -27,6 +29,7 @@ class SpectrumModel:
         d = np.array(diffusivities) if diffusivities is not None else self.diffusivities
         return np.exp(-np.outer(b, d))
 
+    # TODO: modify function to simulate_signal_decay_dataset to return SignalDecayDataset (for consistency in main.py)
     def simulate_signal(self, true_spectrum, snr=None, sigma=None, b_values=None):
         U = self.U_matrix(b_values=b_values)
         signal = U @ true_spectrum
@@ -48,58 +51,84 @@ class SpectrumModel:
         )
         return -0.5 * np.sum(((signal - mu) / sigma_) ** 2)
 
-    def map_estimate(self, signal, regularization=0.0, b_values=None):
+    def log_prior(self, spectrum, prior_type="uniform", prior_params=None):
+        if prior_type == "uniform":
+            # Uniform prior: constant if all elements >= 0
+            return 0.0 if np.all(spectrum >= 0) else -np.inf
+        elif prior_type == "l2":
+            # Gaussian prior: -0.5 * lambda * ||spectrum||^2
+            l2_lambda = (
+                prior_params["l2_lambda"]
+                if prior_params and "l2_lambda" in prior_params
+                else 1.0
+            )
+            return -0.5 * l2_lambda * np.sum(spectrum**2)
+        elif prior_type == "l1":
+            # Laplace prior: -lambda * ||spectrum||_1
+            l1_lambda = (
+                prior_params["l1_lambda"]
+                if prior_params and "l1_lambda" in prior_params
+                else 1.0
+            )
+            return -l1_lambda * np.sum(np.abs(spectrum))
+        else:
+            raise ValueError(f"Unknown prior_type: {prior_type}")
+
+    def map_estimate(
+        self,
+        signal,
+        prior_type="uniform",
+        regularization=0.0,
+        b_values=None,
+        prior_params=None,
+    ):
         """
-        Compute the MAP/NNLS estimate (optionally L2-regularized).
+        Compute the MAP estimate for the given prior.
+        prior_type: 'uniform' (NNLS), 'l2' (ridge), 'l1' (lasso)
+        regularization: lambda for l2 or l1
         Returns: estimated spectrum (fractions)
         """
         U = self.U_matrix(b_values=b_values)
-        if regularization > 0:
-            # Solve (U^T U + lambda*I) x = U^T s, x >= 0
+        if prior_type == "uniform":
+            # NNLS (non-negative)
+            fractions, _ = nnls(U, signal)
+        elif prior_type == "l2":
+            # Ridge regression with non-negativity (NNLS with L2)
             n = U.shape[1]
             A = np.vstack([U, np.sqrt(regularization) * np.eye(n)])
             b = np.concatenate([signal, np.zeros(n)])
             fractions, _ = nnls(A, b)
+        elif prior_type == "l1":
+            # Lasso regression (non-negative)
+            lasso = Lasso(
+                alpha=regularization, positive=True, fit_intercept=False, max_iter=10000
+            )
+            lasso.fit(U, signal)
+            fractions = lasso.coef_
         else:
-            fractions, _ = nnls(U, signal)
+            raise ValueError(f"Unknown prior_type: {prior_type}")
         return fractions
 
-    def to_diffusivity_spectrum(
-        self,
-        inference_method: str,
-        signal_decay,
-        fractions_mode,
-        fractions_mean=None,
-        fractions_variance=None,
-        estimated_snr=None,
-        true_fractions=None,
-        noise_realizations=1,
-        hdf5_dataset="",
-    ):
-        from spectra_estimation_dmri.data.data_models import DiffusivitySpectrum
-
-        return DiffusivitySpectrum(
-            inference_method=inference_method,
-            signal_decay=signal_decay,
-            diffusivities=self.diffusivities.tolist(),
-            design_matrix_U=self.U_matrix().tolist(),
-            fractions_mode=fractions_mode.tolist(),
-            fractions_mean=(
-                fractions_mean.tolist() if fractions_mean is not None else []
+    # TODO: modify function to simulate_signal_decay_dataset to return SignalDecayDataset (for consistency in main.py)
+    def simulate_signal_decay_dataset(self, true_spectrum):
+        """
+        Simulate a SignalDecayDataset for a given true spectrum.
+        Returns a SignalDecayDataset with one SignalDecay object.
+        """
+        noisy_signal = self.simulate_signal(true_spectrum)
+        signal_decay = SignalDecay(
+            patient="simulated",
+            signal_values=noisy_signal.tolist(),
+            b_values=self.b_values.tolist(),
+            voxel_count=1,
+            a_region="sim",
+            is_tumor=False,
+            ggg=None,
+            gs=None,
+            ground_truth_spectrum=(
+                true_spectrum.tolist()
+                if hasattr(true_spectrum, "tolist")
+                else list(true_spectrum)
             ),
-            fractions_variance=(
-                fractions_variance.tolist() if fractions_variance is not None else []
-            ),
-            estimated_snr=estimated_snr,
-            true_fractions=(
-                true_fractions.tolist() if true_fractions is not None else None
-            ),
-            noise_realizations=noise_realizations,
-            hdf5_dataset=hdf5_dataset,
         )
-
-    def compute_U(self):
-        return -np.exp(np.outer(self.signal_decay.b_values, self.diffusivities))
-
-    def compute_R_mode(self, regularizer):
-        pass
+        return SignalDecayDataset(samples=[signal_decay])

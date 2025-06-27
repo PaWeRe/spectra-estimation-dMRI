@@ -3,10 +3,14 @@ import arviz as az
 from cvxopt import matrix, solvers
 import numpy.random as npr
 from tqdm import tqdm
+from spectra_estimation_dmri.data.data_models import DiffusivitySpectrum
+import hashlib
+import os
 
 
 class GibbsSampler:
     def __init__(self, model, signal, config=None):
+        # TODO: doesn't it make more sense to pull out the config and assign everything directly in the main.py without the complex if else structure here?
         self.model = model
         self.signal = signal
         self.config = config
@@ -71,11 +75,19 @@ class GibbsSampler:
                 if u <= eta:
                     return mu + sigma * z
 
-    def run(self, return_idata=True, show_progress=False):
+    def run(
+        self,
+        return_idata=True,
+        show_progress=False,
+        save_dir=None,
+        ground_truth_spectrum=None,
+        config_hash=None,
+        config_tag=None,
+    ):
         """
         Run Gibbs sampling for the spectrum fractions.
         Returns:
-            result: dict, containing 'samples' and optionally 'idata'
+            DiffusivitySpectrum object
         """
         signal = np.array(self.signal)
         b_values = np.array(self.model.b_values)
@@ -123,8 +135,41 @@ class GibbsSampler:
             if j >= self.burn_in:
                 samples.append(R.copy())
         samples = np.array(samples)
-        result = {"samples": samples}
+        idata = None
+        inference_data_path = None
         if return_idata:
             idata = az.from_dict(posterior={"R": samples})
-            result["idata"] = idata
-        return result
+            if save_dir is not None:
+                os.makedirs(save_dir, exist_ok=True)
+                fname = f"gibbs_inference"
+                if config_hash:
+                    fname += f"_{config_hash}"
+                if config_tag:
+                    fname += f"_{config_tag}"
+                fname += ".nc"
+                inference_data_path = os.path.join(save_dir, fname)
+                idata.to_netcdf(inference_data_path)
+        spectrum_vector = np.mean(samples, axis=0)
+        spectrum_std = np.std(samples, axis=0)
+        spectrum = DiffusivitySpectrum(
+            inference_method="gibbs",
+            signal_decay=(
+                self.model.signal_decay if hasattr(self.model, "signal_decay") else None
+            ),
+            diffusivities=list(self.model.diffusivities),
+            design_matrix_U=self.model.U_matrix().tolist(),
+            spectrum_vector=list(spectrum_vector),
+            spectrum_samples=samples.tolist(),
+            spectrum_std=list(spectrum_std),
+            ground_truth_spectrum=(
+                list(ground_truth_spectrum)
+                if ground_truth_spectrum is not None
+                else None
+            ),
+            inference_data=(
+                inference_data_path if inference_data_path is not None else ""
+            ),
+            config_hash=config_hash,
+            config_tag=config_tag,
+        )
+        return spectrum
