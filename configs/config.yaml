@@ -4,13 +4,10 @@
 defaults:
   - dataset: simulated
   - model: nonneg_gaussian
-  - inference: gibbs
+  - inference: map
   - classifier: logistic_regression
-  - plot: boxplot
+  - diagnostics: boxplot
   - _self_
 
 experiment_name: "spectra_estimation_test_1"
 seed: 42
-
-dataset:
-  true_spectrum_name: normal_peripheral_zone

@@ -19,9 +19,8 @@ class MAPInference:
         self,
         return_idata=True,
         save_dir=None,
-        ground_truth_spectrum=None,
-        config_hash=None,
-        config_tag=None,
+        true_spectrum=None,
+        unique_hash=None,
     ):
         # Compute MAP/NNLS estimate
         fractions = self.model.map_estimate(
@@ -37,13 +36,8 @@ class MAPInference:
             )
             if save_dir is not None:
                 os.makedirs(save_dir, exist_ok=True)
-                # Use config_hash and tag for filename
-                fname = f"map_inference"
-                if config_hash:
-                    fname += f"_{config_hash}"
-                if config_tag:
-                    fname += f"_{config_tag}"
-                fname += ".nc"
+                # Use config_hash for filename
+                fname = f"{unique_hash}.nc"
                 inference_data_path = os.path.join(save_dir, fname)
                 idata.to_netcdf(inference_data_path)
         # Build DiffusivitySpectrum object
@@ -57,15 +51,10 @@ class MAPInference:
             spectrum_vector=list(fractions),
             spectrum_samples=None,
             spectrum_std=None,
-            ground_truth_spectrum=(
-                list(ground_truth_spectrum)
-                if ground_truth_spectrum is not None
-                else None
-            ),
+            true_spectrum=(list(true_spectrum) if true_spectrum is not None else None),
             inference_data=(
                 inference_data_path if inference_data_path is not None else ""
             ),
-            config_hash=config_hash,
-            config_tag=config_tag,
+            unique_hash=unique_hash,
         )
         return spectrum

@@ -67,10 +67,12 @@ def load_bwh_signal_decays(json_path: str, metadata_path: str) -> SignalDecayDat
                 )
             # Map v_count to voxel_count
             voxel_count = roi["v_count"]
+            snr = float(np.sqrt(voxel_count / 16) * 150)
             sample = SignalDecay(
                 patient=patient_id,
                 signal_values=roi["signal_values"],
                 b_values=roi["b_values"],
+                snr=snr,
                 voxel_count=voxel_count,
                 a_region=region,
                 is_tumor=is_tumor,

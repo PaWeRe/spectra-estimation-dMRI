@@ -1,9 +1,9 @@
 name: simulated
 snr: 600
 noise_realizations: 0
-true_spectrum_name: normal_peripheral_zone
+true_spectrum_name: npz
 true_spectra_dict:
-  normal_peripheral_zone:
+  npz:
     [
       0.05945799,
       0.02641201,
@@ -16,7 +16,7 @@ true_spectra_dict:
       0.32841393,
       0.05299925,
     ]
-  normal_transition_zone:
+  ntz:
     [
       0.08907393,
       0.02943757,
@@ -29,7 +29,7 @@ true_spectra_dict:
       0.19952549,
       0.07418436,
     ]
-  tumor_peripheral_zone:
+  tpz:
     [
       0.17862015,
       0.03372368,
@@ -42,7 +42,7 @@ true_spectra_dict:
       0.11501056,
       0.0535998,
     ]
-  tumor_transition_zone:
+  ttz:
     [
       0.26690788,
       0.03690806,

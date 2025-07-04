@@ -8,6 +8,7 @@ import os
 import numpy as np
 import arviz as az
 import hashlib
+from spectra_estimation_dmri.utils.spectra_id import set_spectra_id
 
 from spectra_estimation_dmri.data.loaders import load_bwh_signal_decays
 from spectra_estimation_dmri.models.spectra_model import SpectrumModel
@@ -53,36 +54,79 @@ def main(cfg: DictConfig):
             diffusivities=cfg.dataset.diff_values,
             b_values=cfg.dataset.b_values,
             snr=cfg.dataset.snr,
+            true_spectrum=true_spectrum,
         )
-        signal_decay_dataset = spectrum_model.simulate_signal_decay_dataset(
-            true_spectrum
-        )
+        signal_decay_dataset = spectrum_model.simulate_signal_decay_dataset()
+        signal_decay_dataset.summary()
 
     ### 2) INFERENCE (MAP OR FULL BAYESIAN) ###
+    # Set up results directories
+    # TODO: file retrieval - ceate one spectra_id that's unique and consists of all exp related and signal decay related parameters that lead to a different spectra (for inference subfolder)
+    # TODO: plotting - create naming convention for spectra plotting and config (types: dist plotting, trace plotting, grouping: same snr, same ground truth spectrum etc. ... should all have dedicated plotting functions in Diffspectradatset)
+    # TODO: inference methods - write down list of exp cli commands and implement necessary methods for combo's
+    inference_dir = os.path.join(os.getcwd(), "results", "inference")
+    plots_dir = os.path.join(os.getcwd(), "results", "plots")
+    os.makedirs(inference_dir, exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
     spectra = []
-    config_str = str(cfg)  # config hash for reproducibility and file organization
-    config_hash = hashlib.md5(config_str.encode()).hexdigest()[:8]
-    config_tag = getattr(cfg, "tag", None)
-    save_dir = os.path.join(os.getcwd(), f"inference_{config_hash}")
-    os.makedirs(save_dir, exist_ok=True)
     for i, signal_decay in enumerate(signal_decay_dataset.samples):
         # Prepare model for this signal
         model = SpectrumModel(
             diffusivities=cfg.dataset.diff_values,
             b_values=signal_decay.b_values,
-            snr=getattr(cfg.dataset, "snr", None),
+            snr=signal_decay.snr,
         )
         model.signal_decay = signal_decay  # Attach for reference
         signal = signal_decay.signal_values
-        ground_truth = getattr(signal_decay, "ground_truth_spectrum", None)
+        true_spectrum = getattr(signal_decay, "true_spectrum", None)
+        # Compute spectra_id for this spectrum
+        spectra_id = set_spectra_id(signal_decay, cfg)
+        nc_filename = f"{spectra_id}.nc"
+        output_path = os.path.join(inference_dir, nc_filename)
+        if os.path.exists(output_path) and not cfg.diagnostics.recompute:
+            print(
+                f"[INFO] Loaded precomputed result: {output_path} (spectra_id: {spectra_id})"
+            )
+            # Load spectrum from .nc file
+            idata = az.from_netcdf(output_path)
+            if cfg.inference.name == "map":
+                spectrum_vector = idata.posterior["R"].values[0, :].tolist()
+                spectrum_samples = None
+                spectrum_std = None
+            elif cfg.inference.name == "gibbs":
+                samples = idata.posterior["R"].values.reshape(
+                    -1, idata.posterior["R"].shape[-1]
+                )
+                spectrum_vector = samples.mean(axis=0).tolist()
+                spectrum_samples = samples.tolist()
+                spectrum_std = samples.std(axis=0).tolist()
+            else:
+                spectrum_vector = []
+                spectrum_samples = None
+                spectrum_std = None
+            spectrum = DiffusivitySpectrum(
+                inference_method=cfg.inference.name,
+                signal_decay=model.signal_decay,
+                diffusivities=list(model.diffusivities),
+                design_matrix_U=model.U_matrix().tolist(),
+                spectrum_vector=spectrum_vector,
+                spectrum_samples=spectrum_samples,
+                spectrum_std=spectrum_std,
+                true_spectrum=(
+                    list(true_spectrum) if true_spectrum is not None else None
+                ),
+                inference_data=output_path,
+                spectra_id=spectra_id,
+            )
+            spectra.append(spectrum)
+            continue
         if cfg.inference.name == "map":
             infer = MAPInference(model, signal, cfg.inference)
             spectrum = infer.run(
                 return_idata=True,
-                save_dir=save_dir,
-                ground_truth_spectrum=ground_truth,
-                config_hash=config_hash,
-                config_tag=config_tag,
+                save_dir=inference_dir,
+                true_spectrum=true_spectrum,
+                unique_hash=spectra_id,
             )
             spectra.append(spectrum)
         elif cfg.inference.name == "gibbs":
@@ -90,31 +134,25 @@ def main(cfg: DictConfig):
             spectrum = infer.run(
                 return_idata=True,
                 show_progress=True,
-                save_dir=save_dir,
-                ground_truth_spectrum=ground_truth,
-                config_hash=config_hash,
-                config_tag=config_tag,
+                save_dir=inference_dir,
+                true_spectrum=true_spectrum,
+                unique_hash=spectra_id,
             )
             spectra.append(spectrum)
         elif cfg.inference == "vb":
             pass  # To be implemented
     spectra_dataset = DiffusivitySpectraDataset(spectra=spectra)
-    index_dict = {f"spec_{i}": s.inference_data for i, s in enumerate(spectra)}
-    DiffusivitySpectraDataset.save_index(
-        index_dict, os.path.join(save_dir, "spectra_index.json")
-    )
 
     ### 3) CANCER PREDICTION ###
     # TODO: to be implemented, maybe look at base_classes.py and use custom classes
 
     ### 4) DIAGNOSTICS AND PLOTTING ###
     spectra_dataset.plot_group_boxplot(
-        save_dir=save_dir,
+        save_dir=plots_dir,
         config_info={
             "inference": cfg.inference,
-            "hash": config_hash,
-            "tag": config_tag,
         },
+        group_by=cfg.diagnostics.group_by,
         show=True,
     )
 

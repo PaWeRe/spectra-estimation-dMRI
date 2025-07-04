@@ -80,9 +80,8 @@ class GibbsSampler:
         return_idata=True,
         show_progress=False,
         save_dir=None,
-        ground_truth_spectrum=None,
-        config_hash=None,
-        config_tag=None,
+        true_spectrum=None,
+        unique_hash=None,
     ):
         """
         Run Gibbs sampling for the spectrum fractions.
@@ -141,12 +140,7 @@ class GibbsSampler:
             idata = az.from_dict(posterior={"R": samples})
             if save_dir is not None:
                 os.makedirs(save_dir, exist_ok=True)
-                fname = f"gibbs_inference"
-                if config_hash:
-                    fname += f"_{config_hash}"
-                if config_tag:
-                    fname += f"_{config_tag}"
-                fname += ".nc"
+                fname = f"{unique_hash}.nc"
                 inference_data_path = os.path.join(save_dir, fname)
                 idata.to_netcdf(inference_data_path)
         spectrum_vector = np.mean(samples, axis=0)
@@ -161,15 +155,10 @@ class GibbsSampler:
             spectrum_vector=list(spectrum_vector),
             spectrum_samples=samples.tolist(),
             spectrum_std=list(spectrum_std),
-            ground_truth_spectrum=(
-                list(ground_truth_spectrum)
-                if ground_truth_spectrum is not None
-                else None
-            ),
+            true_spectrum=(list(true_spectrum) if true_spectrum is not None else None),
             inference_data=(
                 inference_data_path if inference_data_path is not None else ""
             ),
-            config_hash=config_hash,
-            config_tag=config_tag,
+            unique_hash=unique_hash,
         )
         return spectrum

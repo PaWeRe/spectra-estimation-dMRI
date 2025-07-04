@@ -14,6 +14,7 @@ class SpectrumModel:
         sigma: Optional[float] = None,
         prior_type: Optional[str] = None,
         prior_params: Optional[dict] = None,
+        true_spectrum: Optional[float] = None,
     ):
         self.diffusivities = np.array(diffusivities)
         self.b_values = np.array(b_values)
@@ -23,22 +24,19 @@ class SpectrumModel:
         )
         self.prior_type = prior_type
         self.prior_params = prior_params
+        self.true_spectrum = true_spectrum
 
     def U_matrix(self, b_values=None, diffusivities=None):
         b = np.array(b_values) if b_values is not None else self.b_values
         d = np.array(diffusivities) if diffusivities is not None else self.diffusivities
         return np.exp(-np.outer(b, d))
 
-    # TODO: modify function to simulate_signal_decay_dataset to return SignalDecayDataset (for consistency in main.py)
-    def simulate_signal(self, true_spectrum, snr=None, sigma=None, b_values=None):
-        U = self.U_matrix(b_values=b_values)
-        signal = U @ true_spectrum
-        sigma_ = (
-            sigma
-            if sigma is not None
-            else (1.0 / snr if snr is not None else self.sigma)
-        )
-        noisy_signal = signal + np.random.normal(0, sigma_, size=signal.shape)
+    def simulate_signal(self):
+        U = self.U_matrix(b_values=self.b_values)
+        signal = U @ self.true_spectrum
+        # TODO: check conversion of sigma and SNR again (before took sigma = 1/SNR but seems to sqrt?)
+        sigma = 1 / np.sqrt(self.snr)
+        noisy_signal = signal + np.random.normal(0, sigma, size=signal.shape)
         return noisy_signal
 
     def log_likelihood(self, signal, spectrum, snr=None, sigma=None, b_values=None):
@@ -110,25 +108,22 @@ class SpectrumModel:
         return fractions
 
     # TODO: modify function to simulate_signal_decay_dataset to return SignalDecayDataset (for consistency in main.py)
-    def simulate_signal_decay_dataset(self, true_spectrum):
+    def simulate_signal_decay_dataset(self):
         """
         Simulate a SignalDecayDataset for a given true spectrum.
         Returns a SignalDecayDataset with one SignalDecay object.
         """
-        noisy_signal = self.simulate_signal(true_spectrum)
+        noisy_signal = self.simulate_signal()
         signal_decay = SignalDecay(
             patient="simulated",
             signal_values=noisy_signal.tolist(),
             b_values=self.b_values.tolist(),
-            voxel_count=1,
+            snr=self.snr,
+            voxel_count=None,
             a_region="sim",
             is_tumor=False,
             ggg=None,
             gs=None,
-            ground_truth_spectrum=(
-                true_spectrum.tolist()
-                if hasattr(true_spectrum, "tolist")
-                else list(true_spectrum)
-            ),
+            true_spectrum=self.true_spectrum,
         )
         return SignalDecayDataset(samples=[signal_decay])
