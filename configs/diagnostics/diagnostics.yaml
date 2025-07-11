@@ -1,0 +1,3 @@
+only_pre_inference: false # If true, only run diagnostics, skip inference
+max_cond_U: 1e12
+max_cond_precision: 1e12

@@ -1,20 +1,18 @@
+# map.py
 import numpy as np
 import arviz as az
 from spectra_estimation_dmri.data.data_models import DiffusivitySpectrum
-import hashlib
 import os
 
 
 class MAPInference:
-    def __init__(self, model, signal, config=None):
-        self.model = model
-        self.signal = signal
-        self.config = config
-        self.regularization = (
-            getattr(config, "l2_lambda", 0.0) if config is not None else 0.0
-        )
+    """MAP inference for spectrum estimation"""
 
-    # TODO: this should output a DiffusivitySpectraDataset object for easy ref in main.py
+    def __init__(self, model, signal_decay, config):
+        self.model = model
+        self.signal_decay = signal_decay
+        self.config = config
+
     def run(
         self,
         return_idata=True,
@@ -22,39 +20,46 @@ class MAPInference:
         true_spectrum=None,
         unique_hash=None,
     ):
-        # Compute MAP/NNLS estimate
-        fractions = self.model.map_estimate(
-            self.signal, regularization=self.regularization
-        )
+        """
+        Run MAP estimation.
+
+        Returns:
+            DiffusivitySpectrum object
+        """
+        signal = np.array(self.signal_decay.signal_values)
+
+        # Compute MAP estimate
+        fractions = self.model.map_estimate(signal)
+
+        # Create inference data (single point estimate)
         idata = None
         inference_data_path = None
         if return_idata:
             idata = az.from_dict(
                 posterior={
-                    "R": fractions[None, :]  # shape (chain, draw, dim) or (draw, dim)
-                }
+                    "R": fractions[None, None, :]
+                }  # Add chain and draw dimensions
             )
             if save_dir is not None:
                 os.makedirs(save_dir, exist_ok=True)
-                # Use config_hash for filename
                 fname = f"{unique_hash}.nc"
                 inference_data_path = os.path.join(save_dir, fname)
                 idata.to_netcdf(inference_data_path)
-        # Build DiffusivitySpectrum object
+
+        # Create result object
         spectrum = DiffusivitySpectrum(
             inference_method="map",
-            signal_decay=(
-                self.model.signal_decay if hasattr(self.model, "signal_decay") else None
-            ),
-            diffusivities=list(self.model.diffusivities),
-            design_matrix_U=self.model.U_matrix().tolist(),
-            spectrum_vector=list(fractions),
+            signal_decay=self.signal_decay,
+            diffusivities=self.config.dataset.diff_values,
+            design_matrix_U=self.model.U_matrix(),
+            spectrum_vector=fractions.tolist(),
             spectrum_samples=None,
             spectrum_std=None,
-            true_spectrum=(list(true_spectrum) if true_spectrum is not None else None),
-            inference_data=(
-                inference_data_path if inference_data_path is not None else ""
-            ),
-            unique_hash=unique_hash,
+            true_spectrum=true_spectrum,
+            inference_data=inference_data_path,
+            spectra_id=unique_hash,
+            prior_type=self.model.prior_config.type,
+            prior_strength=self.model.prior_config.strength,
         )
+
         return spectrum

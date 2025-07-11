@@ -3,11 +3,13 @@
 
 defaults:
   - dataset: simulated
-  - model: nonneg_gaussian
+  - likelihood: gaussian
+  - prior: lasso
   - inference: map
   - classifier: logistic_regression
-  - diagnostics: boxplot
+  - diagnostics: diagnostics
   - _self_
 
+recompute: false
 experiment_name: "spectra_estimation_test_1"
 seed: 42

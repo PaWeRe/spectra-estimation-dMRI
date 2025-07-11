@@ -1,4 +1,4 @@
 name: gibbs
-iterations: 10000
+init: map
+n_iter: 10000
 burn_in: 1000
-l2_lambda: 1e-5

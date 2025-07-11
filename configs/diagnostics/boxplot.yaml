@@ -1,2 +1,0 @@
-recompute: false
-group_by: [snr, noise_realizations, true_spectrum]
