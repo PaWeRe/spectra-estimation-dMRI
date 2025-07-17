@@ -1,124 +1,268 @@
-# TODO: rename repo to medical inference (to highlight versatility and generalizabilty...)
-# TODO: if our biomarker is not better than ADC that's good enough as a result ... be honest aobut results ... science is about truth nothing!
-# Purpose
-Develop an end-to-end inference pipeline for finding and validating image-based cancer biomarkers, that are relevant and useful for clinical practice.
+# Modular Bayesian Framework for Diffusivity Spectrum Reconstruction in dMRI
 
-What kind of experiments do I want to do?
-1) Understand and find the best conditioned matrix U:
-   1) How does our U matrix look (how bad is it)? Condition number, Numerical rank
-   2) How can we phrase the problem in a way that it get's easier (e.g. measured by decreasing condition number)?
+**End-to-end framework for bayesian estimation of diffusivity spectra in diffusion MRI with systematic parameter optimization for cancer biomarker development**
 
-maybe it make sense to design an end-to-end inference pipeline...(e.g. the discretization of d directly depends not only on the condition number of U but also of the priors that I am using as regularization of the NNLS problem...)
+The core challenge is approximating a non-negative multivariate Gaussian that models the diffusivity spectrum R via inverse Laplace transform (s = UR + ε). This framework addresses: (1) minimizing reconstruction error under noise, (2) achieving stable matrix inversion, (3) estimating uncertainty, and (4) optimizing spectral features for cancer classification. The approach enables systematic testing across all parameter combinations and is validated on 63 prostate cancer patients from Brigham and Women's Hospital with expert annotations and Gleason grading.
 
-all depends also on the kind of metrics I am using...
-
-Can you adapt all data and non-data classes in the two python files, so that I can use them easily for the following 4 experiments? Please outline usage in these four experiments as well. 
-
-# Experiment1 - design matrix analysis (s=UR, Uij = exp(-bj*Di) laplace kernels)
-Here I want to make the ill-conditioned design matrix U as least ill-conditioned as possible to make the problem as simple as possible. I am thinking of trying out different diffusivity discretizations (e.g. log transform) and maybe different b value vectors (although i am not sure if that makese sense...). In any case helpful tools for optimizing for an ideal conditioned matrix, could include condition number, numerical stability, singular value spectra, matrix heatmaps.
-
-# Experiment2 - prior selection for prob model
-I am modelling the inverse laplace transform as a non-negative multivariate normal (hence truncated) and want to test various probabilistic models. In experiment 2 I want to solve the non-negative least square problem to compute the mode of R (map estimate). I want to benchmark various priors (e.g. dirichlet prior, truncated normal prior, laplace prior, uniform prior ...) to see how well they regularize the mode computation and help with making the solution stable under noise for various noise realizations and keep the accuracy. I need to compute and store various R_mode vectors for various noise realizations and varying regularizers / priors.
-
-# Experiment3 - approximative inference method benchmarking with simulation
-Here I want to compare various samplers and also variational bayes to approximate the full posterior over R. I am thinking of computing the bayesian posterior mean and the variance to fully characterize the approximate spectrum and maybe (if you deem it necessary) also keep the raw samples for the sampling approaches. I want to benchmark these approaches in terms of accuracy and efficiency in approximating the true R spectrum and need to compute and store at least various means and variances for changing approximative inference methods, noise and spectra etc.
-
-
-# Experiment4 - biomarker creation for gleason grade group differentiation and tumor vs normal differentiation
-Finally I want to use the best performing combination of the above experiments, i.e. the best conditioned matrix, with the best prior / regularizer for the mode R, and the most efficient and accurate approximative inference method to use the diffusivity spectrum to predict gleason scores and differentiate between tissue types. The goal is to outperform ADC and justify this mathematically and computationally more intensive approach, as well as find the best possible way of using the computed features as a cancer biomarker (incl. benchmarking various feature combinations on the small dataset that we have).
-
-
-# Bayesian estimation of diffusivity spectra in diffusion MRI
-
-This repo contains work in progress for estimating diffusivity spectra of normal and tumor tissue compartments of prostate gland diffusion MRI for 63 patients (relating to [Langkilde et al](https://pubmed.ncbi.nlm.nih.gov/28718517/) study), using bayesian methods for quantifying the diffusivity spectrum, defined by the inverse Laplace Transform.
-
-All derived data is free from HIPAA PHI and repo should not contain any sensitive patient information.
-
-## Motivation
-
-There is great interest to quantify the spectrum of diffusivities that underlie the observed diffusion signal decay; separate tissue compartments can be identified by their spectral peaks. This spectrum is defined by the inverse Laplace transform, but unfortunately this transform is very sensitive to noise omnipresent in diffusion MRI. We present a Bayesian method of inverse Laplace transform that uses Gibbs sampling to provide spectra along with an estimate of the noise related to uncertainty in the spectra; this uncertainty information is valuable in interpreting the results. We show preliminary results estimating distributions on diffusivity spectra for normal and tumor tissues.
-
-## Methods
-
-Gibbs Sampler + Mean-Field Variational Bayes (TBD).
-
-## Quick Install & Setup
-
-1. Clone the repo and `cd` into it.
-2. Install in editable mode (requires pip ≥ 21.3):
-   ```sh
-   pip install -e .
-   ```
-   (or use `uv pip install -e .` if you use uv)
-
-## Structure & Data
-
-- **Source code:** `src/spectra_estimation_dmri/`
-- **Curated data (JSON, etc.):** in `src/spectra_estimation_dmri/data/` (distributed with the package, accessed via `importlib.resources`)
-- **Generated output (plots, CSVs, etc.):** in top-level `output/` (auto-created, gitignored)
-
-## Usage
-
-Run simulations or tests with:
-```sh
-python -m spectra_estimation_dmri.testing.simulation
-```
-## Project Structure
-
-- All source code is under `src/`
-- Utilities are in `src/utils/`
-- Models and samplers are in `src/models/`
-- Tests and simulations are in `src/testing/`
-
-## Environment Setup
+## Quick Setup & Installation
 
 ### Prerequisites
+- Python 3.8+
+- [uv](https://github.com/astral-sh/uv) package manager  
+- SuiteSparse: `brew install suite-sparse` (macOS) or equivalent *(required for cvxopt optimization libraries)*
 
-- Python 3.13 or later
-- [uv](https://github.com/astral-sh/uv) package manager
-- Homebrew (for macOS users)
-- SuiteSparse (required for cvxopt)
-
-For macOS users, install SuiteSparse using Homebrew:
+### Installation
 ```bash
-brew install suite-sparse
-```
-
-### Setting up the Python environment
-
-1. Create and activate a virtual environment:
-```bash
+git clone <repository-url>
+cd spectra-estimation-dMRI
 uv venv
-source .venv/bin/activate
-```
-
-2. Install all dependencies (from `pyproject.toml`):
-```bash
+source .venv/bin/activate  # Windows: `.venv\Scripts\activate`
 uv pip install -e .
 ```
 
-3. (macOS only, for cvxopt):
-If you have issues with `cvxopt`, you may need to specify SuiteSparse paths:
+### Verify Installation
 ```bash
-CFLAGS="-I/opt/homebrew/include" LDFLAGS="-L/opt/homebrew/lib" uv pip install cvxopt
+python src/spectra_estimation_dmri/main.py --help
 ```
 
-### Data
+## Overview
 
-The `processed_patient_dict.json` (output of `process_data.py`) contains the following derived information for all 62 patients of the [Langkilde et al](https://pubmed.ncbi.nlm.nih.gov/28718517/) study:
-- `new01`: patient identifier
-  - `roi1`: region of interest on diffusion MRI image segmented by radiologists
-    - `signal_values`: array of 15 signal values (average over ROI)
-    - `b_values`: corresponding 15 b-values
-    - `v_count`: number of voxels in ROI (used for average signal values)
-    - `anatomical_region`: 4 anatomical regions in prostate gland were segmented - `tumor_tz_s1`, `tumor_pz_s1`, `normal_pz_s2`, `normal_tz_s3`. In cases where no matching anatomical region was found, regions are marked `Neglected!`.
-  - `roi2`: ... (max 3 ROIs per patient)
- 
-`patient_gleason_grading.csv` and `prostate_rois.csv` contain gleason grades that were attributed by pathologists to certain segmented lesions and an overview of which region and tissue type (tumor vs normal) was segmented, respectively.
+This framework estimates full diffusivity spectra via Bayesian inverse Laplace transform. This provides:
 
-## Troubleshooting Import Errors
+- **Full spectral information** with uncertainty quantification
+- **Robust regularization** through multiple prior options
+- **Systematic optimization** across the entire parameter space
+- **End-to-end reproducibility** from data to biomarker
 
-- If you see errors like `ModuleNotFoundError: No module named 'src'`, make sure you installed the package with `pip install -e .` from the repo root.
-- Do **not** add `src` to your `PYTHONPATH` manually; the editable install handles this.
-- Make sure every directory in `src/` (and `src/` itself) contains an `__init__.py` file (even if empty).
-- If you use an IDE, make sure it recognizes the root of the repo as the project root.
+The modular design leverages:
+- **[Hydra](https://hydra.cc/)** for hierarchical configuration management
+- **[WandB](https://wandb.ai/)** for experiment tracking and hyperparameter sweeps  
+- **[ArviZ](https://arviz-devs.github.io/arviz/)** for Bayesian model diagnostics and storage
+
+## Workflow Overview
+
+![Workflow Overview](assets/flowchart.jpeg)
+
+## Data Flow Visualization
+
+From medical imaging to quantitative biomarkers:
+
+<p align="left">
+<img src="assets/prostate_mri_annotation_left.jpeg" width="250" alt="Prostate MRI Annotations"/>
+<img src="assets/prostate_mri_annotation_right.jpeg" width="250" alt="ROI Delineation"/> 
+<img src="assets/example_tumor_normal_signal_decay.jpeg" width="250" alt="Signal Decay Curves"/>
+<img src="assets/example_spectra.jpeg" width="250" alt="Estimated Spectra"/>
+</p>
+
+*Left to right: Multi-parametric MRI with radiologist annotations → ROI-averaged signal decays → Bayesian spectrum estimation with uncertainty quantification*
+
+## Research Goals & Hydra Commands
+
+### 1. Matrix Conditioning Optimization
+**Goal**: Find optimal diffusivity discretization and b-value combinations to minimize ill-conditioning of design matrix U and precision matrix.
+
+```bash
+# Sweep diffusivity discretizations and analyze condition numbers
+python src/spectra_estimation_dmri/main.py -m dataset=simulated \
+  dataset.spectrum_pairs.test.diff_values="[0.1,0.5,1.0,2.0,5.0]","[0.25,0.75,1.25,2.5,3.0]" \
+  dataset.b_values="[0,0.5,1.0,1.5,2.0,2.5,3.0]","[0,0.25,0.75,1.25,2.0,3.5]" \
+  diagnostics.only_pre_inference=true \
+  diagnostics.max_cond_U=1e12
+
+# Analyze precision matrix conditioning for Gibbs sampling
+python src/spectra_estimation_dmri/main.py -m dataset=simulated inference=gibbs \
+  prior=ridge,dirichlet prior.strength=0.001,0.01,0.1,1.0 \
+  diagnostics.max_cond_precision=1e15
+```
+
+### 2. Regularization & Point Estimate Stability  
+**Goal**: Compare MAP estimates vs Bayesian posterior means across noise regimes to determine when full Bayesian complexity is justified.
+
+```bash
+# MAP estimate stability across priors and noise levels
+python src/spectra_estimation_dmri/main.py -m dataset=simulated inference=map \
+  dataset.snr=50,100,300,600,1000 \
+  dataset.noise_realizations=10 \
+  prior=uniform,ridge,lasso,dirichlet \
+  prior.strength=0.0001,0.001,0.01,0.1
+
+# Compare MAP vs Gibbs posterior means
+python src/spectra_estimation_dmri/main.py -m dataset=simulated \
+  inference=map,gibbs \
+  dataset.snr=100,600,1000 \
+  prior=ridge,lasso prior.strength=0.001,0.01,0.1
+```
+
+### 3. Uncertainty Quantification Assessment
+**Goal**: Evaluate how well full Bayesian approach captures true uncertainty via posterior credible intervals and calibration analysis.
+
+```bash
+# Full Bayesian uncertainty quantification
+python src/spectra_estimation_dmri/main.py -m dataset=simulated inference=gibbs \
+  dataset.snr=50,200,600 \
+  dataset.noise_realizations=20 \
+  prior=ridge,dirichlet \
+  inference.n_iter=10000 inference.burn_in=2000 \
+  diagnostics.uncertainty_analysis=true
+
+# Uncertainty calibration across SNR regimes  
+python src/spectra_estimation_dmri/main.py -m dataset=simulated inference=gibbs \
+  dataset.snr=25,50,100,200,500,1000 \
+  dataset.spectrum_pairs.vary_all=true \
+  diagnostics.calibration_analysis=true
+```
+
+### 4. Cancer Biomarker Optimization
+**Goal**: Find spectrum-derived features that maximize classification performance for Gleason grading, with emphasis on differentiating between the two intermediate-risk tumor groups (GS 3 + 4 = 7 vs GS 4 + 3 = 7), as ADC (current clinical standard) seems to struggle with its discriminatory ability here, see [1, 2, 3].
+
+```bash
+# Real patient data classification
+python src/spectra_estimation_dmri/main.py -m dataset=bwh \
+  inference=map,gibbs \
+  prior=ridge,lasso,dirichlet \
+  classifier=logistic_regression \
+  classifier.target=ggg,is_tumor \
+  classifier.cv_folds=5
+
+# Optimize for mid-grade Gleason discrimination
+python src/spectra_estimation_dmri/main.py -m dataset=bwh \
+  inference=gibbs prior=ridge,dirichlet \
+  classifier=logistic_regression \
+  classifier.target=ggg_binary_34_vs_43 \
+  classifier.metrics=auc,weighted_kappa,sensitivity,specificity
+```
+
+## Scientific Motivation
+
+### Current Limitations and Clinical Need
+
+Prostate cancer management relies heavily on tissue biopsy for Gleason grading, which is invasive and carries risk of complications. While imaging-based biomarkers like ADC offer non-invasive alternatives, there are some limitations, particularly for **mid-grade Gleason score discrimination** (3+4 vs 4+3) that is crucial for treatment decisions [1,2,3,4,5]. The long-term clinical goal is developing robust imaging biomarkers that could reduce unnecessary biopsies while providing reliable prognostic information to guide treatment planning.
+
+### Our Spectrum-Based Approach: Work in Progress
+
+**Important Note**: This work is still in progress, and we do not yet know whether our method provides meaningful advantages over existing ADC approaches. 
+
+**Acknowledged Challenges**:
+- **Mathematical complexity**: Our approach requires solving an ill-conditioned inverse Laplace transform, making it mathematically more challenging than direct ADC computation
+- **Computational burden**: Current implementation relies on Gibbs sampling, which is computationally inefficient compared to simple ADC calculation
+- **Similar dependencies**: Like ADC, our method depends on b-value selection, ROI size, and measurement protocols
+
+**Potential Advantages Under Investigation**:
+- **Rich spectral information**: Full diffusivity distributions rather than single summary values
+- **Uncertainty quantification**: Bayesian posteriors provide confidence intervals that could inform radiologists about prediction reliability
+- **Detailed tissue characterization**: Spectral features may capture subtle tissue compartment differences that single ADC values miss
+
+The central hypothesis is that despite increased computational cost and mathematical complexity, the additional information from full spectral estimation with uncertainty quantification might enable more robust biomarkers for differentiating cancer aggressiveness, particularly in the challenging mid-grade cases where current methods struggle.
+
+## Data
+
+### BWH Patient Dataset
+- **Source**: [Langkilde et al. (2017)](https://pubmed.ncbi.nlm.nih.gov/28718517/) study  
+- **Size**: 63 prostate cancer patients, HIPAA-compliant
+- **Regions**: Peripheral zone (PZ) and transitional zone (TZ)
+- **Labels**: Tumor vs normal tissue, Gleason grades (GGG 1-5)
+- **Acquisition**: 15 b-values (0-3500 s/mm²), multi-ROI per patient
+
+### Simulated Data
+- **Ground truth spectra** for method validation
+- **Controllable SNR** (25-1000) for noise robustness analysis  
+- **Multiple tissue types** (normal PZ/TZ, tumor PZ/TZ) from real patient fits
+- **Realistic noise models** based on voxel count and acquisition parameters
+
+## Core Methods
+
+### Probabilistic Model
+The diffusion signal follows: **s = UR + ε**
+- **s**: Observed signal decay (15 b-values)
+- **U**: Design matrix with exp(-b·d) kernels  
+- **R**: Diffusivity spectrum (target, 10 bins)
+- **ε**: Gaussian noise (SNR-dependent)
+
+### Inference Methods
+1. **MAP Estimation**: Optimization with various priors
+2. **Gibbs Sampling**: MCMC for full posterior with adaptive proposals
+3. **Variational Bayes**: Mean-field approximation (planned)
+
+### Prior Options
+- **Uniform**: Minimal regularization, non-negativity only
+- **Ridge (L2)**: Smooth spectra, controllable strength  
+- **Lasso (L1)**: Sparse spectra, automatic feature selection (only MAP, no full bayesina approach, because no conjugate-prior)
+- **Dirichlet**: Simplex constraint, probabilistic interpretation (not implemented yet)
+
+## Configuration System
+
+Hydra enables systematic parameter sweeps and reproducible experiments:
+
+```yaml
+# configs/config.yaml
+defaults:
+  - dataset: simulated  # or bwh
+  - prior: ridge        # uniform, ridge, lasso, dirichlet  
+  - inference: map      # map, gibbs, vb
+  - classifier: logistic_regression
+  - diagnostics: diagnostics
+
+experiment_name: "spectrum_optimization"
+seed: 42
+recompute: false
+```
+
+Override any parameter:
+```bash
+python src/spectra_estimation_dmri/main.py dataset.snr=300 prior.strength=0.01 inference.n_iter=5000
+```
+
+## Results & Diagnostics
+
+### Automated Analysis
+- **Spectrum recovery plots** with confidence intervals
+- **Trace plots** for MCMC convergence assessment  
+- **Condition number analysis** for numerical stability
+- **Classification performance** with cross-validation
+- **Uncertainty calibration** analysis
+
+### Experiment Tracking
+- **WandB integration**: Automatic logging of metrics, plots, hyperparameters
+- **ArviZ storage**: Posterior samples with Bayesian diagnostics
+- **Reproducible caching**: Hash-based result storage for expensive computations
+
+## Project Structure
+
+```
+├── configs/                    # Hydra configuration hierarchy
+│   ├── dataset/               # simulated.yaml, bwh.yaml
+│   ├── prior/                 # uniform.yaml, ridge.yaml, etc.
+│   ├── inference/             # map.yaml, gibbs.yaml, vb.yaml  
+│   └── config.yaml            # Main configuration
+├── src/spectra_estimation_dmri/
+│   ├── data/                  # Pydantic models, loaders
+│   ├── models/                # Probabilistic model implementations
+│   ├── inference/             # MAP optimization, MCMC samplers
+│   ├── simulation/            # Data generation utilities
+│   ├── utils/                 # Plotting, diagnostics, hashing
+│   └── main.py                # Main experiment orchestration
+├── results/                   # Cached inference outputs (.nc files)
+└── outputs/                   # Hydra run directories
+```
+
+
+## Citations
+
+**Framework components:**
+- Configuration management: [Hydra](https://hydra.cc/)
+- Experiment tracking: [WandB](https://wandb.ai/)  
+- Bayesian diagnostics: [ArviZ](https://arviz-devs.github.io/arviz/)
+
+**Data source:**
+Langkilde, F., et al. "Prediction of pathological outcome and biochemical recurrence after radical prostatectomy by quantitative histopathological assessment and multiparametric MRI." *Histopathology* 71.6 (2017): 1032-1044. [DOI: 10.1111/his.13311](https://pubmed.ncbi.nlm.nih.gov/28718517/)
+
+**ADC limitations for mid-grade discrimination:**
+1. Manetta, R., et al. "Correlation between ADC values and Gleason score in evaluation of prostate cancer: multicentre experience and review of the literature." *Gland Surgery* 8.Suppl 3 (2019): S216. 
+2. Yan, X., et al. "The value of apparent diffusion coefficient values in predicting Gleason grading of low to intermediate-risk prostate cancer." *Insights into Imaging* 15.1 (2024): 137.
+3. Rosenkrantz, A.B., et al. "Whole-lesion apparent diffusion coefficient metrics as a marker of percentage Gleason 4 component within Gleason 7 prostate cancer at radical prostatectomy." *Journal of Magnetic Resonance Imaging* 41.3 (2015): 708-714. [DOI: 10.1002/jmri.24598](https://pubmed.ncbi.nlm.nih.gov/24616064/)
+4. Nougaret, S., et al. "Whole-Tumor Quantitative Apparent Diffusion Coefficient Histogram and Texture Analysis to Predict Gleason Score Upgrading in Intermediate-Risk 3 + 4 = 7 Prostate Cancer." *American Journal of Roentgenology* 206.4 (2016): 775-782. [DOI: 10.2214/AJR.15.15462](https://www.ajronline.org/doi/10.2214/AJR.15.15462)
+5. Donati, O.F., et al. "Prostate cancer aggressiveness: assessment with whole-lesion histogram analysis of the apparent diffusion coefficient." *Radiology* 271.1 (2014): 143-152. [DOI: 10.1148/radiol.13130973](https://pubmed.ncbi.nlm.nih.gov/24475824/)
+
+---
+
+*This work represents a systematic approach to quantitative medical imaging biomarker development, enabling principled comparison of methods and reproducible research workflows for advancing precision medicine through robust, non-invasive image-based biomarkers.*
