@@ -2,14 +2,46 @@
 # Set up defaults for dataset
 
 defaults:
-  - dataset: simulated
-  - likelihood: gaussian
-  - prior: lasso
-  - inference: map
-  - classifier: logistic_regression
+  - dataset: simulated # or bwh
+  - prior: ridge # uniform, ridge, lasso, dirichlet
+  - inference: map # map, gibbs, vb
+  - classifier: logistic_regression # logistic_regression, random_forest, gradient_boosting
   - diagnostics: diagnostics
   - _self_
 
 recompute: false
-experiment_name: "spectra_estimation_test_1"
+experiment_name: "spectrum_optimization"
 seed: 42
+
+# Biomarker analysis configuration
+biomarker_analysis:
+  enabled: false # Set to true to run biomarker analysis
+
+  # Target definition for classification
+  target_variable: "gleason_grade" # gleason_grade, is_tumor
+  classification_type: "binary" # binary, multiclass
+
+  # For Gleason grade classification
+  gleason_threshold: 7 # GGG 1-3 (≤7) vs GGG 4-5 (>7)
+
+  # Cross-validation strategy for small datasets
+  cross_validation:
+    enabled: true
+    n_folds: 5
+    stratified: true
+
+  # Feature optimization
+  feature_optimization:
+    enabled: true
+    methods: ["manual", "automated"] # manual, automated, both
+
+  # Model comparison
+  model_comparison:
+    enabled: true
+    models: ["logistic_regression", "random_forest", "gradient_boosting"]
+
+  # Evaluation and reporting
+  evaluation:
+    primary_metric: "auc"
+    report_ci: true
+    bootstrap_samples: 1000

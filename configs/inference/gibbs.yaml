@@ -2,3 +2,4 @@ name: gibbs
 init: map
 n_iter: 10000
 burn_in: 1000
+sampler_snr: 20 # SNR used by the Gibbs sampler (optional, falls back to dataset SNR if not set)

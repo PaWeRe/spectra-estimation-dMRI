@@ -1,0 +1,85 @@
+# Configuration for Random Forest Cancer Biomarker Classification
+name: random_forest
+type: random_forest
+
+# Model hyperparameters
+hyperparameters:
+  # Forest parameters
+  n_estimators: 100
+  max_depth: null # None for unlimited depth
+  min_samples_split: 2
+  min_samples_leaf: 1
+  max_features: "sqrt" # sqrt, log2, int, float, or None
+
+  # Bootstrap and sampling
+  bootstrap: true
+  oob_score: true # Out-of-bag scoring
+
+  # Regularization
+  min_impurity_decrease: 0.0
+  max_leaf_nodes: null
+
+  # Class balancing
+  class_weight: null # null, 'balanced', 'balanced_subsample', or dict
+
+  # Parallelization
+  n_jobs: -1 # Use all available cores
+
+# Cross-validation settings
+cross_validation:
+  enabled: true
+  n_folds: 5
+  stratified: true
+  random_state: 42
+
+# Feature engineering
+feature_engineering:
+  include_spectrum_features: true
+  include_adc_comparison: true
+  include_clinical_metadata: true
+
+  # Feature scaling (less important for tree-based methods)
+  scale_features: false
+
+  # Feature selection
+  feature_selection:
+    enabled: false
+    method: "forest_importance"
+    importance_threshold: 0.01
+
+# Target configuration
+target:
+  type: "binary"
+  gleason_threshold: 7
+  labels:
+    low_grade: "GGG 1-3 (≤7)"
+    high_grade: "GGG 4-5 (>7)"
+
+# Evaluation metrics
+evaluation:
+  primary_metric: "auc"
+  metrics:
+    - "auc"
+    - "accuracy"
+    - "sensitivity"
+    - "specificity"
+    - "precision"
+    - "f1_score"
+    - "quadratic_weighted_kappa"
+
+  bootstrap_ci: true
+  n_bootstrap: 1000
+  confidence_level: 0.95
+
+# Interpretation
+interpretation:
+  feature_importance: true
+  shap_analysis: false
+  oob_importance: true
+
+# Visualization
+visualization:
+  confusion_matrix: true
+  roc_curve: true
+  feature_importance_plot: true
+  calibration_plot: true

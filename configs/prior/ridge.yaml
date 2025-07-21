@@ -1,3 +1,3 @@
 type: ridge
-strength: 0.0000000001
+strength: 0
 nonnegative: true

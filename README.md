@@ -59,7 +59,10 @@ From medical imaging to quantitative biomarkers:
 ## Research Goals & Hydra Commands
 
 ### 1. Matrix Conditioning Optimization
-**Goal**: Find optimal diffusivity discretization and b-value combinations to minimize ill-conditioning of design matrix U and precision matrix.
+- **Goal**: Minimize ill-conditioning of design matrix U and precision matrix
+- **Metric**: cond_U, cond_precision
+- **Params**: diff_values, b_values, snr (for precision matrix only), strength (for regularization and precision matrix only)
+- **Diagnostics**: parameter combo plot (wandb)
 
 ```bash
 # Sweep diffusivity discretizations and analyze condition numbers
@@ -76,7 +79,13 @@ python src/spectra_estimation_dmri/main.py -m dataset=simulated inference=gibbs 
 ```
 
 ### 2. Regularization & Point Estimate Stability  
-**Goal**: Compare MAP estimates vs Bayesian posterior means across noise regimes to determine when full Bayesian complexity is justified.
+- **Goal**: Find best (in terms of accuracy, stability, computational efficiency) point estimate (regularized map estimates vs bayesian posterior mean) of diffusivity spectrum for various noise levels.
+- **Metric**: recon_err_mean, recon_err_std
+- **Params**: 
+   - dataset: snr, no_noise, noise_realizations, b_values, spectrum_pairs (diff_values, true_spectrum)
+   - inference: gibbs (init, n_iter, burn_in, sampler_snr), map (see prior)
+   - prior: type (uniform, ridge, lasso), strength
+- **Diagnostics**: parameter combo plot (wandb), trace plot, spectrum stability plot
 
 ```bash
 # MAP estimate stability across priors and noise levels
@@ -94,7 +103,12 @@ python src/spectra_estimation_dmri/main.py -m dataset=simulated \
 ```
 
 ### 3. Uncertainty Quantification Assessment
-**Goal**: Evaluate how well full Bayesian approach captures true uncertainty via posterior credible intervals and calibration analysis.
+- **Goal**: 
+  - Prove / disprove spectrum posterior variance as good reflection of sensitivity in spectrum reconstruction (e.g. when model says "I am 95% right" that is actually true)
+  - Prove / disprove spectrum posterior variance as good proxy for prediction uncertainty (e.g. higher posterior variance equals more misclassified cases?)
+- **Metric**: posterior_cred_int, cal_anal
+- **Params**: true_spectrum, spectrum_vector (bayesian posterior mean), spectrum_std (bayesian posterior standard deviation)
+- **Diagnostics**: parameter combo plot (wandb), gibbs spectrum plots (with init), calibration plots, ...
 
 ```bash
 # Full Bayesian uncertainty quantification
@@ -113,7 +127,13 @@ python src/spectra_estimation_dmri/main.py -m dataset=simulated inference=gibbs 
 ```
 
 ### 4. Cancer Biomarker Optimization
-**Goal**: Find spectrum-derived features that maximize classification performance for Gleason grading, with emphasis on differentiating between the two intermediate-risk tumor groups (GS 3 + 4 = 7 vs GS 4 + 3 = 7), as ADC (current clinical standard) seems to struggle with its discriminatory ability here, see [1, 2, 3].
+- **Goal**: Find spectrum-derived features that maximize classification performance for Gleason grading, with emphasis on differentiating between the two intermediate-risk tumor groups (GS 3 + 4 = 7 vs GS 4 + 3 = 7), as ADC (current clinical standard) seems to struggle with its discriminatory ability here, see [1, 2, 3].
+- **Metric**: auc, p_value, qwk
+- **Params**: 
+  - spectra_dataset
+  - classifier: manual, logistic_regression (...) 
+- **Diagnostics**: parameter combo plot (wandb), Spectrum-based feature x GGG correlation plots (comparison mean and std), ROC Curves (e.g. low-v-mid, mid-v-high, low-v-high as comparison)
+
 
 ```bash
 # Real patient data classification
@@ -265,4 +285,6 @@ Langkilde, F., et al. "Prediction of pathological outcome and biochemical recurr
 
 ---
 
+Some final blabla:
 *This work represents a systematic approach to quantitative medical imaging biomarker development, enabling principled comparison of methods and reproducible research workflows for advancing precision medicine through robust, non-invasive image-based biomarkers.*
+*Personal mission related to prostate cancer: make image-based prostate cancer grading the clinical standard, avoiding costly and uncomfortable biopsies.*

@@ -1,5 +1,6 @@
 name: simulated
 snr: 600
+no_noise: false # Set to true to generate noiseless signals for testing
 noise_realizations: 5
 spectrum_pairs:
   npz_default:

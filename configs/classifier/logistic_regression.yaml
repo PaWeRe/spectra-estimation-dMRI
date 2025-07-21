@@ -1,0 +1,84 @@
+# Configuration for Logistic Regression Cancer Biomarker Classification
+name: logistic_regression
+type: logistic_regression
+
+# Model hyperparameters
+hyperparameters:
+  # Regularization
+  C: 1.0 # Inverse of regularization strength
+  penalty: "l2" # l1, l2, elasticnet, none
+
+  # Solver options
+  solver: "lbfgs" # liblinear, newton-cg, lbfgs, sag, saga
+  max_iter: 1000
+
+  # For elasticnet penalty
+  l1_ratio: null # only used if penalty='elasticnet'
+
+  # Convergence criteria
+  tol: 1e-4
+
+  # Class balancing
+  class_weight: null # null, 'balanced', or dict
+
+# Cross-validation settings for small dataset handling
+cross_validation:
+  enabled: true
+  n_folds: 5
+  stratified: true
+  random_state: 42
+
+# Feature selection and engineering
+feature_engineering:
+  # Which features to include
+  include_spectrum_features: true
+  include_adc_comparison: true
+  include_clinical_metadata: true
+
+  # Feature scaling
+  scale_features: true
+  scaler_type: "standard" # standard, minmax, robust
+
+  # Feature selection
+  feature_selection:
+    enabled: false
+    method: "univariate" # univariate, lasso, rfe
+    k_best: 10
+
+# Target configuration
+target:
+  type: "binary" # binary, multiclass
+  # For binary classification: GGG 1-3 vs 4-5 (threshold at >7)
+  gleason_threshold: 7
+  labels:
+    low_grade: "GGG 1-3 (≤7)"
+    high_grade: "GGG 4-5 (>7)"
+
+# Evaluation metrics
+evaluation:
+  primary_metric: "auc"
+  metrics:
+    - "auc"
+    - "accuracy"
+    - "sensitivity"
+    - "specificity"
+    - "precision"
+    - "f1_score"
+    - "quadratic_weighted_kappa"
+
+  # Bootstrap confidence intervals
+  bootstrap_ci: true
+  n_bootstrap: 1000
+  confidence_level: 0.95
+
+# Interpretation and explainability
+interpretation:
+  feature_importance: true
+  shap_analysis: false # Enable if SHAP is available
+
+# Visualization
+visualization:
+  confusion_matrix: true
+  roc_curve: true
+  feature_importance_plot: true
+  calibration_plot: true

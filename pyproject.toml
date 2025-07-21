@@ -21,6 +21,7 @@ dependencies = [
     "cvxopt",
     "tqdm",
     "hydra-core",
+    "wandb",
 ]
 
 [tool.setuptools.packages.find]

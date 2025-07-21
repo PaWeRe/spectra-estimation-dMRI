@@ -1,0 +1,1 @@
+# a cool way to accelerate inference speed and have a custom prior is to learn the noise via diffusion models and incorporate it into the prior, the necessary training data could be synthesized with our physics-informed forward model
