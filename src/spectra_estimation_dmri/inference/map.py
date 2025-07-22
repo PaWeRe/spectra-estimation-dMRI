@@ -47,10 +47,13 @@ class MAPInference:
                 idata.to_netcdf(inference_data_path)
 
         # Create result object
+        pair = self.config.dataset.spectrum_pair
+        diffusvities = self.config.dataset.spectrum_pairs[pair].diff_values
+        true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
         spectrum = DiffusivitySpectrum(
             inference_method="map",
             signal_decay=self.signal_decay,
-            diffusivities=self.config.dataset.diff_values,
+            diffusivities=diffusvities,
             design_matrix_U=self.model.U_matrix(),
             spectrum_vector=fractions.tolist(),
             spectrum_samples=None,

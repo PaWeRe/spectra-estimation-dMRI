@@ -120,6 +120,8 @@ class DiffusivitySpectrum(BaseModel):
     init_method: Optional[str] = None
     prior_type: Optional[str] = None
     prior_strength: Optional[float] = None
+    data_snr: Optional[float] = None  # SNR used for data generation
+    sampler_snr: Optional[float] = None  # SNR used by the sampler
 
     def as_numpy(self):
         """Return all list fields as numpy arrays."""
@@ -147,8 +149,30 @@ class DiffusivitySpectrum(BaseModel):
         save_dir: directory to save the plot (optional).
         show: whether to display the plot.
         """
-        # TODO: should be implemented or deleted?
-        pass
+        # Example implementation (update as needed):
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        diffusivities = np.array(self.diffusivities)
+        spectrum = np.array(self.spectrum_vector)
+        plt.figure(figsize=(8, 5))
+        plt.plot(diffusivities, spectrum, label="Estimate")
+        if self.true_spectrum is not None:
+            plt.plot(diffusivities, self.true_spectrum, label="True", linestyle="--")
+        plt.xlabel("Diffusivity")
+        plt.ylabel("Fraction")
+        title = (
+            f"Spectrum | Data SNR: {self.data_snr} | Sampler SNR: {self.sampler_snr}"
+        )
+        if config_info is not None:
+            title += f" | {config_info}"
+        plt.title(title)
+        plt.legend()
+        if save_dir:
+            plt.savefig(os.path.join(save_dir, f"spectrum_{self.spectra_id}.png"))
+        if show:
+            plt.show()
+        plt.close()
 
 
 class SignalDecayDataset(BaseModel):
@@ -442,8 +466,10 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Extract SNR and other info for title
         first_sd = first_spectrum.signal_decay
+        first_data_snr = getattr(first_spectrum, "data_snr", None)
+        first_sampler_snr = getattr(first_spectrum, "sampler_snr", None)
         title = f"Prior Comparison | {group_key}\n"
-        title += f"SNR: {first_sd.snr} | Region: {first_sd.a_region}"
+        title += f"Data SNR: {first_data_snr} | Sampler SNR: {first_sampler_snr} | Region: {first_sd.a_region}"
         if hasattr(first_sd, "true_spectrum_name"):
             title += (
                 f' | Spectrum: {getattr(first_sd, "true_spectrum_name", "unknown")}'
@@ -646,7 +672,12 @@ class DiffusivitySpectraDataset(BaseModel):
             title = (
                 f"Gibbs Distribution | Group: {group_id[:8]} | Realization: {idx+1}\n"
             )
-            title += f"Zone: {signal_decay.a_region} | SNR: {signal_decay.snr} | κ={kappa:.2e}"
+            title += (
+                f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+                f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+                f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+                f"κ={kappa:.2e}"
+            )
             ax.set_title(title)
 
             if spectrum.spectrum_vector is not None or mean_true is not None:
@@ -786,7 +817,7 @@ class DiffusivitySpectraDataset(BaseModel):
         ax.set_xlabel("Diffusivity Value")
 
         title = f"Stability Analysis | Inference: {spectra[0].inference_method} | Prior: {spectra[0].prior_type} | Strength: {spectra[0].prior_strength} \n"
-        title += f"Zone: {signal_decay.a_region} | SNR: {signal_decay.snr} | κ={kappa:.2e}{subtitle}"
+        title += f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectra[0], 'data_snr', None)} | Sampler SNR: {getattr(spectra[0], 'sampler_snr', None)} | κ={kappa:.2e}{subtitle}"
         title += f"\nN={len(point_estimates)} realizations | Group: {group_id[:8]}"
         ax.set_title(title)
 
@@ -829,8 +860,13 @@ class DiffusivitySpectraDataset(BaseModel):
             ax.set_ylabel("Fraction")
 
             title = f"MCMC Trace Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
-            title += f"Zone: {signal_decay.a_region} | SNR: {signal_decay.snr} | Init: {init_method}\n"
-            title += f"Iterations: {len(samples)} | κ={kappa:.2e}"
+            title += (
+                f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+                f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+                f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+                f"Init: {init_method}\n"
+                f"Iterations: {len(samples)} | κ={kappa:.2e}"
+            )
             ax.set_title(title)
 
             # Add legend outside the plot

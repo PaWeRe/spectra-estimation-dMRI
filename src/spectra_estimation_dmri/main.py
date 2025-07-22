@@ -19,19 +19,30 @@ from spectra_estimation_dmri.data.data_models import (
     DiffusivitySpectraDataset,
 )
 
+# Import biomarker analysis components
+from spectra_estimation_dmri.biomarkers import (
+    BiomarkerPipeline,
+    BiomarkerEvaluator,
+    BiomarkerVisualizer,
+)
+
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config.yaml")
 def main(cfg: DictConfig):
     """
     Main experiment pipeline with four main steps:
-    - loads user-defined data as SignalDecayDataset objects (in simulated data case only consists of single SignalDecay object)
-    - defines spectrum model for s=UR+eps
-    - runs user-defined inference methods for spectrum reconstruction (output as DiffusivitySpectraDataset)
-    - runs user-defined classification methods for cancer prediction
-    - prints user-defined diagnostics
+    1. Data loading (real or simulated) as SignalDecayDataset objects
+    2. Defines spectrum model for s=UR+eps
+    3. Runs user-defined inference methods for spectrum reconstruction (output as DiffusivitySpectraDataset)
+    4. Runs cancer biomarker analysis for Gleason score prediction (if enabled)
+    5. Prints user-defined diagnostics
     """
     # Create more descriptive run name and tags for aggregation
     run_name = f"{cfg.inference.name}-{cfg.prior.type}-snr{cfg.dataset.snr if hasattr(cfg.dataset, 'snr') else 'real'}"
+
+    # Add biomarker tag if enabled
+    if getattr(cfg, "biomarker_analysis", {}).get("enabled", False):
+        run_name += f"-biomarker-{cfg.classifier.name}"
 
     # Add tags for easy filtering and grouping
     tags = [
@@ -44,6 +55,9 @@ def main(cfg: DictConfig):
         tags.append(f"snr_{cfg.dataset.snr}")
     if hasattr(cfg.dataset, "true_spectrum_name"):
         tags.append(f"spectrum_{cfg.dataset.true_spectrum_name}")
+    if getattr(cfg, "biomarker_analysis", {}).get("enabled", False):
+        tags.append("biomarker_analysis")
+        tags.append(f"classifier_{cfg.classifier.name}")
 
     run = wandb.init(
         project="bayesian-dMRI-biomarker",
@@ -80,6 +94,7 @@ def main(cfg: DictConfig):
             true_spectrum=true_spectrum,
             b_values=cfg.dataset.b_values,
             diffusivities=diff_values,
+            no_noise=cfg.dataset.get("no_noise", False),
         )
         n_realizations = getattr(cfg.dataset, "noise_realizations", 1)
         signal_decay_datasets = [
@@ -93,8 +108,11 @@ def main(cfg: DictConfig):
     # Set up results directories
     inference_dir = os.path.join(os.getcwd(), "results", "inference")
     plots_dir = os.path.join(os.getcwd(), "results", "plots")
+    biomarker_dir = os.path.join(os.getcwd(), "results", "biomarkers")
     os.makedirs(inference_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
+    os.makedirs(biomarker_dir, exist_ok=True)
+
     for signal_decay_dataset in signal_decay_datasets:
         for i, signal_decay in enumerate(signal_decay_dataset.samples):
             # TODO: reconcile with model redundant model defs in phase 1 (there has to be cleaner way)
@@ -105,6 +123,12 @@ def main(cfg: DictConfig):
             else:
                 diff_values = cfg.dataset.diff_values
                 true_spectrum = getattr(signal_decay, "true_spectrum", None)
+            # Set no_noise parameter for simulated data only
+            no_noise = (
+                cfg.dataset.get("no_noise", False)
+                if cfg.dataset.name == "simulated"
+                else False
+            )
             model = ProbabilisticModel(
                 snr=signal_decay.snr,
                 likelihood_config=cfg.likelihood,
@@ -112,6 +136,7 @@ def main(cfg: DictConfig):
                 true_spectrum=true_spectrum,
                 b_values=cfg.dataset.b_values,
                 diffusivities=diff_values,
+                no_noise=no_noise,
             )
             # Pre-inference diagnostics
             diagnostics_ok = model.pre_inference_diagnostics(signal_decay, cfg, run)
@@ -131,7 +156,7 @@ def main(cfg: DictConfig):
                 # Load spectrum from .nc file
                 idata = az.from_netcdf(output_path)
                 if cfg.inference.name == "map":
-                    spectrum_vector = idata.posterior["R"].values[0, :].tolist()
+                    spectrum_vector = idata.posterior["R"].values[0, 0, :].tolist()
                     spectrum_samples = None
                     spectrum_std = None
                 elif cfg.inference.name == "gibbs":
@@ -156,6 +181,8 @@ def main(cfg: DictConfig):
                     true_spectrum=model.true_spectrum,
                     inference_data=output_path,
                     spectra_id=spectra_id,
+                    prior_type=cfg.prior.type,
+                    prior_strength=cfg.prior.strength,
                 )
                 spectra.append(spectrum)
                 continue
@@ -181,14 +208,168 @@ def main(cfg: DictConfig):
             elif cfg.inference.name == "vb":
                 pass  # To be implemented
 
-    # TODO: fit_adc() needs to be called somewhere and stored for every SignalDecay to compare to spectrum-derived biomarker
+    # Create spectra dataset for biomarker analysis
     spectra_dataset = DiffusivitySpectraDataset(spectra=spectra)
 
-    ### 3) CANCER PREDICTION ###
-    # TODO: to be implemented, maybe look at base_classes.py and use custom classes
+    ### 3) CANCER BIOMARKER ANALYSIS ###
+    biomarker_results = None
+    if getattr(cfg, "biomarker_analysis", {}).get("enabled", False):
+        print("\n" + "=" * 60)
+        print("CANCER BIOMARKER ANALYSIS")
+        print("=" * 60)
 
-    ### 4) DIAGNOSTICS AND PLOTTING ###
+        try:
+            # Initialize biomarker pipeline
+            biomarker_pipeline = BiomarkerPipeline(cfg)
+
+            # Run biomarker analysis
+            if cfg.biomarker_analysis.model_comparison.enabled:
+                print("[INFO] Running biomarker model comparison...")
+                biomarker_results = biomarker_pipeline.run_model_comparison(
+                    spectra_dataset
+                )
+            else:
+                print(f"[INFO] Running single biomarker model: {cfg.classifier.name}")
+                biomarker_results = biomarker_pipeline.run_single_model(
+                    spectra_dataset, cfg.classifier.name
+                )
+
+            # Get best model for visualization
+            best_biomarker = biomarker_pipeline.get_best_model()
+
+            if best_biomarker is not None:
+
+                try:
+                    y_true, _ = best_biomarker.prepare_targets(spectra_dataset)
+                    if len(y_true) > 0:
+                        y_pred, y_prob = best_biomarker.predict(spectra_dataset)
+                        y_prob_positive = y_prob[:, 1] if y_prob.ndim > 1 else y_prob
+
+                        # Initialize visualizer and evaluator
+                        visualizer = BiomarkerVisualizer()
+                        evaluator = BiomarkerEvaluator()
+
+                        # Create comprehensive evaluation
+                        evaluation_results = evaluator.evaluate_comprehensive(
+                            y_true,
+                            y_pred,
+                            y_prob_positive,
+                            model_name=best_biomarker.model_type,
+                        )
+
+                        # Create visualizations
+                        print("[INFO] Creating biomarker visualizations...")
+
+                        # ROC curve
+                        fig_roc = visualizer.plot_roc_curve(
+                            y_true,
+                            y_prob_positive,
+                            model_name=best_biomarker.model_type,
+                            save_path=os.path.join(biomarker_dir, "roc_curve.png"),
+                        )
+
+                        # Confusion matrix
+                        fig_cm = visualizer.plot_confusion_matrix(
+                            y_true,
+                            y_pred,
+                            save_path=os.path.join(
+                                biomarker_dir, "confusion_matrix.png"
+                            ),
+                        )
+
+                        # Feature importance
+                        feature_importance = best_biomarker.get_feature_importance()
+                        if feature_importance:
+                            fig_fi = visualizer.plot_feature_importance(
+                                feature_importance,
+                                title=f"Feature Importance - {best_biomarker.model_type}",
+                                save_path=os.path.join(
+                                    biomarker_dir, "feature_importance.png"
+                                ),
+                            )
+
+                        # Calibration plot
+                        fig_cal = visualizer.plot_calibration_curve(
+                            y_true,
+                            y_prob_positive,
+                            model_name=best_biomarker.model_type,
+                            save_path=os.path.join(biomarker_dir, "calibration.png"),
+                        )
+
+                        # Comprehensive dashboard
+                        fig_dashboard = visualizer.create_biomarker_dashboard(
+                            evaluation_results,
+                            y_true,
+                            y_pred,
+                            y_prob_positive,
+                            feature_importance=feature_importance,
+                            save_path=os.path.join(biomarker_dir, "dashboard.png"),
+                        )
+
+                        # Generate and print evaluation report
+                        report = evaluator.generate_report(evaluation_results)
+                        print("\n" + report)
+
+                        # Save report to file
+                        report_path = os.path.join(
+                            biomarker_dir, "evaluation_report.txt"
+                        )
+                        with open(report_path, "w") as f:
+                            f.write(report)
+
+                        # Log summary report from pipeline
+                        pipeline_report = biomarker_pipeline.get_summary_report()
+                        print("\n" + pipeline_report)
+
+                        # Save pipeline report
+                        pipeline_report_path = os.path.join(
+                            biomarker_dir, "pipeline_summary.txt"
+                        )
+                        with open(pipeline_report_path, "w") as f:
+                            f.write(pipeline_report)
+
+                        print(
+                            f"[INFO] Biomarker analysis completed. Results saved to: {biomarker_dir}"
+                        )
+
+                except Exception as e:
+                    print(f"[WARNING] Error in biomarker visualization: {str(e)}")
+                    print(
+                        "[INFO] Biomarker analysis completed but visualization failed"
+                    )
+            else:
+                print("[WARNING] No valid biomarker model found")
+
+        except Exception as e:
+            print(f"[ERROR] Biomarker analysis failed: {str(e)}")
+            print("[INFO] Continuing with spectrum diagnostics...")
+
+    ### 4) SPECTRUM DIAGNOSTICS AND PLOTTING ###
+    print("\n" + "=" * 60)
+    print("SPECTRUM DIAGNOSTICS")
+    print("=" * 60)
     spectra_dataset.run_diagnostics(exp_config=cfg)
+
+    # Final summary
+    print("\n" + "=" * 60)
+    print("EXPERIMENT SUMMARY")
+    print("=" * 60)
+    print(f"Dataset: {cfg.dataset.name}")
+    print(f"Inference method: {cfg.inference.name}")
+    print(f"Prior: {cfg.prior.type}")
+    print(f"Spectra analyzed: {len(spectra_dataset.spectra)}")
+
+    if biomarker_results:
+        if isinstance(
+            biomarker_results, dict
+        ) and "best_model" in biomarker_results.get("comparison_results", {}):
+            print(
+                f"Best biomarker model: {biomarker_results['comparison_results']['best_model']}"
+            )
+        else:
+            print("Biomarker analysis: Single model analysis completed")
+    else:
+        print("Biomarker analysis: Not performed")
 
     run.finish()
 

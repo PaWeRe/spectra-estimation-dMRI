@@ -25,6 +25,7 @@ class ProbabilisticModel:
         true_spectrum: Optional[np.ndarray] = None,
         b_values: Optional[list] = None,
         diffusivities: Optional[list] = None,
+        no_noise: bool = False,
     ):
         self.snr = snr
         self.sigma = 1 / np.sqrt(self.snr) if snr is not None else 1.0
@@ -35,6 +36,7 @@ class ProbabilisticModel:
         self.diffusivities = (
             np.array(diffusivities) if diffusivities is not None else None
         )
+        self.no_noise = no_noise
 
     def U_matrix(self):
         """Design matrix U where U[i,j] = exp(-b_i * d_j)"""
@@ -43,14 +45,18 @@ class ProbabilisticModel:
         return np.exp(-np.outer(self.b_values, self.diffusivities))
 
     def simulate_signal(self):
-        """Simulate noisy signal from true spectrum"""
+        """Simulate signal from true spectrum (with or without noise)"""
         if self.true_spectrum is None:
             raise ValueError("true_spectrum must be set for simulation")
 
         U = self.U_matrix()
         signal = U @ self.true_spectrum
-        noisy_signal = signal + np.random.normal(0, self.sigma, size=signal.shape)
-        return noisy_signal
+
+        if self.no_noise:
+            return signal  # Return noiseless signal
+        else:
+            noisy_signal = signal + np.random.normal(0, self.sigma, size=signal.shape)
+            return noisy_signal
 
     def log_likelihood(self, signal, spectrum):
         """Log likelihood p(signal | spectrum)"""
@@ -63,10 +69,10 @@ class ProbabilisticModel:
         if self.prior_config.type == "uniform":
             return 0.0 if np.all(spectrum >= 0) else -np.inf
         elif self.prior_config.type == "ridge":
-            strength = self.prior_config.get("strength", 1.0)
+            strength = self.prior_config.strength
             return -0.5 * strength * np.sum(spectrum**2)
         elif self.prior_config.type == "lasso":
-            strength = self.prior_config.get("strength", 1.0)
+            strength = self.prior_config.strength
             return -strength * np.sum(np.abs(spectrum))
         else:
             raise ValueError(f"Unknown prior type: {self.prior_config['type']}")
@@ -88,25 +94,24 @@ class ProbabilisticModel:
 
         elif self.prior_config["type"] == "ridge":
             # Use ElasticNet with l1_ratio=0 for pure ridge + non-negativity
-            # This is more principled than Ridge + projection
-            strength = self.prior_config.get("strength", 1.0)
+            strength = self.prior_config.strength
+            print(f"Ridge strength: {strength}")
 
             # ElasticNet with l1_ratio=0 is equivalent to non-negative ridge
             elastic = ElasticNet(
-                alpha=strength / (2 * len(signal)),  # Match sklearn scaling
+                alpha=float(strength) / (2 * len(signal)),  # Match sklearn scaling
                 l1_ratio=0.0,  # Pure L2 penalty (ridge)
                 positive=True,  # Non-negativity constraint
                 fit_intercept=False,
                 max_iter=10000,
-                tol=1e-6,
+                tol=1e-8,  # Tighter tolerance for better precision
             )
             elastic.fit(U, signal)
-
             fractions = elastic.coef_
 
         elif self.prior_config.type == "lasso":
             # MAP for Laplace prior = LASSO
-            strength = self.prior_config.get("strength", 1.0)
+            strength = self.prior_config.strength
             lasso = Lasso(
                 alpha=strength / (2 * len(signal)),  # sklearn scaling
                 positive=True,
@@ -145,7 +150,7 @@ class ProbabilisticModel:
         if self.prior_config.type == "ridge":
             # Add prior precision
             strength = self.prior_config.get("strength", 1.0)
-            precision += strength * np.eye(n_dim)
+            precision += float(strength) * np.eye(n_dim)
             # Prior mean is zero, so no change to mean_vec
 
         # Diagnostic: print condition number and sigma
@@ -186,28 +191,47 @@ class ProbabilisticModel:
         Compute and log condition numbers of U and precision matrix before inference.
         Returns True if both are below thresholds in cfg.diagnostics, else False.
         """
-        # Use get_posterior_params to get mean and precision
-        try:
-            mean, precision = self.get_posterior_params(signal_decay.signal_values)
-        except Exception as e:
-            print(f"[ERROR] Could not compute posterior params: {e}")
-            return False
         U = self.U_matrix()
         cond_U = np.linalg.cond(U)
-        cond_precision = np.linalg.cond(precision)
-        if wandb_run is not None:
-            wandb_run.log(
-                {
-                    "cond_U": cond_U,
-                    "cond_precision": cond_precision,
-                }
-            )
-        cond_ok = (
-            cond_U < cfg.diagnostics.max_cond_U
-            and cond_precision < cfg.diagnostics.max_cond_precision
-        )
-        if not cond_ok:
+
+        # For conjugate priors (uniform, ridge), also check precision matrix
+        if self.prior_config.type in ["uniform", "ridge"]:
+            try:
+                mean, precision = self.get_posterior_params(signal_decay.signal_values)
+                cond_precision = np.linalg.cond(precision)
+
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "cond_U": cond_U,
+                            "cond_precision": cond_precision,
+                        }
+                    )
+
+                cond_ok = (
+                    cond_U < cfg.diagnostics.max_cond_U
+                    and cond_precision < cfg.diagnostics.max_cond_precision
+                )
+                if not cond_ok:
+                    print(
+                        f"[WARNING] Ill-conditioned: cond_U={cond_U}, cond_precision={cond_precision}"
+                    )
+
+            except Exception as e:
+                print(f"[ERROR] Could not compute posterior params: {e}")
+                return False
+
+        else:
+            # For non-conjugate priors (lasso), only check U matrix condition
             print(
-                f"[WARNING] Ill-conditioned: cond_U={cond_U}, cond_precision={cond_precision}"
+                f"[INFO] Non-conjugate prior ({self.prior_config.type}): only checking U matrix condition"
             )
+
+            if wandb_run is not None:
+                wandb_run.log({"cond_U": cond_U})
+
+            cond_ok = cond_U < cfg.diagnostics.max_cond_U
+            if not cond_ok:
+                print(f"[WARNING] Ill-conditioned: cond_U={cond_U}")
+
         return cond_ok

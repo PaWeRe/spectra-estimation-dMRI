@@ -80,8 +80,8 @@ class GibbsSampler:
             mu_i = posterior_mean[i] + dot_prod
             # Sample from conditional distribution
             if prior_type in ["uniform", "ridge"]:
-                R[i] = self._sample_normal_non_neg(mu_i, sigma_i)
-                # R[i] = self._sample_truncated_normal(mu_i, sigma_i, lower=0.0)
+                # R[i] = self._sample_normal_non_neg(mu_i, sigma_i)
+                R[i] = self._sample_truncated_normal(mu_i, sigma_i, lower=0.0)
             else:
                 raise ValueError(f"Unsupported prior type: {prior_type}")
 
@@ -161,6 +161,18 @@ class GibbsSampler:
         except:
             use_full_precision = False
 
+        # Determine SNR for the sampler
+        sampler_snr = getattr(self.config.inference, "sampler_snr", None)
+        if sampler_snr is None:
+            sampler_snr = getattr(self.config.dataset, "snr", None)
+        if sampler_snr is not None:
+            sampler_sigma = 1.0 / np.sqrt(sampler_snr)
+        else:
+            sampler_sigma = 1.0
+        # Set model sigma for inference
+        self.model.snr = sampler_snr
+        self.model.sigma = sampler_sigma
+
         # Sample
         samples = []
         iterator = range(n_iter)
@@ -221,6 +233,8 @@ class GibbsSampler:
             init_method=init_method,
             prior_type=prior_type,
             prior_strength=self.model.prior_config.strength,
+            data_snr=getattr(self.config.dataset, "snr", None),
+            sampler_snr=sampler_snr,
         )
 
         return spectrum
