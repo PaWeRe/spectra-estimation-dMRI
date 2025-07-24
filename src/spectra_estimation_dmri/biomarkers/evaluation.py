@@ -26,9 +26,9 @@ from sklearn.metrics import (
     f1_score,
     cohen_kappa_score,
     balanced_accuracy_score,
-    calibration_curve,
     brier_score_loss,
 )
+from sklearn.calibration import calibration_curve
 from sklearn.utils import resample
 import scipy.stats as stats
 import wandb

@@ -1,3 +1,3 @@
 type: ridge
-strength: 0
+strength: 0 # Options: for RidgeCV use 0
 nonnegative: true

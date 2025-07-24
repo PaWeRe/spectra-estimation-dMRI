@@ -3,8 +3,9 @@
 
 defaults:
   - dataset: simulated # or bwh
+  - likelihood: gaussian
   - prior: ridge # uniform, ridge, lasso, dirichlet
-  - inference: map # map, gibbs, vb
+  - inference: map # map, gibbs, vb, diffusion
   - classifier: logistic_regression # logistic_regression, random_forest, gradient_boosting
   - diagnostics: diagnostics
   - _self_

@@ -48,12 +48,14 @@ class MAPInference:
 
         # Create result object
         pair = self.config.dataset.spectrum_pair
-        diffusvities = self.config.dataset.spectrum_pairs[pair].diff_values
+        diffusivities = self.config.dataset.spectrum_pairs[
+            pair
+        ].diff_values  # TODO: this only works for sim case, make sure to make it work with bwh
         true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
         spectrum = DiffusivitySpectrum(
             inference_method="map",
             signal_decay=self.signal_decay,
-            diffusivities=diffusvities,
+            diffusivities=diffusivities,
             design_matrix_U=self.model.U_matrix(),
             spectrum_vector=fractions.tolist(),
             spectrum_samples=None,
@@ -63,6 +65,10 @@ class MAPInference:
             spectra_id=unique_hash,
             prior_type=self.model.prior_config.type,
             prior_strength=self.model.prior_config.strength,
+            data_snr=getattr(self.config.dataset, "snr", None),
+            sampler_snr=getattr(
+                self.config.dataset, "snr", None
+            ),  # use same snr in map case
         )
 
         return spectrum

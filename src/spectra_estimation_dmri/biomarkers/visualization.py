@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Dict, List, Optional, Tuple, Union
 import wandb
-from sklearn.metrics import roc_curve, precision_recall_curve, calibration_curve
+from sklearn.metrics import roc_curve, precision_recall_curve
+from sklearn.calibration import calibration_curve
 import warnings
 
 # Set style for medical publication quality plots

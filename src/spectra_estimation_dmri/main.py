@@ -38,7 +38,7 @@ def main(cfg: DictConfig):
     5. Prints user-defined diagnostics
     """
     # Create more descriptive run name and tags for aggregation
-    run_name = f"{cfg.inference.name}-{cfg.prior.type}-snr{cfg.dataset.snr if hasattr(cfg.dataset, 'snr') else 'real'}"
+    run_name = f"{cfg.inference.name}-{cfg.prior.type}-data_snr{cfg.dataset.snr if hasattr(cfg.dataset, 'snr') else 'real'}-{cfg.prior.type}-{cfg.prior.strength}"
 
     # Add biomarker tag if enabled
     if getattr(cfg, "biomarker_analysis", {}).get("enabled", False):
@@ -52,7 +52,7 @@ def main(cfg: DictConfig):
     ]
 
     if hasattr(cfg.dataset, "snr"):
-        tags.append(f"snr_{cfg.dataset.snr}")
+        tags.append(f"data_snr_{cfg.dataset.snr}")
     if hasattr(cfg.dataset, "true_spectrum_name"):
         tags.append(f"spectrum_{cfg.dataset.true_spectrum_name}")
     if getattr(cfg, "biomarker_analysis", {}).get("enabled", False):
@@ -88,7 +88,7 @@ def main(cfg: DictConfig):
         diff_values = cfg.dataset.spectrum_pairs[pair].diff_values
         true_spectrum = np.array(cfg.dataset.spectrum_pairs[pair].true_spectrum)
         spectrum_model = ProbabilisticModel(
-            snr=cfg.dataset.snr,
+            data_snr=cfg.dataset.snr,
             likelihood_config=cfg.likelihood,
             prior_config=cfg.prior,
             true_spectrum=true_spectrum,
@@ -130,7 +130,7 @@ def main(cfg: DictConfig):
                 else False
             )
             model = ProbabilisticModel(
-                snr=signal_decay.snr,
+                data_snr=signal_decay.snr,
                 likelihood_config=cfg.likelihood,
                 prior_config=cfg.prior,
                 true_spectrum=true_spectrum,
