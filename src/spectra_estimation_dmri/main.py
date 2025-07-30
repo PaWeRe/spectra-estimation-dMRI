@@ -26,6 +26,8 @@ from spectra_estimation_dmri.biomarkers import (
     BiomarkerVisualizer,
 )
 
+# TODO: TRAIN NNET (e.g. DIFFUSION MODEL) AND RELEASE AS PART OF REPO (LIKE EMILY ALSENTZER!! https://arxiv.org/pdf/1904.03323
+
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config.yaml")
 def main(cfg: DictConfig):

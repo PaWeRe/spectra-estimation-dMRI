@@ -254,7 +254,21 @@ class ProbabilisticModel:
         # For conjugate priors (uniform, ridge), also check precision matrix
         if self.prior_config.type in ["uniform", "ridge"]:
             try:
-                sampler_sigma = 1 / cfg.inference.sampler_snr
+                # Get sampler_snr from inference config, fall back to dataset snr if not available
+                sampler_snr = getattr(cfg.inference, "sampler_snr", None)
+                if sampler_snr is None:
+                    sampler_snr = getattr(cfg.dataset, "snr", None)
+
+                if sampler_snr is None:
+                    print(
+                        "[WARNING] No SNR available for diagnostics, skipping precision matrix check"
+                    )
+                    cond_ok = cond_U < cfg.diagnostics.max_cond_U
+                    if not cond_ok:
+                        print(f"[WARNING] Ill-conditioned: cond_U={cond_U}")
+                    return cond_ok
+
+                sampler_sigma = 1 / sampler_snr
                 mean, precision = self.get_posterior_params(
                     sampler_sigma, signal_decay.signal_values
                 )
