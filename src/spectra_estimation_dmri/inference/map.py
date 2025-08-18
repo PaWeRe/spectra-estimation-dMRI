@@ -57,6 +57,7 @@ class MAPInference:
             signal_decay=self.signal_decay,
             diffusivities=diffusivities,
             design_matrix_U=self.model.U_matrix(),
+            spectrum_init=fractions.tolist(),  # for map vector is equal to init
             spectrum_vector=fractions.tolist(),
             spectrum_samples=None,
             spectrum_std=None,

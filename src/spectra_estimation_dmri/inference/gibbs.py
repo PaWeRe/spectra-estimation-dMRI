@@ -153,6 +153,8 @@ class GibbsSampler:
         else:
             raise ValueError(f"Unknown init method: {init_method}")
 
+        # Get initial R for spectrum init
+        initial_R = R
         # Get posterior parameters (for full precision approach)
         try:
             posterior_mean, posterior_precision = self.model.get_posterior_params(
@@ -261,6 +263,7 @@ class GibbsSampler:
             signal_decay=self.signal_decay,
             diffusivities=diffusvities,
             design_matrix_U=U,
+            spectrum_init=initial_R.tolist(),
             spectrum_vector=spectrum_vector.tolist(),
             spectrum_samples=samples.tolist(),
             spectrum_std=spectrum_std.tolist(),
@@ -507,6 +510,7 @@ class GibbsSampler:
             signal_decay=self.signal_decay,
             diffusivities=diffusvities,
             design_matrix_U=U,
+            spectrum_init=initial_R.tolist(),
             spectrum_vector=spectrum_vector.tolist(),
             spectrum_samples=sample.tolist(),
             spectrum_std=spectrum_std.tolist(),

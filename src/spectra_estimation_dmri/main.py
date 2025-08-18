@@ -61,13 +61,15 @@ def main(cfg: DictConfig):
         tags.append("biomarker_analysis")
         tags.append(f"classifier_{cfg.classifier.name}")
 
-    run = wandb.init(
-        project="bayesian-dMRI-biomarker",
-        config=OmegaConf.to_container(cfg, resolve=True),
-        name=run_name,
-        tags=tags,
-        group=f"{cfg.dataset.name}_{cfg.inference.name}",  # Group related runs
-    )
+    run = None
+    if not cfg.local:
+        run = wandb.init(
+            project="bayesian-dMRI-biomarker",
+            config=OmegaConf.to_container(cfg, resolve=True),
+            name=run_name,
+            tags=tags,
+            group=f"{cfg.dataset.name}_{cfg.inference.name}",  # Group related runs
+        )
 
     ### 1) DATA LOADING (REAL OR SIMULATED) ###
     spectra = []
@@ -156,6 +158,7 @@ def main(cfg: DictConfig):
                     f"[INFO] Loaded precomputed result: {output_path} (spectra_id: {spectra_id})"
                 )
                 # Load spectrum from .nc file
+                # TODO: retrieve spectrum init as well and change None in SpectrumDiffusivity object below!
                 idata = az.from_netcdf(output_path)
                 if cfg.inference.name == "map":
                     spectrum_vector = idata.posterior["R"].values[0, 0, :].tolist()
@@ -177,6 +180,7 @@ def main(cfg: DictConfig):
                     signal_decay=signal_decay,
                     diffusivities=diff_values,
                     design_matrix_U=model.U_matrix(),
+                    # spectrum_init=,
                     spectrum_vector=spectrum_vector,
                     spectrum_samples=spectrum_samples,
                     spectrum_std=spectrum_std,
@@ -373,7 +377,8 @@ def main(cfg: DictConfig):
     else:
         print("Biomarker analysis: Not performed")
 
-    run.finish()
+    if not cfg.local:
+        run.finish()
 
 
 if __name__ == "__main__":

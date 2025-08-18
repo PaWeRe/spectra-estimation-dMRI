@@ -1,9 +1,11 @@
 from typing import Optional, Literal, List
-from pydantic import BaseModel, computed_field, field_validator, root_validator
+from pydantic import BaseModel, computed_field, field_validator
+
 from abc import ABC, abstractmethod
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import os
 import hashlib
 import json
@@ -98,6 +100,7 @@ class SignalDecay(BaseModel):
 class DiffusivitySpectrum(BaseModel):
     """
     Stores the result of spectrum inference for a single SignalDecay object and inference method.
+    - spectrum_init: starting point of sampling process (important for convergence assessment)
     - spectrum_vector: main estimate (MAP, posterior mean, etc.)
     - spectrum_samples: optional, posterior samples (for Bayesian methods)
     - spectrum_std: optional, posterior std (for Bayesian methods)
@@ -111,6 +114,7 @@ class DiffusivitySpectrum(BaseModel):
     signal_decay: SignalDecay
     diffusivities: list[float]
     design_matrix_U: list[list[float]]
+    spectrum_init: Optional[list[float]]
     spectrum_vector: list[float]
     spectrum_samples: Optional[list[list[float]]] = None
     spectrum_std: Optional[list[float]] = None
@@ -255,7 +259,7 @@ class DiffusivitySpectraDataset(BaseModel):
         with open(index_path, "r") as f:
             return json.load(f)
 
-    def run_diagnostics(self, exp_config=None):
+    def run_diagnostics(self, exp_config=None, local=True):
         """
         Run diagnostics and generate three types of plots:
         1. Distribution/box plots for Gibbs sampling
@@ -291,7 +295,9 @@ class DiffusivitySpectraDataset(BaseModel):
             kappa = np.linalg.cond(U) if U.size > 0 else np.nan
 
             # Log structured metrics for parameter analysis
-            self._log_parameter_metrics(group_id, spectra_list, kappa, exp_config)
+            self._log_parameter_metrics(
+                group_id, spectra_list, kappa, exp_config, local
+            )
 
             # Separate spectra by inference method
             map_spectra = [s for s in spectra_list if s.inference_method == "map"]
@@ -309,17 +315,129 @@ class DiffusivitySpectraDataset(BaseModel):
             # Gibbs Plotting
             if len(gibbs_spectra) > 0:
                 self._plot_gibbs_distributions(
-                    group_id, gibbs_spectra, kappa, mean_true, sd
+                    group_id, gibbs_spectra, kappa, mean_true, sd, local
                 )
-                self._plot_stability_analysis(
-                    group_id, gibbs_spectra, kappa, mean_true, sd
-                )
-                self._plot_trace_plots(group_id, gibbs_spectra, kappa, sd)
-            # MAP Plotting
-            if len(map_spectra) > 0:
-                self._plot_stability_analysis(
-                    group_id, map_spectra, kappa, mean_true, sd
-                )
+            #     self._plot_stability_analysis(
+            #         group_id, gibbs_spectra, kappa, mean_true, sd, local
+            #     )
+            #     self._plot_trace_plots(group_id, gibbs_spectra, kappa, sd, local)
+            # # MAP Plotting
+            # if len(map_spectra) > 0:
+            #     self._plot_stability_analysis(
+            #         group_id, map_spectra, kappa, mean_true, sd, local
+            #     )
+
+    #         # local plotting
+    #         self.local_plotting(
+    #             true_spectra,
+    #             spectra_list,
+    #             output_pdf_path="/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot",
+    #             output_csv_path="/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/csv",
+    #         )
+
+    # def local_plotting(
+    #     self, true_spectra, all_results, output_pdf_path, output_csv_path
+    # ):
+    #     # Ensure output directories exist
+    #     os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+    #     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+    #     n_configs = len(all_results)
+    #     rows = int(np.ceil((n_configs) / 2))
+    #     cols = 2
+    #     with PdfPages(output_pdf_path):
+    #         # First page: distribution plots
+    #         fig = plt.figure(figsize=(15, 5 * rows))
+    #         plt.suptitle("Complexity - Distribution", fontsize=16)
+    #         gs = plt.GridSpec(rows, cols, figure=fig)
+    #         for i, result in enumerate(all_results):
+    #             row = i // cols
+    #             col = i % cols
+    #             ax = fig.add_subplot(gs[row, col])
+    #             # Calculate b-value range
+    #             b_min, b_max = min(result.signal_decay.b_values), max(
+    #                 result.signal_decay.b_values
+    #             )
+    #             # Plot Gibbs sampling distribution
+    #             zone_str = (
+    #                 f"Zone: {result.signal_decay.a_region}\n"
+    #                 if "zone" in result
+    #                 else ""
+    #             )
+    #             if ax is None:
+    #                 fig, ax = plt.subplots()
+    #                 ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ ms.)")
+    #                 ax.set_ylabel("Relative Fraction")
+    #                 tick_labels = [str(number) for number in result.diffusivities]
+    #                 ax.set_xticklabels(tick_labels, rotation=45)
+    #                 title = f"Data SNR: {result.data_snr} | Gibbs SNR: {result.sampler_snr} | TBD"
+    #                 ax.set_title(title, fontdict={"fontsize": 12})
+    #             start, end = 0, -1
+    #             sample_arr = np.asarray(result.spectrum_samples)[start:end]
+    #             ax.boxplot(
+    #                 sample_arr,
+    #                 showfliers=False,
+    #                 manage_ticks=False,
+    #                 showmeans=True,
+    #                 meanline=True,
+    #             )
+    #             if d_spectra_sample.initial_R is not None:
+    #                 x_positions = np.arange(1, len(d_spectra_sample.diffusivities) + 1)
+    #                 ax.plot(
+    #                     x_positions,
+    #                     d_spectra_sample.initial_R,
+    #                     "r*",
+    #                     label="Initial R (Mode)",
+    #                     markersize=8,
+    #                 )
+    #                 ax.legend()
+    #             if save_filename is not None:
+    #                 plt.savefig(save_filename)
+    #             plotting.plot_d_spectra_sample_boxplot(
+    #                 result["sample"],
+    #                 ax=ax,
+    #                 title=f"{sampler_label} | {config.name}\n"
+    #                 f"{zone_str}"
+    #                 f"Data SNR: {config.data_snr}, Sampler SNR: {config.gibbs_snr}\n"
+    #                 f"L2 λ: {config.l2_lambda:.1e}, Iterations: {config.iterations} (burn-in: {config.burn_in})\n"
+    #                 f"b-values: {b_min:.1f}-{b_max:.1f} ms/µm²",
+    #             )
+    #             # Get the appropriate true spectrum
+    #             if "true_spectrum" in result:
+    #                 # For test data
+    #                 true_spectrum = result["true_spectrum"]
+    #             else:
+    #                 # For real data
+    #                 true_spectrum = true_spectra[result["zone"]]
+
+    #             x_positions = np.arange(1, len(true_spectrum.diffusivities) + 1)
+
+    #             # Overlay true spectrum
+    #             ax.vlines(
+    #                 x_positions,
+    #                 0,
+    #                 true_spectrum.fractions,
+    #                 colors="b",
+    #                 alpha=0.8,
+    #                 linewidth=2,
+    #                 label="True Spectrum",
+    #             )
+
+    #             # Add legend
+    #             handles, labels = ax.get_legend_handles_labels()
+    #             ax.legend(handles, labels)
+
+    #             str_diffs = [""] + list(map(str, true_spectrum.diffusivities)) + [""]
+    #             ax.set_xticks(
+    #                 np.arange(len(str_diffs)), labels=str_diffs, fontsize=8, rotation=90
+    #             )
+
+    #         plt.tight_layout()
+    #         pdf.savefig(fig)
+    #         plt.close(fig)
+
+    #         # Second page: Autocorrelation plots
+    #         # Third page: Stability plots
+    #         # Fourth page: Trace plots
 
     def run_cross_config_diagnostics(self, exp_config=None):
         """
@@ -351,7 +469,7 @@ class DiffusivitySpectraDataset(BaseModel):
             )
 
     def _plot_cross_config_stability_analysis(
-        self, group_key, spectra_list, exp_config
+        self, group_key, spectra_list, exp_config, local
     ):
         """
         Plot stability analysis comparing different priors for the same base configuration.
@@ -506,7 +624,8 @@ class DiffusivitySpectraDataset(BaseModel):
         ax.set_ylim(0, max_val * 1.1)
 
         plt.tight_layout()
-        wandb.log({f"cross_config_stability_{group_key}": wandb.Image(fig)})
+        if not local:
+            wandb.log({f"cross_config_stability_{group_key}": wandb.Image(fig)})
         plt.close(fig)
 
     def _extract_prior_type(self, spectrum):
@@ -516,7 +635,7 @@ class DiffusivitySpectraDataset(BaseModel):
         else:
             return "unknown"
 
-    def _log_parameter_metrics(self, group_id, spectra_list, kappa, exp_config):
+    def _log_parameter_metrics(self, group_id, spectra_list, kappa, exp_config, local):
         """Log structured metrics for parameter analysis across runs."""
         import wandb
         import numpy as np
@@ -602,10 +721,18 @@ class DiffusivitySpectraDataset(BaseModel):
         )
 
         # Log metrics with prefixes for easy filtering in wandb
-        wandb.log({f"param_analysis/{k}": v for k, v in base_metrics.items()})
+        if not local:
+            wandb.log({f"param_analysis/{k}": v for k, v in base_metrics.items()})
 
-        # Also log with method-specific prefix for easy method comparison
-        wandb.log(
+            # Also log with method-specific prefix for easy method comparison
+            wandb.log(
+                {
+                    f"param_analysis_{inference_method}/{k}": v
+                    for k, v in base_metrics.items()
+                }
+            )
+        print({f"param_analysis/{k}": v for k, v in base_metrics.items()})
+        print(
             {
                 f"param_analysis_{inference_method}/{k}": v
                 for k, v in base_metrics.items()
@@ -613,7 +740,7 @@ class DiffusivitySpectraDataset(BaseModel):
         )
 
     def _plot_gibbs_distributions(
-        self, group_id, gibbs_spectra, kappa, mean_true, signal_decay
+        self, group_id, gibbs_spectra, kappa, mean_true, signal_decay, local
     ):
         """Plot distribution/box plots for Gibbs sampling results."""
         if not gibbs_spectra:
@@ -642,11 +769,11 @@ class DiffusivitySpectraDataset(BaseModel):
             )
 
             # Add MAP initialization if available
-            if spectrum.spectrum_vector is not None:
+            if spectrum.spectrum_init is not None:
                 x_positions = np.arange(1, len(diffusivities) + 1)
                 ax.plot(
                     x_positions,
-                    spectrum.spectrum_vector,
+                    spectrum.spectrum_init,
                     "r*",
                     label="Initial R (MAP)",
                     markersize=8,
@@ -684,11 +811,17 @@ class DiffusivitySpectraDataset(BaseModel):
                 ax.legend()
 
             plt.tight_layout()
-            wandb.log({f"distribution_{group_id}_real{idx+1}": wandb.Image(fig)})
+            if not local:
+                wandb.log({f"distribution_{group_id}_real{idx+1}": wandb.Image(fig)})
+            if local:
+                output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/distributions.pdf"
+                os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+                with PdfPages(output_pdf_path) as pdf:
+                    pdf.savefig(fig)
             plt.close(fig)
 
     def _plot_stability_analysis(
-        self, group_id, spectra, kappa, mean_true, signal_decay
+        self, group_id, spectra, kappa, mean_true, signal_decay, local
     ):
         """Plot stability analysis of either MAP or Gibbs point estimates across realizations."""
         import wandb
@@ -826,10 +959,11 @@ class DiffusivitySpectraDataset(BaseModel):
 
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        wandb.log({f"stability": wandb.Image(fig)})
+        if not local:
+            wandb.log({f"stability": wandb.Image(fig)})
         plt.close(fig)
 
-    def _plot_trace_plots(self, group_id, gibbs_spectra, kappa, signal_decay):
+    def _plot_trace_plots(self, group_id, gibbs_spectra, kappa, signal_decay, local):
         """Plot MCMC trace plots for Gibbs sampling."""
         import wandb
         import matplotlib.pyplot as plt
@@ -874,5 +1008,6 @@ class DiffusivitySpectraDataset(BaseModel):
             ax.grid(True, alpha=0.3)
 
             plt.tight_layout()
-            wandb.log({f"trace_{group_id}_real{idx+1}": wandb.Image(fig)})
+            if not local:
+                wandb.log({f"trace_{group_id}_real{idx+1}": wandb.Image(fig)})
             plt.close(fig)

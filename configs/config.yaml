@@ -10,6 +10,7 @@ defaults:
   - diagnostics: diagnostics
   - _self_
 
+local: true
 recompute: false
 experiment_name: "spectrum_optimization"
 seed: 42
