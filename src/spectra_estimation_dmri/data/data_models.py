@@ -317,127 +317,15 @@ class DiffusivitySpectraDataset(BaseModel):
                 self._plot_gibbs_distributions(
                     group_id, gibbs_spectra, kappa, mean_true, sd, local
                 )
-            #     self._plot_stability_analysis(
-            #         group_id, gibbs_spectra, kappa, mean_true, sd, local
-            #     )
+                self._plot_stability_analysis(
+                    group_id, gibbs_spectra, kappa, mean_true, sd, local
+                )
             #     self._plot_trace_plots(group_id, gibbs_spectra, kappa, sd, local)
-            # # MAP Plotting
-            # if len(map_spectra) > 0:
-            #     self._plot_stability_analysis(
-            #         group_id, map_spectra, kappa, mean_true, sd, local
-            #     )
-
-    #         # local plotting
-    #         self.local_plotting(
-    #             true_spectra,
-    #             spectra_list,
-    #             output_pdf_path="/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot",
-    #             output_csv_path="/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/csv",
-    #         )
-
-    # def local_plotting(
-    #     self, true_spectra, all_results, output_pdf_path, output_csv_path
-    # ):
-    #     # Ensure output directories exist
-    #     os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
-    #     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
-    #     n_configs = len(all_results)
-    #     rows = int(np.ceil((n_configs) / 2))
-    #     cols = 2
-    #     with PdfPages(output_pdf_path):
-    #         # First page: distribution plots
-    #         fig = plt.figure(figsize=(15, 5 * rows))
-    #         plt.suptitle("Complexity - Distribution", fontsize=16)
-    #         gs = plt.GridSpec(rows, cols, figure=fig)
-    #         for i, result in enumerate(all_results):
-    #             row = i // cols
-    #             col = i % cols
-    #             ax = fig.add_subplot(gs[row, col])
-    #             # Calculate b-value range
-    #             b_min, b_max = min(result.signal_decay.b_values), max(
-    #                 result.signal_decay.b_values
-    #             )
-    #             # Plot Gibbs sampling distribution
-    #             zone_str = (
-    #                 f"Zone: {result.signal_decay.a_region}\n"
-    #                 if "zone" in result
-    #                 else ""
-    #             )
-    #             if ax is None:
-    #                 fig, ax = plt.subplots()
-    #                 ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ ms.)")
-    #                 ax.set_ylabel("Relative Fraction")
-    #                 tick_labels = [str(number) for number in result.diffusivities]
-    #                 ax.set_xticklabels(tick_labels, rotation=45)
-    #                 title = f"Data SNR: {result.data_snr} | Gibbs SNR: {result.sampler_snr} | TBD"
-    #                 ax.set_title(title, fontdict={"fontsize": 12})
-    #             start, end = 0, -1
-    #             sample_arr = np.asarray(result.spectrum_samples)[start:end]
-    #             ax.boxplot(
-    #                 sample_arr,
-    #                 showfliers=False,
-    #                 manage_ticks=False,
-    #                 showmeans=True,
-    #                 meanline=True,
-    #             )
-    #             if d_spectra_sample.initial_R is not None:
-    #                 x_positions = np.arange(1, len(d_spectra_sample.diffusivities) + 1)
-    #                 ax.plot(
-    #                     x_positions,
-    #                     d_spectra_sample.initial_R,
-    #                     "r*",
-    #                     label="Initial R (Mode)",
-    #                     markersize=8,
-    #                 )
-    #                 ax.legend()
-    #             if save_filename is not None:
-    #                 plt.savefig(save_filename)
-    #             plotting.plot_d_spectra_sample_boxplot(
-    #                 result["sample"],
-    #                 ax=ax,
-    #                 title=f"{sampler_label} | {config.name}\n"
-    #                 f"{zone_str}"
-    #                 f"Data SNR: {config.data_snr}, Sampler SNR: {config.gibbs_snr}\n"
-    #                 f"L2 λ: {config.l2_lambda:.1e}, Iterations: {config.iterations} (burn-in: {config.burn_in})\n"
-    #                 f"b-values: {b_min:.1f}-{b_max:.1f} ms/µm²",
-    #             )
-    #             # Get the appropriate true spectrum
-    #             if "true_spectrum" in result:
-    #                 # For test data
-    #                 true_spectrum = result["true_spectrum"]
-    #             else:
-    #                 # For real data
-    #                 true_spectrum = true_spectra[result["zone"]]
-
-    #             x_positions = np.arange(1, len(true_spectrum.diffusivities) + 1)
-
-    #             # Overlay true spectrum
-    #             ax.vlines(
-    #                 x_positions,
-    #                 0,
-    #                 true_spectrum.fractions,
-    #                 colors="b",
-    #                 alpha=0.8,
-    #                 linewidth=2,
-    #                 label="True Spectrum",
-    #             )
-
-    #             # Add legend
-    #             handles, labels = ax.get_legend_handles_labels()
-    #             ax.legend(handles, labels)
-
-    #             str_diffs = [""] + list(map(str, true_spectrum.diffusivities)) + [""]
-    #             ax.set_xticks(
-    #                 np.arange(len(str_diffs)), labels=str_diffs, fontsize=8, rotation=90
-    #             )
-
-    #         plt.tight_layout()
-    #         pdf.savefig(fig)
-    #         plt.close(fig)
-
-    #         # Second page: Autocorrelation plots
-    #         # Third page: Stability plots
-    #         # Fourth page: Trace plots
+            # MAP Plotting
+            if len(map_spectra) > 0:
+                self._plot_stability_analysis(
+                    group_id, map_spectra, kappa, mean_true, sd, local
+                )
 
     def run_cross_config_diagnostics(self, exp_config=None):
         """
@@ -829,6 +717,7 @@ class DiffusivitySpectraDataset(BaseModel):
         import numpy as np
 
         # Collect estimates
+        init_point_estimates = []
         point_estimates = []
 
         if spectra[0].inference_method == "map":
@@ -842,6 +731,7 @@ class DiffusivitySpectraDataset(BaseModel):
                     point_estimates.append(
                         np.mean(np.array(s.spectrum_samples), axis=0)
                     )
+                    init_point_estimates.append(np.array(s.spectrum_init))
 
         if not point_estimates:
             return
@@ -889,17 +779,30 @@ class DiffusivitySpectraDataset(BaseModel):
             and len(point_estimates) > 1
         ):
             gibbs_matrix = np.stack(point_estimates)
+            init_matrix = np.stack(init_point_estimates)
+            n_diffusivities = len(spectra[0].diffusivities)
+            positions_init = np.arange(1, n_diffusivities + 1) - 0.2
+            positions_gibbs = np.arange(1, n_diffusivities + 1) + 0.2
             bp_gibbs = ax.boxplot(
                 gibbs_matrix,
-                positions=positions + 0.2,
+                positions=positions_gibbs,
                 widths=0.3,
                 patch_artist=True,
                 boxprops=dict(facecolor="lightblue", color="blue"),
                 medianprops=dict(color="blue"),
             )
+            bp_init = ax.boxplot(
+                init_matrix,
+                positions=positions_init,
+                widths=0.3,
+                patch_artist=True,
+                boxprops=dict(facecolor="lightgreen", color="green"),
+                medianprops=dict(color="green"),
+            )
             legend_handles.append(
                 plt.Line2D([0], [0], color="blue", lw=2, label="Gibbs (mean)")
             )
+
         elif spectra[0].inference_method == "gibbs" and point_estimates:
             ax.scatter(
                 positions + 0.2,
@@ -931,12 +834,15 @@ class DiffusivitySpectraDataset(BaseModel):
             if recon_errors:
                 recon_err_mean = float(np.mean(recon_errors))
                 recon_err_std = float(np.std(recon_errors))
-                wandb.log(
-                    {
-                        f"recon_err_mean": recon_err_mean,
-                        f"recon_err_std": recon_err_std,
-                    }
-                )
+                print({f"recon_err_mean": recon_err_mean})
+                print({f"recon_err_std": recon_err_std})
+                if not local:
+                    wandb.log(
+                        {
+                            f"recon_err_mean": recon_err_mean,
+                            f"recon_err_std": recon_err_std,
+                        }
+                    )
                 subtitle = f"\nRecon err: {recon_err_mean:.3g}±{recon_err_std:.2g}"
             else:
                 subtitle = ""
@@ -955,12 +861,28 @@ class DiffusivitySpectraDataset(BaseModel):
         ax.set_title(title)
 
         if legend_handles or mean_true is not None:
-            ax.legend()
-
+            if spectra[0].inference_method == "gibbs":
+                # ax.legend()
+                ax.legend(
+                    [bp_init["boxes"][0], bp_gibbs["boxes"][0], mean_true],
+                    ["MAP (Posterior Mode)", "Posterior Mean", "True Spectrum"],
+                    loc="upper right",
+                )
+            if spectra[0].inference_method == "map":
+                ax.legend(
+                    [bp_map["boxes"][0], mean_true],
+                    ["MAP (Posterior Mode)", "True Spectrum"],
+                    loc="upper right",
+                )
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
         if not local:
             wandb.log({f"stability": wandb.Image(fig)})
+        if local:
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/stability.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
         plt.close(fig)
 
     def _plot_trace_plots(self, group_id, gibbs_spectra, kappa, signal_decay, local):
