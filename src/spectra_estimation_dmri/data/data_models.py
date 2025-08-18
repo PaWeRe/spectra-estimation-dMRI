@@ -320,7 +320,7 @@ class DiffusivitySpectraDataset(BaseModel):
                 self._plot_stability_analysis(
                     group_id, gibbs_spectra, kappa, mean_true, sd, local
                 )
-            #     self._plot_trace_plots(group_id, gibbs_spectra, kappa, sd, local)
+                self._plot_trace_plots(group_id, gibbs_spectra, kappa, sd, local)
             # MAP Plotting
             if len(map_spectra) > 0:
                 self._plot_stability_analysis(
@@ -932,4 +932,9 @@ class DiffusivitySpectraDataset(BaseModel):
             plt.tight_layout()
             if not local:
                 wandb.log({f"trace_{group_id}_real{idx+1}": wandb.Image(fig)})
+            if local:
+                output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/traceplot.pdf"
+                os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+                with PdfPages(output_pdf_path) as pdf:
+                    pdf.savefig(fig)
             plt.close(fig)
