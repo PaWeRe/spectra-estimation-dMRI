@@ -886,7 +886,7 @@ class DiffusivitySpectraDataset(BaseModel):
         plt.close(fig)
 
     def _plot_trace_plots(self, group_id, gibbs_spectra, kappa, signal_decay, local):
-        """Plot MCMC trace plots for Gibbs sampling."""
+        """Plot MCMC trace plots for Gibbs sampling with improved scaling options."""
         import wandb
         import matplotlib.pyplot as plt
         import numpy as np
@@ -899,42 +899,176 @@ class DiffusivitySpectraDataset(BaseModel):
             diffusivities = np.array(spectrum.diffusivities)
             init_method = getattr(spectrum, "init_method", "map")
 
-            fig, ax = plt.subplots(figsize=(14, 8))
+            # Create multiple plot variants for better visualization
+            plot_variants = [
+                self._plot_trace_subplots,
+                self._plot_trace_offset,
+                self._plot_trace_normalized,
+                self._plot_trace_log_scale
+            ]
+            
+            for variant_idx, plot_func in enumerate(plot_variants):
+                fig = plot_func(samples, diffusivities, group_id, idx, signal_decay, 
+                              spectrum, kappa, init_method)
+                
+                if not local:
+                    variant_name = plot_func.__name__.replace('_plot_trace_', '')
+                    wandb.log({f"trace_{group_id}_real{idx+1}_{variant_name}": wandb.Image(fig)})
+                if local:
+                    variant_name = plot_func.__name__.replace('_plot_trace_', '')
+                    output_pdf_path = f"/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/traceplot_{variant_name}.pdf"
+                    os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+                    with PdfPages(output_pdf_path) as pdf:
+                        pdf.savefig(fig)
+                plt.close(fig)
 
-            # Plot trace for each diffusivity component
-            for j, diff in enumerate(diffusivities):
-                ax.plot(
-                    np.arange(len(samples)),
-                    samples[:, j],
-                    label=f"D={diff:.1f}",
-                    alpha=0.7,
-                    linewidth=1,
-                )
-
-            # Customize plot
+    def _plot_trace_subplots(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
+        """Plot each D value in separate subplots for clear separation."""
+        import matplotlib.pyplot as plt
+        import numpy as np
+        
+        n_diffs = len(diffusivities)
+        n_cols = min(3, n_diffs)
+        n_rows = (n_diffs + n_cols - 1) // n_cols
+        
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
+        if n_rows == 1:
+            axes = axes.reshape(1, -1)
+        elif n_cols == 1:
+            axes = axes.reshape(-1, 1)
+        
+        for j, diff in enumerate(diffusivities):
+            row = j // n_cols
+            col = j % n_cols
+            ax = axes[row, col]
+            
+            ax.plot(np.arange(len(samples)), samples[:, j], 
+                   label=f"D={diff:.1f}", alpha=0.8, linewidth=1)
             ax.set_xlabel("Iteration")
             ax.set_ylabel("Fraction")
-
-            title = f"MCMC Trace Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
-            title += (
-                f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
-                f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
-                f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
-                f"Init: {init_method}\n"
-                f"Iterations: {len(samples)} | κ={kappa:.2e}"
-            )
-            ax.set_title(title)
-
-            # Add legend outside the plot
-            ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+            ax.set_title(f"D = {diff:.1f}")
             ax.grid(True, alpha=0.3)
+            ax.legend()
+        
+        # Hide empty subplots
+        for j in range(n_diffs, n_rows * n_cols):
+            row = j // n_cols
+            col = j % n_cols
+            axes[row, col].set_visible(False)
+        
+        # Add overall title
+        title = f"MCMC Trace Plots (Subplots) | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"Init: {init_method}\n"
+            f"Iterations: {len(samples)} | κ={kappa:.2e}"
+        )
+        fig.suptitle(title, fontsize=10)
+        plt.tight_layout()
+        return fig
 
-            plt.tight_layout()
-            if not local:
-                wandb.log({f"trace_{group_id}_real{idx+1}": wandb.Image(fig)})
-            if local:
-                output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/traceplot.pdf"
-                os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
-                with PdfPages(output_pdf_path) as pdf:
-                    pdf.savefig(fig)
-            plt.close(fig)
+    def _plot_trace_offset(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
+        """Plot traces with vertical offsets to separate them."""
+        import matplotlib.pyplot as plt
+        import numpy as np
+        
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Calculate offsets based on the range of each trace
+        offsets = np.zeros(len(diffusivities))
+        for j in range(len(diffusivities)):
+            trace_range = np.max(samples[:, j]) - np.min(samples[:, j])
+            if j > 0:
+                offsets[j] = offsets[j-1] + trace_range * 0.5
+        
+        # Plot traces with offsets
+        for j, diff in enumerate(diffusivities):
+            ax.plot(np.arange(len(samples)), samples[:, j] + offsets[j],
+                   label=f"D={diff:.1f}", alpha=0.7, linewidth=1)
+        
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Fraction (with offsets)")
+        ax.grid(True, alpha=0.3)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+        
+        title = f"MCMC Trace Plot (Offset) | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"Init: {init_method}\n"
+            f"Iterations: {len(samples)} | κ={kappa:.2e}"
+        )
+        ax.set_title(title)
+        plt.tight_layout()
+        return fig
+
+    def _plot_trace_normalized(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
+        """Plot normalized traces (each trace normalized to [0,1] range)."""
+        import matplotlib.pyplot as plt
+        import numpy as np
+        
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Normalize each trace to [0,1] range
+        for j, diff in enumerate(diffusivities):
+            trace = samples[:, j]
+            trace_min, trace_max = np.min(trace), np.max(trace)
+            if trace_max > trace_min:
+                normalized_trace = (trace - trace_min) / (trace_max - trace_min)
+            else:
+                normalized_trace = trace - trace_min  # All zeros if constant
+            
+            ax.plot(np.arange(len(samples)), normalized_trace,
+                   label=f"D={diff:.1f}", alpha=0.7, linewidth=1)
+        
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Normalized Fraction [0,1]")
+        ax.grid(True, alpha=0.3)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+        
+        title = f"MCMC Trace Plot (Normalized) | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"Init: {init_method}\n"
+            f"Iterations: {len(samples)} | κ={kappa:.2e}"
+        )
+        ax.set_title(title)
+        plt.tight_layout()
+        return fig
+
+    def _plot_trace_log_scale(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
+        """Plot traces with logarithmic y-axis scaling."""
+        import matplotlib.pyplot as plt
+        import numpy as np
+        
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Add small constant to avoid log(0)
+        epsilon = 1e-6
+        
+        for j, diff in enumerate(diffusivities):
+            trace = samples[:, j] + epsilon
+            ax.semilogy(np.arange(len(samples)), trace,
+                       label=f"D={diff:.1f}", alpha=0.7, linewidth=1)
+        
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Fraction (log scale)")
+        ax.grid(True, alpha=0.3)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+        
+        title = f"MCMC Trace Plot (Log Scale) | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"Init: {init_method}\n"
+            f"Iterations: {len(samples)} | κ={kappa:.2e}"
+        )
+        ax.set_title(title)
+        plt.tight_layout()
+        return fig
