@@ -321,6 +321,9 @@ class DiffusivitySpectraDataset(BaseModel):
                     group_id, gibbs_spectra, kappa, mean_true, sd, local
                 )
                 self._plot_trace_plots(group_id, gibbs_spectra, kappa, sd, local)
+                self._plot_autocorrelation_plots(
+                    group_id, gibbs_spectra, kappa, sd, local
+                )
             # MAP Plotting
             if len(map_spectra) > 0:
                 self._plot_stability_analysis(
@@ -903,59 +906,163 @@ class DiffusivitySpectraDataset(BaseModel):
             plot_variants = [
                 self._plot_trace_subplots,
                 self._plot_trace_offset,
-                self._plot_trace_normalized,
-                self._plot_trace_log_scale
             ]
-            
+
             for variant_idx, plot_func in enumerate(plot_variants):
-                fig = plot_func(samples, diffusivities, group_id, idx, signal_decay, 
-                              spectrum, kappa, init_method)
-                
+                fig = plot_func(
+                    samples,
+                    diffusivities,
+                    group_id,
+                    idx,
+                    signal_decay,
+                    spectrum,
+                    kappa,
+                    init_method,
+                )
+
                 if not local:
-                    variant_name = plot_func.__name__.replace('_plot_trace_', '')
-                    wandb.log({f"trace_{group_id}_real{idx+1}_{variant_name}": wandb.Image(fig)})
+                    variant_name = plot_func.__name__.replace("_plot_trace_", "")
+                    wandb.log(
+                        {
+                            f"trace_{group_id}_real{idx+1}_{variant_name}": wandb.Image(
+                                fig
+                            )
+                        }
+                    )
                 if local:
-                    variant_name = plot_func.__name__.replace('_plot_trace_', '')
+                    variant_name = plot_func.__name__.replace("_plot_trace_", "")
                     output_pdf_path = f"/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/traceplot_{variant_name}.pdf"
                     os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
                     with PdfPages(output_pdf_path) as pdf:
                         pdf.savefig(fig)
                 plt.close(fig)
 
-    def _plot_trace_subplots(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
+    def _plot_autocorrelation_plots(
+        self, group_id, gibbs_spectra, kappa, signal_decay, local
+    ):
+        """Plot autocorrelation plots for Gibbs sampling to assess mixing."""
+        import wandb
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        last_fig = None
+        last_joint_fig = None
+
+        for idx, spectrum in enumerate(gibbs_spectra):
+            if spectrum.spectrum_samples is None:
+                continue
+
+            samples = np.array(spectrum.spectrum_samples)
+            diffusivities = np.array(spectrum.diffusivities)
+            init_method = getattr(spectrum, "init_method", "map")
+
+            # Create separate autocorrelation plot
+            fig = self._plot_autocorrelation(
+                samples,
+                diffusivities,
+                group_id,
+                idx,
+                signal_decay,
+                spectrum,
+                kappa,
+                init_method,
+            )
+
+            if not local:
+                wandb.log({f"autocorrelation_{group_id}_real{idx+1}": wandb.Image(fig)})
+
+            last_fig = fig
+            plt.close(fig)
+
+            # Create joint autocorrelation plot
+            joint_fig = self._plot_joint_autocorrelation(
+                samples,
+                diffusivities,
+                group_id,
+                idx,
+                signal_decay,
+                spectrum,
+                kappa,
+                init_method,
+            )
+
+            if not local:
+                wandb.log(
+                    {
+                        f"joint_autocorrelation_{group_id}_real{idx+1}": wandb.Image(
+                            joint_fig
+                        )
+                    }
+                )
+
+            last_joint_fig = joint_fig
+            plt.close(joint_fig)
+
+        # Save figures to PDF
+        if local:
+            if last_fig is not None:
+                output_pdf_path = f"/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/autocorrelation.pdf"
+                os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+                with PdfPages(output_pdf_path) as pdf:
+                    pdf.savefig(last_fig)
+                plt.close(last_fig)
+
+            if last_joint_fig is not None:
+                output_pdf_path = f"/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/joint_autocorrelation.pdf"
+                os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+                with PdfPages(output_pdf_path) as pdf:
+                    pdf.savefig(last_joint_fig)
+                plt.close(last_joint_fig)
+
+    def _plot_trace_subplots(
+        self,
+        samples,
+        diffusivities,
+        group_id,
+        idx,
+        signal_decay,
+        spectrum,
+        kappa,
+        init_method,
+    ):
         """Plot each D value in separate subplots for clear separation."""
         import matplotlib.pyplot as plt
         import numpy as np
-        
+
         n_diffs = len(diffusivities)
         n_cols = min(3, n_diffs)
         n_rows = (n_diffs + n_cols - 1) // n_cols
-        
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4 * n_rows))
         if n_rows == 1:
             axes = axes.reshape(1, -1)
         elif n_cols == 1:
             axes = axes.reshape(-1, 1)
-        
+
         for j, diff in enumerate(diffusivities):
             row = j // n_cols
             col = j % n_cols
             ax = axes[row, col]
-            
-            ax.plot(np.arange(len(samples)), samples[:, j], 
-                   label=f"D={diff:.1f}", alpha=0.8, linewidth=1)
+
+            ax.plot(
+                np.arange(len(samples)),
+                samples[:, j],
+                label=f"D={diff:.1f}",
+                alpha=0.8,
+                linewidth=1,
+            )
             ax.set_xlabel("Iteration")
             ax.set_ylabel("Fraction")
             ax.set_title(f"D = {diff:.1f}")
             ax.grid(True, alpha=0.3)
             ax.legend()
-        
+
         # Hide empty subplots
         for j in range(n_diffs, n_rows * n_cols):
             row = j // n_cols
             col = j % n_cols
             axes[row, col].set_visible(False)
-        
+
         # Add overall title
         title = f"MCMC Trace Plots (Subplots) | Group: {group_id[:8]} | Realization: {idx+1}\n"
         title += (
@@ -969,99 +1076,189 @@ class DiffusivitySpectraDataset(BaseModel):
         plt.tight_layout()
         return fig
 
-    def _plot_trace_offset(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
+    def _plot_autocorrelation(
+        self,
+        samples,
+        diffusivities,
+        group_id,
+        idx,
+        signal_decay,
+        spectrum,
+        kappa,
+        init_method,
+        max_lag=None,
+    ):
+        """Plot autocorrelation for each diffusivity dimension to assess mixing."""
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from scipy import stats
+
+        if max_lag is None:
+            max_lag = min(
+                100, len(samples) // 10
+            )  # Default to 100 or 10% of chain length
+
+        n_diffs = len(diffusivities)
+        n_cols = min(3, n_diffs)
+        n_rows = (n_diffs + n_cols - 1) // n_cols
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4 * n_rows))
+        if n_rows == 1:
+            axes = axes.reshape(1, -1)
+        elif n_cols == 1:
+            axes = axes.reshape(-1, 1)
+
+        for j, diff in enumerate(diffusivities):
+            row = j // n_cols
+            col = j % n_cols
+            ax = axes[row, col]
+
+            # Calculate autocorrelation
+            trace = samples[:, j]
+            autocorr = []
+            for lag in range(1, max_lag + 1):
+                if lag < len(trace):
+                    # Calculate autocorrelation coefficient
+                    corr = np.corrcoef(trace[:-lag], trace[lag:])[0, 1]
+                    autocorr.append(corr)
+                else:
+                    break
+
+            lags = np.arange(1, len(autocorr) + 1)
+            ax.plot(lags, autocorr, "b-", linewidth=1.5, alpha=0.8)
+            ax.axhline(y=0, color="k", linestyle="--", alpha=0.5)
+            ax.axhline(
+                y=0.1, color="r", linestyle=":", alpha=0.7, label="0.1 threshold"
+            )
+            ax.axhline(y=-0.1, color="r", linestyle=":", alpha=0.7)
+
+            ax.set_xlabel("Lag")
+            ax.set_ylabel("Autocorrelation")
+            ax.set_title(f"D = {diff:.1f}")
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=8)
+
+        # Remove empty subplots
+        for j in range(n_diffs, n_rows * n_cols):
+            row = j // n_cols
+            col = j % n_cols
+            fig.delaxes(axes[row, col])
+
+        title = f"Autocorrelation Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"Init: {init_method}\n"
+            f"Iterations: {len(samples)} | κ={kappa:.2e} | Max Lag: {max_lag}"
+        )
+        fig.suptitle(title, fontsize=10)
+        plt.tight_layout()
+        return fig
+
+    def _plot_joint_autocorrelation(
+        self,
+        samples,
+        diffusivities,
+        group_id,
+        idx,
+        signal_decay,
+        spectrum,
+        kappa,
+        init_method,
+        max_lag=None,
+    ):
+        """Plot joint autocorrelation for all diffusivity dimensions in a single plot."""
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from scipy import stats
+
+        if max_lag is None:
+            max_lag = min(
+                100, len(samples) // 10
+            )  # Default to 100 or 10% of chain length
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        # Calculate autocorrelation for each dimension
+        for j, diff in enumerate(diffusivities):
+            trace = samples[:, j]
+            autocorr = []
+            for lag in range(1, max_lag + 1):
+                if lag < len(trace):
+                    # Calculate autocorrelation coefficient
+                    corr = np.corrcoef(trace[:-lag], trace[lag:])[0, 1]
+                    autocorr.append(corr)
+                else:
+                    break
+
+            lags = np.arange(1, len(autocorr) + 1)
+            ax.plot(lags, autocorr, label=f"D = {diff:.1f}", linewidth=1.5, alpha=0.8)
+
+        # Add reference lines
+        ax.axhline(y=0, color="k", linestyle="--", alpha=0.5)
+        ax.axhline(y=0.1, color="r", linestyle=":", alpha=0.7, label="0.1 threshold")
+        ax.axhline(y=-0.1, color="r", linestyle=":", alpha=0.7)
+
+        ax.set_xlabel("Lag")
+        ax.set_ylabel("Autocorrelation")
+        ax.grid(True, alpha=0.3)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10)
+
+        title = f"Joint Autocorrelation Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"Init: {init_method}\n"
+            f"Iterations: {len(samples)} | κ={kappa:.2e} | Max Lag: {max_lag}"
+        )
+        ax.set_title(title)
+        plt.tight_layout()
+        return fig
+
+    def _plot_trace_offset(
+        self,
+        samples,
+        diffusivities,
+        group_id,
+        idx,
+        signal_decay,
+        spectrum,
+        kappa,
+        init_method,
+    ):
         """Plot traces with vertical offsets to separate them."""
         import matplotlib.pyplot as plt
         import numpy as np
-        
+
         fig, ax = plt.subplots(figsize=(14, 8))
-        
+
         # Calculate offsets based on the range of each trace
         offsets = np.zeros(len(diffusivities))
         for j in range(len(diffusivities)):
             trace_range = np.max(samples[:, j]) - np.min(samples[:, j])
             if j > 0:
-                offsets[j] = offsets[j-1] + trace_range * 0.5
-        
+                offsets[j] = offsets[j - 1] + trace_range * 0.5
+
         # Plot traces with offsets
         for j, diff in enumerate(diffusivities):
-            ax.plot(np.arange(len(samples)), samples[:, j] + offsets[j],
-                   label=f"D={diff:.1f}", alpha=0.7, linewidth=1)
-        
+            ax.plot(
+                np.arange(len(samples)),
+                samples[:, j] + offsets[j],
+                label=f"D={diff:.1f}",
+                alpha=0.7,
+                linewidth=1,
+            )
+
         ax.set_xlabel("Iteration")
         ax.set_ylabel("Fraction (with offsets)")
         ax.grid(True, alpha=0.3)
         ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
-        
-        title = f"MCMC Trace Plot (Offset) | Group: {group_id[:8]} | Realization: {idx+1}\n"
-        title += (
-            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
-            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
-            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
-            f"Init: {init_method}\n"
-            f"Iterations: {len(samples)} | κ={kappa:.2e}"
-        )
-        ax.set_title(title)
-        plt.tight_layout()
-        return fig
 
-    def _plot_trace_normalized(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
-        """Plot normalized traces (each trace normalized to [0,1] range)."""
-        import matplotlib.pyplot as plt
-        import numpy as np
-        
-        fig, ax = plt.subplots(figsize=(14, 8))
-        
-        # Normalize each trace to [0,1] range
-        for j, diff in enumerate(diffusivities):
-            trace = samples[:, j]
-            trace_min, trace_max = np.min(trace), np.max(trace)
-            if trace_max > trace_min:
-                normalized_trace = (trace - trace_min) / (trace_max - trace_min)
-            else:
-                normalized_trace = trace - trace_min  # All zeros if constant
-            
-            ax.plot(np.arange(len(samples)), normalized_trace,
-                   label=f"D={diff:.1f}", alpha=0.7, linewidth=1)
-        
-        ax.set_xlabel("Iteration")
-        ax.set_ylabel("Normalized Fraction [0,1]")
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
-        
-        title = f"MCMC Trace Plot (Normalized) | Group: {group_id[:8]} | Realization: {idx+1}\n"
-        title += (
-            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
-            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
-            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
-            f"Init: {init_method}\n"
-            f"Iterations: {len(samples)} | κ={kappa:.2e}"
+        title = (
+            f"MCMC Trace Plot (Offset) | Group: {group_id[:8]} | Realization: {idx+1}\n"
         )
-        ax.set_title(title)
-        plt.tight_layout()
-        return fig
-
-    def _plot_trace_log_scale(self, samples, diffusivities, group_id, idx, signal_decay, spectrum, kappa, init_method):
-        """Plot traces with logarithmic y-axis scaling."""
-        import matplotlib.pyplot as plt
-        import numpy as np
-        
-        fig, ax = plt.subplots(figsize=(14, 8))
-        
-        # Add small constant to avoid log(0)
-        epsilon = 1e-6
-        
-        for j, diff in enumerate(diffusivities):
-            trace = samples[:, j] + epsilon
-            ax.semilogy(np.arange(len(samples)), trace,
-                       label=f"D={diff:.1f}", alpha=0.7, linewidth=1)
-        
-        ax.set_xlabel("Iteration")
-        ax.set_ylabel("Fraction (log scale)")
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
-        
-        title = f"MCMC Trace Plot (Log Scale) | Group: {group_id[:8]} | Realization: {idx+1}\n"
         title += (
             f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
             f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
