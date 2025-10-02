@@ -354,7 +354,7 @@ def main(cfg: DictConfig):
     print("\n" + "=" * 60)
     print("SPECTRUM DIAGNOSTICS")
     print("=" * 60)
-    spectra_dataset.run_diagnostics(exp_config=cfg)
+    spectra_dataset.run_diagnostics(exp_config=cfg, local=cfg.local)
 
     # Final summary
     print("\n" + "=" * 60)

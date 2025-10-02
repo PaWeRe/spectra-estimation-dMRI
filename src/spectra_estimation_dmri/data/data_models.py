@@ -313,26 +313,37 @@ class DiffusivitySpectraDataset(BaseModel):
             has_true = len(true_spectra) > 0
             mean_true = np.mean(true_spectra, axis=0) if has_true else None
 
-            # Gibbs Plotting
+            # Gibbs Plotting - Core diagnostic plots
             if len(gibbs_spectra) > 0:
-                self._plot_gibbs_distributions(
-                    group_id, gibbs_spectra, kappa, mean_true, sd, local
+                # 1. Distribution plot (first realization only)
+                self._plot_gibbs_distribution(
+                    group_id, gibbs_spectra[0], kappa, mean_true, sd, local, idx=0
                 )
+                # 2. Stability plot (all realizations)
                 self._plot_stability_analysis(
                     group_id, gibbs_spectra, kappa, mean_true, sd, local
                 )
-                self._plot_trace_plots(group_id, gibbs_spectra, kappa, sd, local)
-                self._plot_autocorrelation_plots(
-                    group_id, gibbs_spectra, kappa, sd, local
+                # 3. Joint trace plot - single realization (all diff buckets)
+                self._plot_joint_trace(
+                    group_id, gibbs_spectra[0], kappa, sd, local, idx=0
                 )
-                # Add uncertainty calibration analysis
+                # 4. Multi-chain trace plot - all realizations per diff bucket (with R-hat)
+                if len(gibbs_spectra) >= 2:
+                    self._plot_multichain_trace(
+                        group_id, gibbs_spectra, kappa, sd, local
+                    )
+                # 5. Joint autocorrelation plot (first realization with ESS)
+                self._plot_joint_autocorrelation_with_ess(
+                    group_id, gibbs_spectra[0], kappa, sd, local, idx=0
+                )
+                # 6. Uncertainty calibration analysis
                 self._plot_uncertainty_calibration(
                     group_id, gibbs_spectra, kappa, sd, local
                 )
-                # Add uncertainty summary analysis
-                self._plot_uncertainty_summary(
-                    group_id, gibbs_spectra, kappa, sd, local
-                )
+                # 7. Uncertainty summary analysis (removed - redundant with calibration plot)
+                # self._plot_uncertainty_summary(
+                #     group_id, gibbs_spectra, kappa, sd, local
+                # )
             # MAP Plotting
             if len(map_spectra) > 0:
                 self._plot_stability_analysis(
@@ -775,110 +786,80 @@ class DiffusivitySpectraDataset(BaseModel):
 
         return metrics
 
-    def _plot_gibbs_distributions(
-        self, group_id, gibbs_spectra, kappa, mean_true, signal_decay, local
+    def _plot_gibbs_distribution(
+        self, group_id, spectrum, kappa, mean_true, signal_decay, local, idx=0
     ):
-        """Plot distribution/box plots for Gibbs sampling results."""
-        if not gibbs_spectra:
+        """Plot distribution/box plots for a single Gibbs sampling result."""
+        if spectrum.spectrum_samples is None:
             return
 
         import wandb
         import matplotlib.pyplot as plt
         import numpy as np
 
-        for idx, spectrum in enumerate(gibbs_spectra):
-            if spectrum.spectrum_samples is None:
-                continue
+        samples = np.array(spectrum.spectrum_samples)
+        diffusivities = np.array(spectrum.diffusivities)
 
-            samples = np.array(spectrum.spectrum_samples)
-            diffusivities = np.array(spectrum.diffusivities)
+        fig, ax = plt.subplots(figsize=(12, 8))
 
-            fig, ax = plt.subplots(figsize=(12, 8))
+        # Create boxplot
+        ax.boxplot(
+            samples,
+            showfliers=False,
+            showmeans=True,
+            meanline=True,
+            labels=[f"{d:.1f}" for d in diffusivities],
+        )
 
-            # Create boxplot
-            ax.boxplot(
-                samples,
-                showfliers=False,
-                showmeans=True,
-                meanline=True,
-                labels=[f"{d:.1f}" for d in diffusivities],
+        # Add MAP initialization if available
+        if spectrum.spectrum_init is not None:
+            x_positions = np.arange(1, len(diffusivities) + 1)
+            ax.plot(
+                x_positions,
+                spectrum.spectrum_init,
+                "r*",
+                label="Initial R (MAP)",
+                markersize=8,
             )
 
-            # Add MAP initialization if available
-            if spectrum.spectrum_init is not None:
-                x_positions = np.arange(1, len(diffusivities) + 1)
-                ax.plot(
-                    x_positions,
-                    spectrum.spectrum_init,
-                    "r*",
-                    label="Initial R (MAP)",
-                    markersize=8,
-                )
-
-            # Add true spectrum if available
-            if mean_true is not None:
-                x_positions = np.arange(1, len(diffusivities) + 1)
-                ax.vlines(
-                    x_positions,
-                    0,
-                    mean_true,
-                    colors="blue",
-                    linewidth=2,
-                    label="True Spectrum",
-                )
-
-            # Add uncertainty intervals if available (commented out to reduce visual clutter)
-            # if spectrum.spectrum_std is not None and spectrum.spectrum_vector is not None:
-            #     x_positions = np.arange(1, len(diffusivities) + 1)
-            #     est_spec = np.array(spectrum.spectrum_vector)
-            #     est_std = np.array(spectrum.spectrum_std)
-            #
-            #     # Plot 95% credible intervals
-            #     ci_lower = est_spec - 1.96 * est_std
-            #     ci_upper = est_spec + 1.96 * est_std
-            #
-            #     # Plot error bars for uncertainty
-            #     ax.errorbar(
-            #         x_positions,
-            #         est_spec,
-            #         yerr=1.96 * est_std,
-            #         fmt='o',
-            #         color='red',
-            #         capsize=5,
-            #         capthick=2,
-            #         elinewidth=2,
-            #         label='95% Credible Interval',
-            #         alpha=0.7
-            #     )
-
-            # Customize plot
-            ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ms)")
-            ax.set_ylabel("Relative Fraction")
-            ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=45)
-
-            title = (
-                f"Gibbs Distribution | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        # Add true spectrum if available
+        if mean_true is not None:
+            x_positions = np.arange(1, len(diffusivities) + 1)
+            ax.vlines(
+                x_positions,
+                0,
+                mean_true,
+                colors="blue",
+                linewidth=2,
+                label="True Spectrum",
             )
-            title += (
-                f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
-                f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
-                f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
-                f"κ={kappa:.2e}"
-            )
-            ax.set_title(title)
 
-            if spectrum.spectrum_vector is not None or mean_true is not None:
-                ax.legend()
+        # Customize plot
+        ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ms)")
+        ax.set_ylabel("Relative Fraction")
+        ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=45)
 
-            plt.tight_layout()
-            if not local:
-                wandb.log({f"distribution_{group_id}_real{idx+1}": wandb.Image(fig)})
-            if local:
-                output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/distributions.pdf"
-                os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
-                with PdfPages(output_pdf_path) as pdf:
-                    pdf.savefig(fig)
-            plt.close(fig)
+        title = f"Gibbs Distribution | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"κ={kappa:.2e}"
+        )
+        ax.set_title(title)
+
+        if spectrum.spectrum_vector is not None or mean_true is not None:
+            ax.legend()
+
+        plt.tight_layout()
+        if not local:
+            wandb.log({f"distribution_{group_id}_real{idx+1}": wandb.Image(fig)})
+        if local:
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/distribution.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
+        plt.close(fig)
 
     def _plot_stability_analysis(
         self, group_id, spectra, kappa, mean_true, signal_decay, local
@@ -1529,6 +1510,12 @@ class DiffusivitySpectraDataset(BaseModel):
             import wandb
 
             wandb.log({f"uncertainty_calibration_{group_id}": wandb.Image(fig)})
+        else:
+            # Save to local file when in local mode
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/uncertainty_calibration.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
 
         plt.close(fig)
         return fig
@@ -1665,51 +1652,290 @@ class DiffusivitySpectraDataset(BaseModel):
             import wandb
 
             wandb.log({f"uncertainty_summary_{group_id}": wandb.Image(fig)})
+        # Note: File saving removed since this plot is no longer used
 
         plt.close(fig)
         return fig
 
-    def _plot_trace_offset(
-        self,
-        samples,
-        diffusivities,
-        group_id,
-        idx,
-        signal_decay,
-        spectrum,
-        kappa,
-        init_method,
+    def _plot_joint_autocorrelation_with_ess(
+        self, group_id, spectrum, kappa, signal_decay, local, idx=0
     ):
-        """Plot traces with vertical offsets to separate them."""
+        """
+        Plot joint autocorrelation for all diffusivity dimensions with ESS calculation.
+        Autocorrelation starts at lag 0 = 1.0.
+        """
+        if spectrum.spectrum_samples is None:
+            return
+
+        import wandb
         import matplotlib.pyplot as plt
         import numpy as np
 
+        samples = np.array(spectrum.spectrum_samples)
+        diffusivities = np.array(spectrum.diffusivities)
+        init_method = getattr(spectrum, "init_method", "map")
+
+        # Determine max lag (up to 100 or 10% of chain length)
+        max_lag = min(100, len(samples) // 10)
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        # Calculate autocorrelation and ESS for each dimension
+        ess_values = []
+        for j, diff in enumerate(diffusivities):
+            trace = samples[:, j]
+
+            # Calculate autocorrelation starting from lag 0
+            autocorr = [1.0]  # Lag 0 is always 1.0
+            for lag in range(1, max_lag + 1):
+                if lag < len(trace):
+                    # Calculate autocorrelation coefficient
+                    corr = np.corrcoef(trace[:-lag], trace[lag:])[0, 1]
+                    autocorr.append(corr)
+                else:
+                    break
+
+            # Calculate ESS using the standard formula
+            # ESS = n / (1 + 2 * sum(autocorr for positive lags))
+            # Sum until autocorrelation becomes negative or very small
+            n_samples = len(trace)
+            sum_autocorr = 0
+            for k in range(1, len(autocorr)):
+                if autocorr[k] > 0.05:  # Stop when autocorr drops below threshold
+                    sum_autocorr += autocorr[k]
+                else:
+                    break
+
+            ess = n_samples / (1 + 2 * sum_autocorr) if sum_autocorr > 0 else n_samples
+            ess_values.append(ess)
+
+            # Plot autocorrelation
+            lags = np.arange(0, len(autocorr))
+            ax.plot(
+                lags,
+                autocorr,
+                label=f"D = {diff:.1f} (ESS={ess:.0f})",
+                linewidth=1.5,
+                alpha=0.8,
+            )
+
+        # Add reference lines
+        ax.axhline(y=0, color="k", linestyle="--", alpha=0.5)
+        ax.axhline(y=0.1, color="r", linestyle=":", alpha=0.7, label="0.1 threshold")
+        ax.axhline(y=-0.1, color="r", linestyle=":", alpha=0.7)
+
+        ax.set_xlabel("Lag", fontsize=12)
+        ax.set_ylabel("Autocorrelation", fontsize=12)
+        ax.grid(True, alpha=0.3)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10)
+
+        # Calculate mean ESS for title
+        mean_ess = np.mean(ess_values)
+
+        title = f"Joint Autocorrelation Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
+            f"Init: {init_method}\n"
+            f"Iterations: {len(samples)} | κ={kappa:.2e} | Max Lag: {max_lag} | Mean ESS: {mean_ess:.0f}"
+        )
+        ax.set_title(title, fontsize=10)
+        plt.tight_layout()
+
+        if not local:
+            wandb.log({f"joint_autocorr_ess_{group_id}_real{idx+1}": wandb.Image(fig)})
+        if local:
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/joint_autocorrelation_ess.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
+        plt.close(fig)
+
+    def _plot_multichain_trace(
+        self, group_id, gibbs_spectra, kappa, signal_decay, local
+    ):
+        """
+        Plot multi-chain traces per diffusivity bin with R-hat diagnostic.
+        Shows traces from multiple realizations (chains) for each diff bucket separately.
+        Includes R-hat values in titles to assess convergence.
+        """
+        import wandb
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        if len(gibbs_spectra) < 2:
+            print(
+                f"[INFO] Skipping multi-chain trace for {group_id}: Need at least 2 chains (realizations)"
+            )
+            return
+
+        # Collect samples from all chains
+        all_chains = []
+        for spectrum in gibbs_spectra:
+            if spectrum.spectrum_samples is not None:
+                all_chains.append(np.array(spectrum.spectrum_samples))
+
+        if len(all_chains) < 2:
+            print(
+                f"[INFO] Skipping multi-chain trace for {group_id}: Need at least 2 valid chains"
+            )
+            return
+
+        n_chains = len(all_chains)
+        n_iterations = all_chains[0].shape[0]
+        n_params = all_chains[0].shape[1]
+        diffusivities = np.array(gibbs_spectra[0].diffusivities)
+
+        # Calculate R-hat for each parameter
+        rhat_values = []
+        for j in range(n_params):
+            chains_param = np.array([chain[:, j] for chain in all_chains])
+
+            # Within-chain variance
+            chain_vars = np.var(chains_param, axis=1, ddof=1)
+            W = np.mean(chain_vars)
+
+            # Between-chain variance
+            chain_means = np.mean(chains_param, axis=1)
+            B = np.var(chain_means, ddof=1) * n_iterations
+
+            # R-hat
+            var_plus = ((n_iterations - 1) / n_iterations) * W + (1 / n_iterations) * B
+            rhat = np.sqrt(var_plus / W) if W > 0 else 1.0
+
+            # Print debugging (uncomment to use instead)
+            # print(f"DEBUG: Parameter {j}")
+            # print(f"  n_params: {n_params}")
+            # print(f"  all_chains: {all_chains}")
+            # print(f"  chains_param: {chains_param}")
+            # print(f"  chains_param shape: {chains_param.shape}")
+            # print(f"  diffusivities shape: {diffusivities.shape}")
+            # print(f"  chain_vars: {chain_vars}")
+            # print(f"  W (mean within-chain var): {W}")
+            # print(f"  chain_means: {chain_means}")
+            # print(f"  B (between-chain var): {B}")
+            # print(f"  var_plus: {var_plus}")
+            # print(f"  rhat: {rhat}")
+            # input("Press Enter to continue...")
+
+            rhat_values.append(rhat)
+
+        # Create subplots (one per diffusivity bin)
+        n_cols = min(3, n_params)
+        n_rows = (n_params + n_cols - 1) // n_cols
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4 * n_rows))
+
+        if n_rows == 1 and n_cols == 1:
+            axes = np.array([[axes]])
+        elif n_rows == 1:
+            axes = axes.reshape(1, -1)
+        elif n_cols == 1:
+            axes = axes.reshape(-1, 1)
+
+        # Plot each diffusivity bin
+        for j, diff in enumerate(diffusivities):
+            row = j // n_cols
+            col = j % n_cols
+            ax = axes[row, col]
+
+            # Plot all chains for this diffusivity bin
+            for chain_idx, chain in enumerate(all_chains):
+                ax.plot(
+                    np.arange(len(chain)),
+                    chain[:, j],
+                    label=f"Chain {chain_idx+1}",
+                    linewidth=1.2,
+                    alpha=0.7,
+                )
+
+            # Color-code title based on R-hat
+            rhat = rhat_values[j]
+            if rhat < 1.05:
+                rhat_color = "green"
+                rhat_status = "✓"
+            elif rhat < 1.1:
+                rhat_color = "orange"
+                rhat_status = "~"
+            else:
+                rhat_color = "red"
+                rhat_status = "✗"
+
+            ax.set_xlabel("Iteration", fontsize=10)
+            ax.set_ylabel("Fraction", fontsize=10)
+            ax.set_title(
+                f"D = {diff:.1f} | R̂ = {rhat:.3f} {rhat_status}",
+                fontsize=11,
+                color=rhat_color,
+                fontweight="bold",
+            )
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=8, loc="best")
+
+        # Hide empty subplots
+        for j in range(n_params, n_rows * n_cols):
+            row = j // n_cols
+            col = j % n_cols
+            axes[row, col].set_visible(False)
+
+        # Overall title
+        max_rhat = np.max(rhat_values)
+        mean_rhat = np.mean(rhat_values)
+        convergence_status = "CONVERGED" if max_rhat < 1.1 else "NOT CONVERGED"
+
+        fig.suptitle(
+            f"Multi-Chain Trace Plot with R-hat | Group: {group_id[:8]}\n"
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(gibbs_spectra[0], 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(gibbs_spectra[0], 'sampler_snr', None)} | "
+            f"Prior: {getattr(gibbs_spectra[0], 'prior_type', None)} | Strength: {getattr(gibbs_spectra[0], 'prior_strength', None)}\n"
+            f"Chains: {n_chains} | Iterations/chain: {n_iterations} | κ={kappa:.2e} | "
+            f"Max R̂: {max_rhat:.3f} | Mean R̂: {mean_rhat:.3f} | Status: {convergence_status}",
+            fontsize=10,
+        )
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+        if not local:
+            wandb.log({f"multichain_trace_{group_id}": wandb.Image(fig)})
+        if local:
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/multichain_trace.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
+        plt.close(fig)
+
+    def _plot_joint_trace(self, group_id, spectrum, kappa, signal_decay, local, idx=0):
+        """Plot joint trace for all diffusivity dimensions on the same scale."""
+        if spectrum.spectrum_samples is None:
+            return
+
+        import wandb
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        samples = np.array(spectrum.spectrum_samples)
+        diffusivities = np.array(spectrum.diffusivities)
+        init_method = getattr(spectrum, "init_method", "map")
+
         fig, ax = plt.subplots(figsize=(14, 8))
 
-        # Calculate offsets based on the range of each trace
-        offsets = np.zeros(len(diffusivities))
-        for j in range(len(diffusivities)):
-            trace_range = np.max(samples[:, j]) - np.min(samples[:, j])
-            if j > 0:
-                offsets[j] = offsets[j - 1] + trace_range * 0.5
-
-        # Plot traces with offsets
+        # Plot all traces on the same scale
         for j, diff in enumerate(diffusivities):
             ax.plot(
                 np.arange(len(samples)),
-                samples[:, j] + offsets[j],
-                label=f"D={diff:.1f}",
+                samples[:, j],
+                label=f"D = {diff:.1f}",
+                linewidth=1.5,
                 alpha=0.7,
-                linewidth=1,
             )
 
-        ax.set_xlabel("Iteration")
-        ax.set_ylabel("Fraction (with offsets)")
+        ax.set_xlabel("Iteration", fontsize=12)
+        ax.set_ylabel("Relative Fraction", fontsize=12)
         ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10)
 
         title = (
-            f"MCMC Trace Plot (Offset) | Group: {group_id[:8]} | Realization: {idx+1}\n"
+            f"Joint MCMC Trace Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
         )
         title += (
             f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
@@ -1718,6 +1944,14 @@ class DiffusivitySpectraDataset(BaseModel):
             f"Init: {init_method}\n"
             f"Iterations: {len(samples)} | κ={kappa:.2e}"
         )
-        ax.set_title(title)
+        ax.set_title(title, fontsize=10)
         plt.tight_layout()
-        return fig
+
+        if not local:
+            wandb.log({f"joint_trace_{group_id}_real{idx+1}": wandb.Image(fig)})
+        if local:
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/joint_trace.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
+        plt.close(fig)
