@@ -336,14 +336,15 @@ class DiffusivitySpectraDataset(BaseModel):
                 self._plot_joint_autocorrelation_with_ess(
                     group_id, gibbs_spectra[0], kappa, sd, local, idx=0
                 )
-                # 6. Uncertainty calibration analysis
-                self._plot_uncertainty_calibration(
+                # 6. Uncertainty coverage vs width analysis by diffusivity bucket
+                self._plot_uncertainty_coverage_width_by_diff(
                     group_id, gibbs_spectra, kappa, sd, local
                 )
-                # 7. Uncertainty summary analysis (removed - redundant with calibration plot)
-                # self._plot_uncertainty_summary(
-                #     group_id, gibbs_spectra, kappa, sd, local
-                # )
+                # 7. Generate CSV with uncertainty metrics
+                self._csv_uncertainty_coverage_width_by_diff(
+                    group_id, gibbs_spectra, kappa, sd, local
+                )
+
             # MAP Plotting
             if len(map_spectra) > 0:
                 self._plot_stability_analysis(
@@ -616,14 +617,6 @@ class DiffusivitySpectraDataset(BaseModel):
                 max(recon_errors) - min(recon_errors)
             )
 
-        # Add uncertainty evaluation metrics for Gibbs sampling
-        if (
-            spectra_list[0].inference_method == "gibbs"
-            and spectra_list[0].spectrum_std is not None
-        ):
-            uncertainty_metrics = self._calculate_uncertainty_metrics(spectra_list)
-            base_metrics.update(uncertainty_metrics)
-
         # Log group_id for easier filtering
         base_metrics["group_id"] = group_id
 
@@ -657,134 +650,6 @@ class DiffusivitySpectraDataset(BaseModel):
                 for k, v in base_metrics.items()
             }
         )
-
-    def _calculate_uncertainty_metrics(self, spectra_list):
-        """
-        Calculate uncertainty evaluation metrics for Gibbs sampling results.
-
-        Returns:
-            dict: Dictionary containing uncertainty evaluation metrics
-        """
-        import numpy as np
-        from scipy import stats
-
-        # Collect data for uncertainty analysis
-        coverage_rates = []
-        calibration_errors = []
-        credible_interval_widths = []
-        uncertainty_correlations = []
-
-        for spectrum in spectra_list:
-            if (
-                spectrum.true_spectrum is None
-                or spectrum.spectrum_vector is None
-                or spectrum.spectrum_std is None
-            ):
-                continue
-
-            true_spec = np.array(spectrum.true_spectrum)
-            est_spec = np.array(spectrum.spectrum_vector)
-            est_std = np.array(spectrum.spectrum_std)
-
-            # 1. Coverage probability (95% credible intervals)
-            # For each diffusivity bin, check if true value falls within 95% CI
-            # Assuming normal approximation: 95% CI = mean ± 1.96 * std
-            ci_lower = est_spec - 1.96 * est_std
-            ci_upper = est_spec + 1.96 * est_std
-            coverage = np.mean((true_spec >= ci_lower) & (true_spec <= ci_upper))
-            coverage_rates.append(coverage)
-
-            # 2. Calibration error (how well uncertainty predicts actual error)
-            # Calculate absolute errors
-            abs_errors = np.abs(est_spec - true_spec)
-            # Calculate predicted uncertainty (standard deviation)
-            predicted_uncertainty = est_std
-
-            # Calibration error: how much the predicted uncertainty differs from actual errors
-            # We use the mean absolute difference between predicted and actual uncertainty
-            calibration_error = np.mean(np.abs(predicted_uncertainty - abs_errors))
-            calibration_errors.append(calibration_error)
-
-            # 3. Average credible interval width
-            ci_width = np.mean(ci_upper - ci_lower)
-            credible_interval_widths.append(ci_width)
-
-            # 4. Correlation between uncertainty and reconstruction error
-            # Calculate correlation between predicted uncertainty and actual errors
-            if len(abs_errors) > 1:  # Need at least 2 points for correlation
-                correlation = np.corrcoef(predicted_uncertainty, abs_errors)[0, 1]
-                if not np.isnan(correlation):
-                    uncertainty_correlations.append(correlation)
-
-        # Aggregate metrics across all spectra
-        metrics = {}
-
-        if coverage_rates:
-            metrics.update(
-                {
-                    "uncertainty_coverage_rate_mean": float(np.mean(coverage_rates)),
-                    "uncertainty_coverage_rate_std": float(np.std(coverage_rates)),
-                    "uncertainty_coverage_rate_min": float(np.min(coverage_rates)),
-                    "uncertainty_coverage_rate_max": float(np.max(coverage_rates)),
-                }
-            )
-
-        if calibration_errors:
-            metrics.update(
-                {
-                    "uncertainty_calibration_error_mean": float(
-                        np.mean(calibration_errors)
-                    ),
-                    "uncertainty_calibration_error_std": float(
-                        np.std(calibration_errors)
-                    ),
-                }
-            )
-
-        if credible_interval_widths:
-            metrics.update(
-                {
-                    "uncertainty_ci_width_mean": float(
-                        np.mean(credible_interval_widths)
-                    ),
-                    "uncertainty_ci_width_std": float(np.std(credible_interval_widths)),
-                }
-            )
-
-        if uncertainty_correlations:
-            metrics.update(
-                {
-                    "uncertainty_correlation_mean": float(
-                        np.mean(uncertainty_correlations)
-                    ),
-                    "uncertainty_correlation_std": float(
-                        np.std(uncertainty_correlations)
-                    ),
-                }
-            )
-
-        # Additional diagnostic metrics
-        if coverage_rates and calibration_errors:
-            # Overall uncertainty quality score (lower is better)
-            # Combines coverage deviation from 0.95 and calibration error
-            coverage_deviation = np.mean(np.abs(np.array(coverage_rates) - 0.95))
-            avg_calibration_error = np.mean(calibration_errors)
-            # Normalize calibration error by the scale of the data
-            if spectra_list[0].spectrum_vector:
-                data_scale = np.mean(np.array(spectra_list[0].spectrum_vector))
-                normalized_calibration_error = (
-                    avg_calibration_error / data_scale
-                    if data_scale > 0
-                    else avg_calibration_error
-                )
-            else:
-                normalized_calibration_error = avg_calibration_error
-
-            metrics["uncertainty_quality_score"] = float(
-                coverage_deviation + normalized_calibration_error
-            )
-
-        return metrics
 
     def _plot_gibbs_distribution(
         self, group_id, spectrum, kappa, mean_true, signal_decay, local, idx=0
@@ -1367,152 +1232,203 @@ class DiffusivitySpectraDataset(BaseModel):
         plt.tight_layout()
         return fig
 
-    def _plot_uncertainty_calibration(
-        self, group_id, spectra_list, kappa, signal_decay, local
+    def _plot_uncertainty_coverage_width_by_diff(
+        self,
+        group_id,
+        spectra_list,
+        kappa,
+        signal_decay,
+        local,
+        confidence_levels=[0.50, 0.75, 0.90, 0.95],
     ):
         """
-        Plot uncertainty calibration analysis for Gibbs sampling results.
-        Shows how well the uncertainty estimates correlate with actual errors.
+        Plot coverage vs width for different diffusivity buckets.
+        Each point represents one diffusivity bucket with error bars showing
+        variation across noise realizations.
+
+        Args:
+            group_id: Identifier for the group
+            spectra_list: List of spectra to analyze
+            kappa: Condition number of design matrix
+            signal_decay: Signal decay object
+            local: Whether to save locally
+            confidence_levels: List of confidence levels to analyze
         """
         import matplotlib.pyplot as plt
         import numpy as np
+        from scipy import stats
 
         if not spectra_list or spectra_list[0].inference_method != "gibbs":
             return
 
-        # Collect data for calibration plot
-        all_errors = []
-        all_uncertainties = []
+        # Get diffusivity values from first spectrum
+        diffusivities = np.array(spectra_list[0].diffusivities)
+        n_diff_buckets = len(diffusivities)
 
-        for spectrum in spectra_list:
-            if (
-                spectrum.true_spectrum is None
-                or spectrum.spectrum_vector is None
-                or spectrum.spectrum_std is None
-            ):
-                continue
+        # Calculate metrics for each diffusivity bucket
+        bucket_metrics = []
 
-            true_spec = np.array(spectrum.true_spectrum)
-            est_spec = np.array(spectrum.spectrum_vector)
-            est_std = np.array(spectrum.spectrum_std)
+        for i, diff_val in enumerate(diffusivities):
+            bucket_coverages = []
+            bucket_widths = []
 
-            # Calculate absolute errors and uncertainties
-            abs_errors = np.abs(est_spec - true_spec)
-            all_errors.extend(abs_errors)
-            all_uncertainties.extend(est_std)
+            for spectrum in spectra_list:
+                if (
+                    spectrum.true_spectrum is None
+                    or spectrum.spectrum_vector is None
+                    or spectrum.spectrum_std is None
+                ):
+                    continue
 
-        if not all_errors:
+                true_spec = np.array(spectrum.true_spectrum)
+                est_spec = np.array(spectrum.spectrum_vector)
+                est_std = np.array(spectrum.spectrum_std)
+
+                # Calculate coverage and width for this diffusivity bucket
+                # (i.e., this specific diffusivity value)
+                true_val = true_spec[i]
+                est_val = est_spec[i]
+                est_std_val = est_std[i]
+
+                # Calculate coverage for 95% CI (using 0.95 from confidence_levels)
+                z_score = stats.norm.ppf((1 + 0.95) / 2)  # 1.96 for 95%
+                ci_lower = est_val - z_score * est_std_val
+                ci_upper = est_val + z_score * est_std_val
+                coverage = (
+                    1.0 if (true_val >= ci_lower and true_val <= ci_upper) else 0.0
+                )
+                width = ci_upper - ci_lower
+
+                bucket_coverages.append(coverage)
+                bucket_widths.append(width)
+
+            if bucket_coverages:
+                bucket_metrics.append(
+                    {
+                        "diffusivity": diff_val,
+                        "coverage_mean": np.mean(bucket_coverages),
+                        "coverage_std": np.std(bucket_coverages),
+                        "width_mean": np.mean(bucket_widths),
+                        "width_std": np.std(bucket_widths),
+                    }
+                )
+
+        if not bucket_metrics:
             return
 
-        # Create calibration plot
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(10, 8))
 
-        # Plot 1: Scatter plot of uncertainty vs error
-        ax1.scatter(all_uncertainties, all_errors, alpha=0.6, s=20)
+        # Extract data for plotting
+        coverages = [bm["coverage_mean"] for bm in bucket_metrics]
+        coverage_stds = [bm["coverage_std"] for bm in bucket_metrics]
+        widths = [bm["width_mean"] for bm in bucket_metrics]
+        width_stds = [bm["width_std"] for bm in bucket_metrics]
+        diff_labels = [f"{bm['diffusivity']:.2f} fraction" for bm in bucket_metrics]
 
-        # Add perfect calibration line
-        max_val = max(max(all_errors), max(all_uncertainties))
-        ax1.plot(
-            [0, max_val], [0, max_val], "r--", label="Perfect calibration", linewidth=2
+        # Convert coverage to percentage for better visualization
+        coverages_pct = [c * 100 for c in coverages]
+        coverage_stds_pct = [c * 100 for c in coverage_stds]
+
+        # Create scatter plot with error bars (cross markers like in the paper)
+        # Use different colors for each diffusivity bucket
+        colors = plt.cm.tab10(np.linspace(0, 1, len(bucket_metrics)))
+
+        for i, (width, coverage, coverage_std, width_std, label, color) in enumerate(
+            zip(
+                widths,
+                coverages_pct,
+                coverage_stds_pct,
+                width_stds,
+                diff_labels,
+                colors,
+            )
+        ):
+            ax.errorbar(
+                width,
+                coverage,
+                xerr=width_std,
+                yerr=coverage_std,
+                fmt="+",
+                markersize=8,
+                capsize=3,
+                capthick=1.5,
+                alpha=0.8,
+                color=color,
+                label=label,
+            )
+
+        # Add 95% target line
+        ax.axhline(
+            y=95.0,  # 95% in percentage
+            color="red",
+            linestyle="--",
+            linewidth=2,
+            label="95% Target Coverage",
         )
 
-        # Add trend line
-        if len(all_errors) > 1:
-            z = np.polyfit(all_uncertainties, all_errors, 1)
-            p = np.poly1d(z)
-            ax1.plot(
-                all_uncertainties,
-                p(all_uncertainties),
-                "g-",
-                alpha=0.8,
-                label=f"Trend (slope={z[0]:.3f})",
-            )
+        # Set axis limits and labels with better ranges
+        # Calculate dynamic ranges based on data
+        width_min, width_max = min(widths) - max(width_stds), max(widths) + max(
+            width_stds
+        )
+        coverage_min, coverage_max = min(coverages_pct) - max(coverage_stds_pct), max(
+            coverages_pct
+        ) + max(coverage_stds_pct)
 
-        ax1.set_xlabel("Predicted Uncertainty (std)")
-        ax1.set_ylabel("Actual Absolute Error")
-        ax1.set_title("Uncertainty Calibration")
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
+        # Add some padding
+        width_range = width_max - width_min
+        coverage_range = coverage_max - coverage_min
 
-        # Plot 2: Coverage analysis
-        coverage_rates = []
-        for spectrum in spectra_list:
-            if (
-                spectrum.true_spectrum is None
-                or spectrum.spectrum_vector is None
-                or spectrum.spectrum_std is None
-            ):
-                continue
+        ax.set_xlim(
+            max(0, width_min - 0.1 * width_range), width_max + 0.1 * width_range
+        )
+        ax.set_ylim(
+            max(0, coverage_min - 0.1 * coverage_range),
+            min(100, coverage_max + 0.1 * coverage_range),
+        )
 
-            true_spec = np.array(spectrum.true_spectrum)
-            est_spec = np.array(spectrum.spectrum_vector)
-            est_std = np.array(spectrum.spectrum_std)
-
-            # Calculate coverage for different confidence levels
-            confidence_levels = np.arange(0.5, 0.99, 0.05)
-            spectrum_coverages = []
-
-            for conf_level in confidence_levels:
-                z_score = stats.norm.ppf((1 + conf_level) / 2)
-                ci_lower = est_spec - z_score * est_std
-                ci_upper = est_spec + z_score * est_std
-                coverage = np.mean((true_spec >= ci_lower) & (true_spec <= ci_upper))
-                spectrum_coverages.append(coverage)
-
-            coverage_rates.append(spectrum_coverages)
-
-        if coverage_rates:
-            coverage_rates = np.array(coverage_rates)
-            mean_coverage = np.mean(coverage_rates, axis=0)
-            std_coverage = np.std(coverage_rates, axis=0)
-
-            ax2.plot(
-                confidence_levels,
-                mean_coverage,
-                "b-",
-                linewidth=2,
-                label="Mean coverage",
-            )
-            ax2.fill_between(
-                confidence_levels,
-                mean_coverage - std_coverage,
-                mean_coverage + std_coverage,
-                alpha=0.3,
-                color="blue",
-                label="±1 std",
-            )
-            ax2.plot(
-                confidence_levels,
-                confidence_levels,
-                "r--",
-                linewidth=2,
-                label="Perfect calibration",
-            )
-
-            ax2.set_xlabel("Nominal Confidence Level")
-            ax2.set_ylabel("Actual Coverage Rate")
-            ax2.set_title("Coverage Calibration")
-            ax2.legend()
-            ax2.grid(True, alpha=0.3)
-
-        # Add overall title
-        fig.suptitle(
-            f"Uncertainty Calibration Analysis | Group: {group_id[:8]}\n"
+        ax.set_xlabel("Mean Credible Interval Width")
+        ax.set_ylabel("Coverage (%)")
+        ax.set_title(
+            f"Uncertainty Calibration by Diffusivity Bucket | Group: {group_id[:8]}\n"
             f'Zone: {signal_decay.a_region} | Data SNR: {getattr(spectra_list[0], "data_snr", None)} | '
             f'Sampler SNR: {getattr(spectra_list[0], "sampler_snr", None)} | '
             f'Prior: {getattr(spectra_list[0], "prior_type", None)} | '
             f'Strength: {getattr(spectra_list[0], "prior_strength", None)} | κ={kappa:.2e}'
         )
 
+        # Calculate overall metrics for header
+        overall_coverage = np.mean(coverages_pct)
+        overall_coverage_std = np.mean(coverage_stds_pct)
+        overall_width = np.mean(widths)
+        overall_width_std = np.mean(width_stds)
+
+        # Update title with overall metrics
+        title = (
+            f"Uncertainty Calibration by Diffusivity Bucket | Group: {group_id[:8]}\n"
+            f'Zone: {signal_decay.a_region} | Data SNR: {getattr(spectra_list[0], "data_snr", None)} | '
+            f'Sampler SNR: {getattr(spectra_list[0], "sampler_snr", None)} | '
+            f'Prior: {getattr(spectra_list[0], "prior_type", None)} | '
+            f'Strength: {getattr(spectra_list[0], "prior_strength", None)} | κ={kappa:.2e}\n'
+            f"Overall Coverage: {overall_coverage:.1f}±{overall_coverage_std:.1f}% | "
+            f"Overall Width: {overall_width:.3f}±{overall_width_std:.3f}"
+        )
+        ax.set_title(title)
+
+        # Add legend outside the plot area
+        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        ax.grid(True, alpha=0.3)
+
         plt.tight_layout()
 
         if not local:
             import wandb
 
-            wandb.log({f"uncertainty_calibration_{group_id}": wandb.Image(fig)})
+            wandb.log({f"uncertainty_coverage_width_{group_id}": wandb.Image(fig)})
         else:
             # Save to local file when in local mode
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/uncertainty_calibration.pdf"
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/uncertainty_coverage_width.pdf"
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
@@ -1520,142 +1436,97 @@ class DiffusivitySpectraDataset(BaseModel):
         plt.close(fig)
         return fig
 
-    def _plot_uncertainty_summary(
-        self, group_id, spectra_list, kappa, signal_decay, local
+    def _csv_uncertainty_coverage_width_by_diff(
+        self,
+        group_id,
+        spectra_list,
+        kappa,
+        signal_decay,
+        local,
+        confidence_levels=[0.50, 0.75, 0.90, 0.95],
     ):
         """
-        Create a summary plot showing uncertainty metrics across different configurations.
+        Generate CSV with coverage and width metrics for each diffusivity bucket
+        across multiple confidence levels.
+
+        Args:
+            group_id: Identifier for the group
+            spectra_list: List of spectra to analyze
+            kappa: Condition number of design matrix
+            signal_decay: Signal decay object
+            local: Whether to save locally
+            confidence_levels: List of confidence levels to analyze
+
+        Returns:
+            pandas.DataFrame: DataFrame with results
         """
-        import matplotlib.pyplot as plt
+        import pandas as pd
         import numpy as np
+        from scipy import stats
 
         if not spectra_list or spectra_list[0].inference_method != "gibbs":
-            return
+            return pd.DataFrame()
 
-        # Calculate uncertainty metrics for each spectrum
-        coverage_rates = []
-        calibration_errors = []
-        ci_widths = []
+        # Get diffusivity values from first spectrum
+        diffusivities = np.array(spectra_list[0].diffusivities)
 
-        for spectrum in spectra_list:
-            if (
-                spectrum.true_spectrum is None
-                or spectrum.spectrum_vector is None
-                or spectrum.spectrum_std is None
-            ):
-                continue
+        results = []
 
-            true_spec = np.array(spectrum.true_spectrum)
-            est_spec = np.array(spectrum.spectrum_vector)
-            est_std = np.array(spectrum.spectrum_std)
+        for i, diff_val in enumerate(diffusivities):
+            for conf_level in confidence_levels:
+                bucket_coverages = []
+                bucket_widths = []
 
-            # Coverage rate
-            ci_lower = est_spec - 1.96 * est_std
-            ci_upper = est_spec + 1.96 * est_std
-            coverage = np.mean((true_spec >= ci_lower) & (true_spec <= ci_upper))
-            coverage_rates.append(coverage)
+                for spectrum in spectra_list:
+                    if (
+                        spectrum.true_spectrum is None
+                        or spectrum.spectrum_vector is None
+                        or spectrum.spectrum_std is None
+                    ):
+                        continue
 
-            # Calibration error
-            abs_errors = np.abs(est_spec - true_spec)
-            calibration_error = np.mean(np.abs(est_std - abs_errors))
-            calibration_errors.append(calibration_error)
+                    true_spec = np.array(spectrum.true_spectrum)
+                    est_spec = np.array(spectrum.spectrum_vector)
+                    est_std = np.array(spectrum.spectrum_std)
 
-            # Credible interval width
-            ci_width = np.mean(ci_upper - ci_lower)
-            ci_widths.append(ci_width)
+                    # Calculate coverage and width for this diffusivity bucket
+                    true_val = true_spec[i]
+                    est_val = est_spec[i]
+                    est_std_val = est_std[i]
 
-        if not coverage_rates:
-            return
+                    # Calculate coverage for this confidence level
+                    z_score = stats.norm.ppf((1 + conf_level) / 2)
+                    ci_lower = est_val - z_score * est_std_val
+                    ci_upper = est_val + z_score * est_std_val
+                    coverage = (
+                        1.0 if (true_val >= ci_lower and true_val <= ci_upper) else 0.0
+                    )
+                    width = ci_upper - ci_lower
 
-        # Create summary plot
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+                    bucket_coverages.append(coverage)
+                    bucket_widths.append(width)
 
-        # Plot 1: Coverage rates distribution
-        ax1.hist(coverage_rates, bins=10, alpha=0.7, color="blue", edgecolor="black")
-        ax1.axvline(
-            0.95, color="red", linestyle="--", linewidth=2, label="Target (95%)"
-        )
-        ax1.axvline(
-            np.mean(coverage_rates),
-            color="green",
-            linestyle="-",
-            linewidth=2,
-            label=f"Mean ({np.mean(coverage_rates):.3f})",
-        )
-        ax1.set_xlabel("Coverage Rate")
-        ax1.set_ylabel("Frequency")
-        ax1.set_title("Coverage Rate Distribution")
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
+                if bucket_coverages:
+                    results.append(
+                        {
+                            "Diff_bucket": f"{diff_val:.2f} fraction",
+                            "Nominal_level": f"{conf_level:.2f}",
+                            "Empirical_coverage": np.mean(bucket_coverages)
+                            * 100,  # Convert to percentage
+                            "Interval_width_mean": np.mean(bucket_widths),
+                            "Interval_width_std": np.std(bucket_widths),
+                        }
+                    )
 
-        # Plot 2: Calibration error distribution
-        ax2.hist(
-            calibration_errors, bins=10, alpha=0.7, color="orange", edgecolor="black"
-        )
-        ax2.axvline(
-            np.mean(calibration_errors),
-            color="red",
-            linestyle="-",
-            linewidth=2,
-            label=f"Mean ({np.mean(calibration_errors):.4f})",
-        )
-        ax2.set_xlabel("Calibration Error")
-        ax2.set_ylabel("Frequency")
-        ax2.set_title("Calibration Error Distribution")
-        ax2.legend()
-        ax2.grid(True, alpha=0.3)
+        # Create DataFrame
+        df = pd.DataFrame(results)
 
-        # Plot 3: Credible interval width distribution
-        ax3.hist(ci_widths, bins=10, alpha=0.7, color="green", edgecolor="black")
-        ax3.axvline(
-            np.mean(ci_widths),
-            color="red",
-            linestyle="-",
-            linewidth=2,
-            label=f"Mean ({np.mean(ci_widths):.4f})",
-        )
-        ax3.set_xlabel("Credible Interval Width")
-        ax3.set_ylabel("Frequency")
-        ax3.set_title("Uncertainty Width Distribution")
-        ax3.legend()
-        ax3.grid(True, alpha=0.3)
+        # Save to CSV if in local mode
+        if local:
+            output_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/uncertainty_metrics.csv"
+            df.to_csv(output_path, index=False)
 
-        # Plot 4: Coverage vs Calibration error scatter
-        ax4.scatter(calibration_errors, coverage_rates, alpha=0.6, s=50)
-        ax4.axhline(
-            0.95, color="red", linestyle="--", alpha=0.7, label="Target coverage"
-        )
-        ax4.set_xlabel("Calibration Error")
-        ax4.set_ylabel("Coverage Rate")
-        ax4.set_title("Coverage vs Calibration Error")
-        ax4.legend()
-        ax4.grid(True, alpha=0.3)
-
-        # Add overall title with metrics
-        mean_coverage = np.mean(coverage_rates)
-        mean_calibration = np.mean(calibration_errors)
-        mean_width = np.mean(ci_widths)
-
-        fig.suptitle(
-            f"Uncertainty Summary | Group: {group_id[:8]}\n"
-            f'Zone: {signal_decay.a_region} | Data SNR: {getattr(spectra_list[0], "data_snr", None)} | '
-            f'Sampler SNR: {getattr(spectra_list[0], "sampler_snr", None)} | '
-            f'Prior: {getattr(spectra_list[0], "prior_type", None)} | '
-            f'Strength: {getattr(spectra_list[0], "prior_strength", None)} | κ={kappa:.2e}\n'
-            f"Mean Coverage: {mean_coverage:.3f} | Mean Calibration Error: {mean_calibration:.4f} | "
-            f"Mean CI Width: {mean_width:.4f}"
-        )
-
-        plt.tight_layout()
-
-        if not local:
-            import wandb
-
-            wandb.log({f"uncertainty_summary_{group_id}": wandb.Image(fig)})
-        # Note: File saving removed since this plot is no longer used
-
-        plt.close(fig)
-        return fig
+        return df
 
     def _plot_joint_autocorrelation_with_ess(
         self, group_id, spectrum, kappa, signal_decay, local, idx=0
