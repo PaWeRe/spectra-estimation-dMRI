@@ -1,0 +1,31 @@
+# Cursor Rules for spectra-estimation-dMRI Project
+
+## Package Management
+- ALWAYS use `uv` as the package manager for all Python-related commands
+- Use `uv run python` instead of `python` for executing Python scripts
+- Use `uv add` instead of `pip install` for adding dependencies
+- Use `uv sync` for installing dependencies from lock file
+- This prevents "python command not found" errors and ensures consistent environment management
+
+## File Creation Policy
+- DO NOT create new files unless explicitly requested by the user
+- ALWAYS prefer editing existing files over creating new ones
+- When making changes, modify existing files in the codebase rather than creating new ones
+- Only create new files when the user specifically asks for them
+
+## Documentation Files
+- DO NOT create documentation files (.md, .txt, README files, etc.) unless explicitly requested
+- Do not generate documentation files proactively
+- Only create documentation when the user specifically asks for it
+
+## General Principles
+- Prioritize simplicity by working with existing codebase structure
+- Edit existing files to implement changes rather than creating new ones
+- Use the existing project structure and patterns
+- Follow the established code organization in the project
+
+## Terminal Commands
+- Always prefix Python commands with `uv run`
+- Use `uv` for all package management operations
+- Example: `uv run python script.py` instead of `python script.py`
+- Example: `uv add package-name` instead of `pip install package-name`
