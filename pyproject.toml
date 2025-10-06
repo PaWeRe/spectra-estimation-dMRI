@@ -22,6 +22,7 @@ dependencies = [
     "tqdm",
     "hydra-core",
     "wandb",
+    "arviz",
 ]
 
 [tool.setuptools.packages.find]
