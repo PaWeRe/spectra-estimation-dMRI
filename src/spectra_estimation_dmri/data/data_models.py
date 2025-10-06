@@ -323,25 +323,25 @@ class DiffusivitySpectraDataset(BaseModel):
                 self._plot_stability_analysis(
                     group_id, gibbs_spectra, kappa, mean_true, sd, local
                 )
-                # 3. Joint trace plot - single realization (all diff buckets)
-                self._plot_joint_trace(
-                    group_id, gibbs_spectra[0], kappa, sd, local, idx=0
-                )
-                # 4. Multi-chain trace plot - all realizations per diff bucket (with R-hat)
+                # 3. Multi-chain trace plot - all realizations (ArviZ with R-hat)
                 if len(gibbs_spectra) >= 2:
                     self._plot_multichain_trace(
                         group_id, gibbs_spectra, kappa, sd, local
                     )
-                # 5. Joint autocorrelation plot (first realization with ESS)
-                self._plot_joint_autocorrelation_with_ess(
-                    group_id, gibbs_spectra[0], kappa, sd, local, idx=0
-                )
-                # 6. Uncertainty coverage vs width analysis by diffusivity bucket
+                    # 3b. Rank plot for multi-chain diagnostics (ArviZ)
+                    self._plot_rank(group_id, gibbs_spectra, kappa, sd, local)
+                    # 3c. Save ArviZ summary statistics to CSV
+                    self._save_arviz_summary(group_id, gibbs_spectra, sd, local)
+                    # 3d. Autocorrelation & ESS plot per diffusivity bucket (ArviZ)
+                    self._plot_autocorrelation_ess_per_diff(
+                        group_id, gibbs_spectra, kappa, sd, local
+                    )
+                # 4. Uncertainty coverage vs width analysis by diffusivity bucket
                 spectrum_pair = exp_config.dataset.spectrum_pair if exp_config else None
                 self._plot_uncertainty_coverage_width_by_diff(
                     group_id, gibbs_spectra, kappa, sd, local, spectrum_pair
                 )
-                # 7. Generate CSV with uncertainty metrics
+                # 5. Generate CSV with uncertainty metrics
                 self._csv_uncertainty_coverage_width_by_diff(
                     group_id, gibbs_spectra, kappa, sd, local
                 )
@@ -1313,58 +1313,76 @@ class DiffusivitySpectraDataset(BaseModel):
     def _calculate_multi_level_calibration_metrics(
         self, spectra_list, diffusivities, confidence_levels
     ):
-        """Calculate calibration metrics for multiple confidence levels."""
+        """
+        Calculate calibration metrics using COMBINED multi-chain posterior.
+
+        This properly accounts for between-chain variance when assessing coverage.
+        Poor convergence (high R-hat) will result in wider intervals or poor coverage.
+        """
         import numpy as np
         from scipy import stats
 
         calibration_data = {}
 
+        # Collect ALL samples from ALL chains
+        all_samples = []
+        true_spectrum = None
+        for spectrum in spectra_list:
+            if spectrum.spectrum_samples is not None:
+                all_samples.append(np.array(spectrum.spectrum_samples))
+                if true_spectrum is None and spectrum.true_spectrum is not None:
+                    true_spectrum = np.array(spectrum.true_spectrum)
+
+        if not all_samples or true_spectrum is None:
+            return {}
+
+        # Stack: (n_chains, n_iterations, n_diffusivities)
+        combined_samples = np.stack(all_samples, axis=0)
+        n_chains = combined_samples.shape[0]
+
         for conf_level in confidence_levels:
             bucket_metrics = []
 
             for i, diff_val in enumerate(diffusivities):
-                bucket_coverages = []
-                bucket_widths = []
+                # Get samples for this diffusivity bucket from ALL chains
+                diff_samples = combined_samples[:, :, i]  # (n_chains, n_iterations)
 
-                for spectrum in spectra_list:
-                    if (
-                        spectrum.true_spectrum is None
-                        or spectrum.spectrum_vector is None
-                        or spectrum.spectrum_std is None
-                    ):
-                        continue
+                # Flatten to get combined posterior (includes between-chain variance)
+                combined_posterior = diff_samples.flatten()
 
-                    true_spec = np.array(spectrum.true_spectrum)
-                    est_spec = np.array(spectrum.spectrum_vector)
-                    est_std = np.array(spectrum.spectrum_std)
+                # Calculate combined posterior statistics
+                est_mean = np.mean(combined_posterior)
+                est_std = np.std(combined_posterior)  # Includes between-chain variance!
 
-                    # Calculate coverage and width for this diffusivity bucket
-                    true_val = true_spec[i]
-                    est_val = est_spec[i]
-                    est_std_val = est_std[i]
+                # Get true value
+                true_val = true_spectrum[i]
 
-                    # Calculate coverage for this confidence level
-                    z_score = stats.norm.ppf((1 + conf_level) / 2)
-                    ci_lower = est_val - z_score * est_std_val
-                    ci_upper = est_val + z_score * est_std_val
-                    coverage = (
-                        1.0 if (true_val >= ci_lower and true_val <= ci_upper) else 0.0
-                    )
-                    width = ci_upper - ci_lower
+                # Calculate credible interval from combined posterior
+                # Use percentiles for proper Bayesian credible interval
+                lower_pct = (1 - conf_level) / 2 * 100
+                upper_pct = (1 + conf_level) / 2 * 100
+                ci_lower = np.percentile(combined_posterior, lower_pct)
+                ci_upper = np.percentile(combined_posterior, upper_pct)
 
-                    bucket_coverages.append(coverage)
-                    bucket_widths.append(width)
+                # Test coverage (single test on combined posterior)
+                coverage = (
+                    1.0 if (true_val >= ci_lower and true_val <= ci_upper) else 0.0
+                )
+                width = ci_upper - ci_lower
 
-                if bucket_coverages:
-                    bucket_metrics.append(
-                        {
-                            "diffusivity": diff_val,
-                            "coverage": np.mean(bucket_coverages),
-                            "width_mean": np.mean(bucket_widths),
-                            "width_std": np.std(bucket_widths),
-                            "n_realizations": len(bucket_coverages),
-                        }
-                    )
+                bucket_metrics.append(
+                    {
+                        "diffusivity": diff_val,
+                        "coverage": coverage,
+                        "width_mean": width,
+                        "width_std": 0.0,  # Single combined interval, no variance
+                        "n_realizations": n_chains,
+                        "est_mean": est_mean,
+                        "est_std": est_std,
+                        "ci_lower": ci_lower,
+                        "ci_upper": ci_upper,
+                    }
+                )
 
             calibration_data[conf_level] = bucket_metrics
 
@@ -1471,41 +1489,30 @@ class DiffusivitySpectraDataset(BaseModel):
         if 0.95 in calibration_data and calibration_data[0.95]:
             bucket_metrics = calibration_data[0.95]
 
-            # Extract data for plotting
+            # Extract data for plotting (now single values, not averaged)
             coverages = [bm["coverage"] for bm in bucket_metrics]
             widths = [bm["width_mean"] for bm in bucket_metrics]
-            width_stds = [bm["width_std"] for bm in bucket_metrics]
-            n_realizations = [bm["n_realizations"] for bm in bucket_metrics]
+            n_chains = [bm["n_realizations"] for bm in bucket_metrics]
             diff_labels = [f"{bm['diffusivity']:.2f}" for bm in bucket_metrics]
 
             # Convert coverage to percentage
             coverages_pct = [c * 100 for c in coverages]
 
-            # Create scatter plot with error bars
+            # Create scatter plot (no error bars - single combined posterior per bucket)
             colors = plt.cm.tab10(np.linspace(0, 1, len(bucket_metrics)))
 
-            for i, (width, coverage, width_std, n_real, label, color) in enumerate(
-                zip(
-                    widths,
-                    coverages_pct,
-                    width_stds,
-                    n_realizations,
-                    diff_labels,
-                    colors,
-                )
+            for i, (width, coverage, n_ch, label, color) in enumerate(
+                zip(widths, coverages_pct, n_chains, diff_labels, colors)
             ):
-                ax.errorbar(
+                ax.scatter(
                     width,
                     coverage,
-                    xerr=width_std,
-                    fmt="+",
-                    markersize=10,
-                    capsize=4,
-                    capthick=2,
+                    s=150,
                     alpha=0.8,
                     color=color,
-                    label=f"d={label} (n={n_real})",
-                    markeredgewidth=2,
+                    label=f"d={label} (chains={n_ch})",
+                    edgecolors="black",
+                    linewidth=1.5,
                 )
 
             # Add 95% target line
@@ -1519,46 +1526,50 @@ class DiffusivitySpectraDataset(BaseModel):
             )
 
             # Set axis limits
-            width_min = min(widths) - max(width_stds) if width_stds else min(widths)
-            width_max = max(widths) + max(width_stds) if width_stds else max(widths)
+            width_min = min(widths)
+            width_max = max(widths)
             coverage_min = min(coverages_pct)
             coverage_max = max(coverages_pct)
 
-            width_range = width_max - width_min
-            coverage_range = coverage_max - coverage_min
+            width_range = width_max - width_min if width_max > width_min else 0.1
+            coverage_range = (
+                coverage_max - coverage_min if coverage_max > coverage_min else 10
+            )
 
             ax.set_xlim(
                 max(0, width_min - 0.1 * width_range), width_max + 0.1 * width_range
             )
             # Add buffer to both 0% and 100% for better visualization
-            y_min = max(-5, coverage_min - 0.1 * coverage_range)  # Buffer below 0%
-            y_max = min(105, coverage_max + 0.1 * coverage_range)  # Buffer above 100%
+            y_min = max(-5, coverage_min - 0.1 * coverage_range)
+            y_max = min(105, coverage_max + 0.1 * coverage_range)
             ax.set_ylim(y_min, y_max)
 
-            ax.set_xlabel("Mean Interval Width", fontsize=12)
+            ax.set_xlabel("Interval Width (Combined Posterior)", fontsize=12)
             ax.set_ylabel("Coverage (%)", fontsize=12)
-            ax.set_title("Coverage vs Width (95% CI)", fontsize=14, fontweight="bold")
+            ax.set_title(
+                "Coverage vs Width (95% CI) - Multi-Chain Combined Posterior",
+                fontsize=14,
+                fontweight="bold",
+            )
             ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=9)
             ax.grid(True, alpha=0.3)
 
     def _generate_overall_title(
         self, group_id, spectra_list, kappa, spectrum_pair, calibration_data
     ):
-        """Generate comprehensive title with calibration metrics."""
+        """Generate comprehensive title with calibration metrics from combined posterior."""
         import numpy as np
 
-        # Calculate overall metrics
+        # Calculate overall metrics (now just averaging across buckets, not chains)
         if 0.95 in calibration_data and calibration_data[0.95]:
             bucket_metrics = calibration_data[0.95]
             overall_coverage = np.mean([bm["coverage"] for bm in bucket_metrics]) * 100
             overall_width = np.mean([bm["width_mean"] for bm in bucket_metrics])
-            n_realizations = (
-                bucket_metrics[0]["n_realizations"] if bucket_metrics else 0
-            )
+            n_chains = bucket_metrics[0]["n_realizations"] if bucket_metrics else 0
         else:
             overall_coverage = 0
             overall_width = 0
-            n_realizations = 0
+            n_chains = 0
 
         # Calculate calibration quality across all levels
         calibration_errors = []
@@ -1578,13 +1589,13 @@ class DiffusivitySpectraDataset(BaseModel):
             spectrum_pair = "simulated"
 
         title = (
-            f"Multi-Level Uncertainty Calibration Assessment | Group: {group_id[:8]}\n"
+            f"Multi-Level Uncertainty Calibration (Combined Posterior) | Group: {group_id[:8]}\n"
             f'Zone: {spectrum_pair} | Data SNR: {getattr(spectra_list[0], "data_snr", None)} | '
             f'Sampler SNR: {getattr(spectra_list[0], "sampler_snr", None)} | '
             f'Prior: {getattr(spectra_list[0], "prior_type", None)} | '
             f'Strength: {getattr(spectra_list[0], "prior_strength", None)} | κ={kappa:.2e}\n'
             f"95% CI Coverage: {overall_coverage:.1f}% | Mean Width: {overall_width:.3f} | "
-            f"Calibration Error: {mean_calibration_error:.1f}% | Realizations: {n_realizations}"
+            f"Calibration Error: {mean_calibration_error:.1f}% | Chains: {n_chains}"
         )
 
         return title
@@ -1599,10 +1610,14 @@ class DiffusivitySpectraDataset(BaseModel):
         confidence_levels=[0.50, 0.75, 0.90, 0.95],
     ):
         """
-        Enhanced CSV generation with comprehensive multi-level uncertainty metrics.
+        CSV generation with multi-level uncertainty metrics from combined posterior.
+
+        Uses combined multi-chain posterior for coverage assessment, properly
+        accounting for between-chain variance. Poor convergence will be reflected
+        in wider intervals or poor coverage.
 
         Generates detailed calibration metrics including:
-        - Coverage and width for each confidence level
+        - Coverage and width for each confidence level (from combined posterior)
         - Calibration quality assessment
         - Summary statistics across all levels
 
@@ -1735,96 +1750,92 @@ class DiffusivitySpectraDataset(BaseModel):
 
         return df_results
 
-    def _plot_joint_autocorrelation_with_ess(
-        self, group_id, spectrum, kappa, signal_decay, local, idx=0
+    def _plot_autocorrelation_ess_per_diff(
+        self, group_id, gibbs_spectra, kappa, signal_decay, local
     ):
         """
-        Plot joint autocorrelation for all diffusivity dimensions with ESS calculation.
-        Autocorrelation starts at lag 0 = 1.0.
+        Plot autocorrelation and ESS for each diffusivity dimension separately.
+        This allows easy comparison across different diffusivity buckets.
+        Uses arviz.plot_autocorr() and arviz.ess() for multi-chain data.
         """
-        if spectrum.spectrum_samples is None:
-            return
-
         import wandb
-        import matplotlib.pyplot as plt
+        import arviz as az
         import numpy as np
 
-        samples = np.array(spectrum.spectrum_samples)
-        diffusivities = np.array(spectrum.diffusivities)
-        init_method = getattr(spectrum, "init_method", "map")
+        if len(gibbs_spectra) < 2:
+            print(
+                f"[INFO] Skipping autocorr per diff for {group_id}: Need at least 2 chains"
+            )
+            return
 
-        # Determine max lag (up to 100 or 10% of chain length)
-        max_lag = min(100, len(samples) // 10)
+        # Collect samples from all chains
+        all_chains = []
+        for spectrum in gibbs_spectra:
+            if spectrum.spectrum_samples is not None:
+                all_chains.append(np.array(spectrum.spectrum_samples))
 
-        fig, ax = plt.subplots(figsize=(12, 8))
+        if len(all_chains) < 2:
+            return
 
-        # Calculate autocorrelation and ESS for each dimension
-        ess_values = []
-        for j, diff in enumerate(diffusivities):
-            trace = samples[:, j]
+        diffusivities = np.array(gibbs_spectra[0].diffusivities)
+        n_diffs = len(diffusivities)
 
-            # Calculate autocorrelation starting from lag 0
-            autocorr = [1.0]  # Lag 0 is always 1.0
-            for lag in range(1, max_lag + 1):
-                if lag < len(trace):
-                    # Calculate autocorrelation coefficient
-                    corr = np.corrcoef(trace[:-lag], trace[lag:])[0, 1]
-                    autocorr.append(corr)
-                else:
-                    break
+        # Convert to ArviZ InferenceData format
+        idata = self._create_inference_data(gibbs_spectra, diffusivities)
 
-            # Calculate ESS using the standard formula
-            # ESS = n / (1 + 2 * sum(autocorr for positive lags))
-            # Sum until autocorrelation becomes negative or very small
-            n_samples = len(trace)
-            sum_autocorr = 0
-            for k in range(1, len(autocorr)):
-                if autocorr[k] > 0.05:  # Stop when autocorr drops below threshold
-                    sum_autocorr += autocorr[k]
-                else:
-                    break
+        # Calculate ESS for each diffusivity
+        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+        ess_bulk = az.ess(idata, method="bulk")
+        ess_tail = az.ess(idata, method="tail")
 
-            ess = n_samples / (1 + 2 * sum_autocorr) if sum_autocorr > 0 else n_samples
-            ess_values.append(ess)
+        # Create subplots: one row per diffusivity bucket
+        fig, axes = plt.subplots(n_diffs, 2, figsize=(16, 4 * n_diffs))
+        if n_diffs == 1:
+            axes = axes.reshape(1, -1)
 
-            # Plot autocorrelation
-            lags = np.arange(0, len(autocorr))
-            ax.plot(
-                lags,
-                autocorr,
-                label=f"D = {diff:.1f} (ESS={ess:.0f})",
-                linewidth=1.5,
-                alpha=0.8,
+        # Plot each diffusivity separately
+        for i, (diff, var_name) in enumerate(zip(diffusivities, var_names)):
+            # Autocorrelation plot (left column)
+            ax_autocorr = axes[i, 0]
+            az.plot_autocorr(
+                idata,
+                var_names=[var_name],
+                max_lag=min(100, all_chains[0].shape[0] // 10),
+                combined=False,
+                ax=ax_autocorr,
+            )
+            ess_b = float(ess_bulk[var_name].values)
+            ess_t = float(ess_tail[var_name].values)
+            ax_autocorr.set_title(
+                f"Autocorrelation: D={diff:.1f} | ESS_bulk={ess_b:.0f}, ESS_tail={ess_t:.0f}",
+                fontsize=11,
+                fontweight="bold",
             )
 
-        # Add reference lines
-        ax.axhline(y=0, color="k", linestyle="--", alpha=0.5)
-        ax.axhline(y=0.1, color="r", linestyle=":", alpha=0.7, label="0.1 threshold")
-        ax.axhline(y=-0.1, color="r", linestyle=":", alpha=0.7)
+            # ESS evolution plot (right column)
+            ax_ess = axes[i, 1]
+            az.plot_ess(idata, var_names=[var_name], kind="evolution", ax=ax_ess)
+            ax_ess.set_title(
+                f"ESS Evolution: D={diff:.1f}", fontsize=11, fontweight="bold"
+            )
 
-        ax.set_xlabel("Lag", fontsize=12)
-        ax.set_ylabel("Autocorrelation", fontsize=12)
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10)
-
-        # Calculate mean ESS for title
-        mean_ess = np.mean(ess_values)
-
-        title = f"Joint Autocorrelation Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
-        title += (
-            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
-            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
-            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
-            f"Init: {init_method}\n"
-            f"Iterations: {len(samples)} | κ={kappa:.2e} | Max Lag: {max_lag} | Mean ESS: {mean_ess:.0f}"
+        # Add overall title
+        title = (
+            f"Autocorrelation & ESS per Diffusivity Bucket | Group: {group_id[:8]}\n"
         )
-        ax.set_title(title, fontsize=10)
-        plt.tight_layout()
+        title += (
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(gibbs_spectra[0], 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(gibbs_spectra[0], 'sampler_snr', None)} | "
+            f"Prior: {getattr(gibbs_spectra[0], 'prior_type', None)} | Strength: {getattr(gibbs_spectra[0], 'prior_strength', None)}\n"
+            f"Chains: {len(all_chains)} | Iterations: {all_chains[0].shape[0]} | κ={kappa:.2e}"
+        )
+        fig.suptitle(title, fontsize=11, y=0.995)
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
 
         if not local:
-            wandb.log({f"joint_autocorr_ess_{group_id}_real{idx+1}": wandb.Image(fig)})
+            wandb.log({f"autocorr_ess_per_diff_{group_id}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/joint_autocorrelation_ess.pdf"
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/autocorrelation_ess_per_diff.pdf"
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
@@ -1834,12 +1845,12 @@ class DiffusivitySpectraDataset(BaseModel):
         self, group_id, gibbs_spectra, kappa, signal_decay, local
     ):
         """
-        Plot multi-chain traces per diffusivity bin with R-hat diagnostic.
-        Shows traces from multiple realizations (chains) for each diff bucket separately.
-        Includes R-hat values in titles to assess convergence.
+        Plot multi-chain traces with R-hat diagnostic using ArviZ.
+        Treats each noise realization as a separate chain.
+        Uses arviz.plot_trace() and arviz.rhat() directly.
         """
         import wandb
-        import matplotlib.pyplot as plt
+        import arviz as az
         import numpy as np
 
         if len(gibbs_spectra) < 2:
@@ -1862,116 +1873,44 @@ class DiffusivitySpectraDataset(BaseModel):
 
         n_chains = len(all_chains)
         n_iterations = all_chains[0].shape[0]
-        n_params = all_chains[0].shape[1]
         diffusivities = np.array(gibbs_spectra[0].diffusivities)
 
-        # Calculate R-hat for each parameter
-        rhat_values = []
-        for j in range(n_params):
-            chains_param = np.array([chain[:, j] for chain in all_chains])
+        # Convert to ArviZ InferenceData format
+        idata = self._create_inference_data(gibbs_spectra, diffusivities)
 
-            # Within-chain variance
-            chain_vars = np.var(chains_param, axis=1, ddof=1)
-            W = np.mean(chain_vars)
+        # Calculate R-hat using ArviZ
+        rhat_data = az.rhat(idata)
 
-            # Between-chain variance
-            chain_means = np.mean(chains_param, axis=1)
-            B = np.var(chain_means, ddof=1) * n_iterations
-
-            # R-hat
-            var_plus = ((n_iterations - 1) / n_iterations) * W + (1 / n_iterations) * B
-            rhat = np.sqrt(var_plus / W) if W > 0 else 1.0
-
-            # Print debugging (uncomment to use instead)
-            # print(f"DEBUG: Parameter {j}")
-            # print(f"  n_params: {n_params}")
-            # print(f"  all_chains: {all_chains}")
-            # print(f"  chains_param: {chains_param}")
-            # print(f"  chains_param shape: {chains_param.shape}")
-            # print(f"  diffusivities shape: {diffusivities.shape}")
-            # print(f"  chain_vars: {chain_vars}")
-            # print(f"  W (mean within-chain var): {W}")
-            # print(f"  chain_means: {chain_means}")
-            # print(f"  B (between-chain var): {B}")
-            # print(f"  var_plus: {var_plus}")
-            # print(f"  rhat: {rhat}")
-            # input("Press Enter to continue...")
-
-            rhat_values.append(rhat)
-
-        # Create subplots (one per diffusivity bin)
-        n_cols = min(3, n_params)
-        n_rows = (n_params + n_cols - 1) // n_cols
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4 * n_rows))
-
-        if n_rows == 1 and n_cols == 1:
-            axes = np.array([[axes]])
-        elif n_rows == 1:
-            axes = axes.reshape(1, -1)
-        elif n_cols == 1:
-            axes = axes.reshape(-1, 1)
-
-        # Plot each diffusivity bin
-        for j, diff in enumerate(diffusivities):
-            row = j // n_cols
-            col = j % n_cols
-            ax = axes[row, col]
-
-            # Plot all chains for this diffusivity bin
-            for chain_idx, chain in enumerate(all_chains):
-                ax.plot(
-                    np.arange(len(chain)),
-                    chain[:, j],
-                    label=f"Chain {chain_idx+1}",
-                    linewidth=1.2,
-                    alpha=0.7,
-                )
-
-            # Color-code title based on R-hat
-            rhat = rhat_values[j]
-            if rhat < 1.05:
-                rhat_color = "green"
-                rhat_status = "✓"
-            elif rhat < 1.1:
-                rhat_color = "orange"
-                rhat_status = "~"
-            else:
-                rhat_color = "red"
-                rhat_status = "✗"
-
-            ax.set_xlabel("Iteration", fontsize=10)
-            ax.set_ylabel("Fraction", fontsize=10)
-            ax.set_title(
-                f"D = {diff:.1f} | R̂ = {rhat:.3f} {rhat_status}",
-                fontsize=11,
-                color=rhat_color,
-                fontweight="bold",
-            )
-            ax.grid(True, alpha=0.3)
-            ax.legend(fontsize=8, loc="best")
-
-        # Hide empty subplots
-        for j in range(n_params, n_rows * n_cols):
-            row = j // n_cols
-            col = j % n_cols
-            axes[row, col].set_visible(False)
-
-        # Overall title
+        # Extract R-hat values for summary
+        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+        rhat_values = [float(rhat_data[var_name].values) for var_name in var_names]
         max_rhat = np.max(rhat_values)
         mean_rhat = np.mean(rhat_values)
-        convergence_status = "CONVERGED" if max_rhat < 1.1 else "NOT CONVERGED"
+        convergence_status = (
+            "CONVERGED"
+            if max_rhat < 1.01
+            else "CHECK CONVERGENCE" if max_rhat < 1.05 else "NOT CONVERGED"
+        )
 
-        fig.suptitle(
-            f"Multi-Chain Trace Plot with R-hat | Group: {group_id[:8]}\n"
+        # Plot trace using ArviZ with compact layout
+        axes = az.plot_trace(
+            idata, compact=True, combined=False, figsize=(16, 3 * len(diffusivities))
+        )
+
+        fig = plt.gcf()
+
+        # Add overall title with R-hat summary
+        title = f"Multi-Chain Trace Plot with R-hat (ArviZ) | Group: {group_id[:8]}\n"
+        title += (
             f"Zone: {signal_decay.a_region} | Data SNR: {getattr(gibbs_spectra[0], 'data_snr', None)} | "
             f"Sampler SNR: {getattr(gibbs_spectra[0], 'sampler_snr', None)} | "
             f"Prior: {getattr(gibbs_spectra[0], 'prior_type', None)} | Strength: {getattr(gibbs_spectra[0], 'prior_strength', None)}\n"
             f"Chains: {n_chains} | Iterations/chain: {n_iterations} | κ={kappa:.2e} | "
-            f"Max R̂: {max_rhat:.3f} | Mean R̂: {mean_rhat:.3f} | Status: {convergence_status}",
-            fontsize=10,
+            f"Max R̂: {max_rhat:.3f} | Mean R̂: {mean_rhat:.3f} | Status: {convergence_status}"
         )
+        fig.suptitle(title, fontsize=11, y=0.995)
 
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
 
         if not local:
             wandb.log({f"multichain_trace_{group_id}": wandb.Image(fig)})
@@ -1982,54 +1921,175 @@ class DiffusivitySpectraDataset(BaseModel):
                 pdf.savefig(fig)
         plt.close(fig)
 
-    def _plot_joint_trace(self, group_id, spectrum, kappa, signal_decay, local, idx=0):
-        """Plot joint trace for all diffusivity dimensions on the same scale."""
-        if spectrum.spectrum_samples is None:
-            return
-
+    def _plot_rank(self, group_id, gibbs_spectra, kappa, signal_decay, local):
+        """
+        Plot rank plots for multi-chain diagnostics using ArviZ.
+        Rank plots help identify non-convergence and mixing issues.
+        Only generates plots for multiple chains.
+        """
         import wandb
-        import matplotlib.pyplot as plt
+        import arviz as az
         import numpy as np
 
-        samples = np.array(spectrum.spectrum_samples)
-        diffusivities = np.array(spectrum.diffusivities)
-        init_method = getattr(spectrum, "init_method", "map")
-
-        fig, ax = plt.subplots(figsize=(14, 8))
-
-        # Plot all traces on the same scale
-        for j, diff in enumerate(diffusivities):
-            ax.plot(
-                np.arange(len(samples)),
-                samples[:, j],
-                label=f"D = {diff:.1f}",
-                linewidth=1.5,
-                alpha=0.7,
+        if len(gibbs_spectra) < 2:
+            print(
+                f"[INFO] Skipping rank plot for {group_id}: Need at least 2 chains (realizations)"
             )
+            return
 
-        ax.set_xlabel("Iteration", fontsize=12)
-        ax.set_ylabel("Relative Fraction", fontsize=12)
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10)
+        # Collect samples from all chains
+        all_chains = []
+        for spectrum in gibbs_spectra:
+            if spectrum.spectrum_samples is not None:
+                all_chains.append(np.array(spectrum.spectrum_samples))
 
-        title = (
-            f"Joint MCMC Trace Plot | Group: {group_id[:8]} | Realization: {idx+1}\n"
-        )
+        if len(all_chains) < 2:
+            print(
+                f"[INFO] Skipping rank plot for {group_id}: Need at least 2 valid chains"
+            )
+            return
+
+        n_chains = len(all_chains)
+        diffusivities = np.array(gibbs_spectra[0].diffusivities)
+
+        # Convert to ArviZ InferenceData format
+        idata = self._create_inference_data(gibbs_spectra, diffusivities)
+
+        # Plot rank plots using ArviZ
+        axes = az.plot_rank(idata, figsize=(14, 3 * len(diffusivities)))
+
+        fig = plt.gcf()
+
+        # Add overall title
+        title = f"Rank Plot (ArviZ) | Group: {group_id[:8]}\n"
         title += (
-            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
-            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
-            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
-            f"Init: {init_method}\n"
-            f"Iterations: {len(samples)} | κ={kappa:.2e}"
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(gibbs_spectra[0], 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(gibbs_spectra[0], 'sampler_snr', None)} | "
+            f"Prior: {getattr(gibbs_spectra[0], 'prior_type', None)} | Strength: {getattr(gibbs_spectra[0], 'prior_strength', None)}\n"
+            f"Chains: {n_chains} | κ={kappa:.2e} | Note: Uniform distribution indicates good mixing"
         )
-        ax.set_title(title, fontsize=10)
-        plt.tight_layout()
+        fig.suptitle(title, fontsize=11, y=0.995)
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
 
         if not local:
-            wandb.log({f"joint_trace_{group_id}_real{idx+1}": wandb.Image(fig)})
+            wandb.log({f"rank_plot_{group_id}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/joint_trace.pdf"
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/rank_plot.pdf"
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
         plt.close(fig)
+
+    def _save_arviz_summary(self, group_id, gibbs_spectra, signal_decay, local):
+        """
+        Generate and save ArviZ summary statistics to CSV.
+        Includes ESS (bulk/tail), R-hat, mean, std, MCSE, and credible intervals for each diffusivity bucket.
+        """
+        import arviz as az
+        import pandas as pd
+        import numpy as np
+
+        if not gibbs_spectra:
+            return
+
+        # Collect samples from all chains
+        all_chains = []
+        for spectrum in gibbs_spectra:
+            if spectrum.spectrum_samples is not None:
+                all_chains.append(np.array(spectrum.spectrum_samples))
+
+        if not all_chains:
+            return
+
+        diffusivities = np.array(gibbs_spectra[0].diffusivities)
+
+        # Convert to ArviZ InferenceData format
+        idata = self._create_inference_data(gibbs_spectra, diffusivities)
+
+        # Generate ArviZ summary with all diagnostics
+        # kind="all" includes both stats and diagnostics (rhat, ess, mcse)
+        summary_df = az.summary(
+            idata,
+            kind="all",  # Include both stats and diagnostics
+            round_to=5,
+            hdi_prob=0.95,  # 95% HDI
+        )
+
+        # Reset index to make variable names a column
+        summary_df = summary_df.reset_index()
+        summary_df = summary_df.rename(columns={"index": "diffusivity_bucket"})
+
+        # Add metadata columns
+        summary_df.insert(0, "group_id", group_id)
+        summary_df.insert(1, "zone", signal_decay.a_region)
+        summary_df.insert(2, "data_snr", getattr(gibbs_spectra[0], "data_snr", None))
+        summary_df.insert(
+            3, "sampler_snr", getattr(gibbs_spectra[0], "sampler_snr", None)
+        )
+        summary_df.insert(
+            4, "prior_type", getattr(gibbs_spectra[0], "prior_type", None)
+        )
+        summary_df.insert(
+            5, "prior_strength", getattr(gibbs_spectra[0], "prior_strength", None)
+        )
+        summary_df.insert(6, "n_chains", len(all_chains))
+        summary_df.insert(7, "n_iterations", all_chains[0].shape[0])
+
+        # Save to CSV if in local mode
+        if local:
+            output_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/arviz_summary.csv"
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            # Append to existing file or create new one
+            if os.path.exists(output_path):
+                summary_df.to_csv(output_path, mode="a", header=False, index=False)
+            else:
+                summary_df.to_csv(output_path, mode="w", header=True, index=False)
+
+            print(f"[INFO] ArviZ summary saved to {output_path}")
+            print(f"[INFO] Columns: {', '.join(summary_df.columns.tolist())}")
+
+        return summary_df
+
+    def _create_inference_data(self, spectra_list, diffusivities):
+        """
+        Convert list of spectra (chains) to ArviZ InferenceData format.
+
+        Args:
+            spectra_list: List of DiffusivitySpectrum objects, each representing a chain
+            diffusivities: Array of diffusivity values
+
+        Returns:
+            arviz.InferenceData object with proper chain/draw/variable structure
+        """
+        import arviz as az
+        import numpy as np
+        import xarray as xr
+
+        # Collect samples from all chains
+        all_chains = []
+        for spectrum in spectra_list:
+            if spectrum.spectrum_samples is not None:
+                all_chains.append(np.array(spectrum.spectrum_samples))
+
+        if not all_chains:
+            raise ValueError("No valid samples found in spectra_list")
+
+        # Stack chains: shape becomes (n_chains, n_iterations, n_diffusivities)
+        chains_array = np.stack(all_chains, axis=0)
+
+        # Create variable names for each diffusivity
+        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+
+        # Create xarray Dataset for posterior
+        posterior_data = {}
+        for i, var_name in enumerate(var_names):
+            # Extract data for this diffusivity across all chains
+            posterior_data[var_name] = (["chain", "draw"], chains_array[:, :, i])
+
+        posterior_ds = xr.Dataset(posterior_data)
+
+        # Create InferenceData object
+        idata = az.InferenceData(posterior=posterior_ds)
+
+        return idata
