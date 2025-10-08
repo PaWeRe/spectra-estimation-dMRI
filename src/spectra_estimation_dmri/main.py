@@ -13,6 +13,7 @@ from spectra_estimation_dmri.models.prob_model import ProbabilisticModel
 from spectra_estimation_dmri.simulation.simulate import generate_simulated_signal
 from spectra_estimation_dmri.inference.map import MAPInference
 from spectra_estimation_dmri.inference.gibbs import GibbsSampler
+from spectra_estimation_dmri.inference.nuts import NUTSSampler
 from spectra_estimation_dmri.data.data_models import (
     SignalDecay,
     DiffusivitySpectrum,
@@ -203,6 +204,16 @@ def main(cfg: DictConfig):
                 spectra.append(spectrum)
             elif cfg.inference.name == "gibbs":
                 infer = GibbsSampler(model, signal_decay, cfg)
+                spectrum = infer.run(
+                    return_idata=True,
+                    show_progress=True,
+                    save_dir=inference_dir,
+                    true_spectrum=true_spectrum,
+                    unique_hash=spectra_id,
+                )
+                spectra.append(spectrum)
+            elif cfg.inference.name == "nuts":
+                infer = NUTSSampler(model, signal_decay, cfg)
                 spectrum = infer.run(
                     return_idata=True,
                     show_progress=True,

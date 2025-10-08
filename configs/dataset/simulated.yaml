@@ -63,7 +63,7 @@ spectrum_pairs:
         0.07733034,
         0.07777243,
       ]
-  ttz_newdiff:
+  ttz_newdiff1:
     diff_values: [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0] # Example new discretization
     true_spectrum: [
         0.26690788,
@@ -74,6 +74,32 @@ spectrum_pairs:
         0.13010999,
         0.07733034,
       ] # Example, update as needed
+  ttz_newdiff2:
+    diff_values: [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0] # Example new discretization
+    true_spectrum: [
+        0.26690788,
+        0.03690806,
+        0.03827977,
+        0.05845508,
+        0.1161373,
+        0.13010999,
+        0.07733034,
+      ] # Example, update as needed
+  convergence_test:
+    # Focused range excluding extremes - remove very slow (0.25) and very fast (20.0)
+    # This should improve conditioning and reduce boundary sampling issues
+    diff_values: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0]
+    true_spectrum: [0.15, 0.10, 0.15, 0.20, 0.15, 0.15, 0.08, 0.02]
+  convergence_test_no_slow:
+    # Remove d=0.5 which is poorly identified
+    diff_values: [0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0]
+    true_spectrum: [0.10, 0.15, 0.20, 0.15, 0.15, 0.08, 0.02]
+  reduced_4buckets:
+    # Optimal 4-bucket configuration based on SVD analysis
+    # Condition number κ = 109 (vs 4.6×10⁶ for 8 buckets)
+    # All parameters are well-identified
+    diff_values: [0.5, 1.0, 2.0, 3.0]
+    true_spectrum: [0.15, 0.30, 0.40, 0.15]
 spectrum_pair: npz_default # select which pair to use
 b_values:
   [0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5, 2.75, 3., 3.25, 3.5]

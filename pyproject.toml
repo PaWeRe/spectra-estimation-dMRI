@@ -23,6 +23,7 @@ dependencies = [
     "hydra-core",
     "wandb",
     "arviz",
+    "pymc>=5.6.1",
 ]
 
 [tool.setuptools.packages.find]

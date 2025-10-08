@@ -302,7 +302,10 @@ class DiffusivitySpectraDataset(BaseModel):
 
             # Separate spectra by inference method
             map_spectra = [s for s in spectra_list if s.inference_method == "map"]
-            gibbs_spectra = [s for s in spectra_list if s.inference_method == "gibbs"]
+            # Treat both Gibbs and NUTS as sampling methods (both produce samples)
+            gibbs_spectra = [
+                s for s in spectra_list if s.inference_method in ["gibbs", "nuts"]
+            ]
 
             # Get true spectrum if available
             true_spectra = [
@@ -744,7 +747,7 @@ class DiffusivitySpectraDataset(BaseModel):
                 if s.spectrum_vector is not None:
                     point_estimates.append(np.array(s.spectrum_vector))
 
-        if spectra[0].inference_method == "gibbs":
+        if spectra[0].inference_method in ["gibbs", "nuts"]:
             for s in spectra:
                 if s.spectrum_samples is not None:
                     point_estimates.append(
@@ -791,9 +794,9 @@ class DiffusivitySpectraDataset(BaseModel):
                 s=50,
             )
 
-        # Plot Gibbs means
+        # Plot sampling-based means (Gibbs/NUTS)
         if (
-            spectra[0].inference_method == "gibbs"
+            spectra[0].inference_method in ["gibbs", "nuts"]
             and point_estimates
             and len(point_estimates) > 1
         ):
@@ -822,12 +825,13 @@ class DiffusivitySpectraDataset(BaseModel):
                 plt.Line2D([0], [0], color="blue", lw=2, label="Gibbs (mean)")
             )
 
-        elif spectra[0].inference_method == "gibbs" and point_estimates:
+        elif spectra[0].inference_method in ["gibbs", "nuts"] and point_estimates:
+            method_name = spectra[0].inference_method.upper()
             ax.scatter(
                 positions + 0.2,
                 point_estimates[0],
                 color="blue",
-                label="Gibbs (mean)",
+                label=f"{method_name} (mean)",
                 s=50,
             )
 
@@ -880,7 +884,7 @@ class DiffusivitySpectraDataset(BaseModel):
         ax.set_title(title)
 
         if legend_handles or mean_true is not None:
-            if spectra[0].inference_method == "gibbs":
+            if spectra[0].inference_method in ["gibbs", "nuts"]:
                 # ax.legend()
                 ax.legend(
                     [bp_init["boxes"][0], bp_gibbs["boxes"][0], mean_true],
@@ -1265,7 +1269,10 @@ class DiffusivitySpectraDataset(BaseModel):
         import numpy as np
         from scipy import stats
 
-        if not spectra_list or spectra_list[0].inference_method != "gibbs":
+        if not spectra_list or spectra_list[0].inference_method not in [
+            "gibbs",
+            "nuts",
+        ]:
             return
 
         # Get diffusivity values from first spectrum
@@ -1636,7 +1643,10 @@ class DiffusivitySpectraDataset(BaseModel):
         import numpy as np
         from scipy import stats
 
-        if not spectra_list or spectra_list[0].inference_method != "gibbs":
+        if not spectra_list or spectra_list[0].inference_method not in [
+            "gibbs",
+            "nuts",
+        ]:
             return pd.DataFrame()
 
         # Get diffusivity values from first spectrum
