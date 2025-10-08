@@ -885,18 +885,25 @@ class DiffusivitySpectraDataset(BaseModel):
 
         if legend_handles or mean_true is not None:
             if spectra[0].inference_method in ["gibbs", "nuts"]:
-                # ax.legend()
-                ax.legend(
-                    [bp_init["boxes"][0], bp_gibbs["boxes"][0], mean_true],
-                    ["MAP (Posterior Mode)", "Posterior Mean", "True Spectrum"],
-                    loc="upper right",
-                )
+                # Check if we have multiple realizations (box plots) or single (scatter)
+                if len(point_estimates) > 1:
+                    ax.legend(
+                        [bp_init["boxes"][0], bp_gibbs["boxes"][0], mean_true],
+                        ["MAP (Posterior Mode)", "Posterior Mean", "True Spectrum"],
+                        loc="upper right",
+                    )
+                else:
+                    # Single realization - just show what we have
+                    ax.legend(loc="upper right")
             if spectra[0].inference_method == "map":
-                ax.legend(
-                    [bp_map["boxes"][0], mean_true],
-                    ["MAP (Posterior Mode)", "True Spectrum"],
-                    loc="upper right",
-                )
+                if len(point_estimates) > 1:
+                    ax.legend(
+                        [bp_map["boxes"][0], mean_true],
+                        ["MAP (Posterior Mode)", "True Spectrum"],
+                        loc="upper right",
+                    )
+                else:
+                    ax.legend(loc="upper right")
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
         if not local:
@@ -1354,40 +1361,57 @@ class DiffusivitySpectraDataset(BaseModel):
                 # Get samples for this diffusivity bucket from ALL chains
                 diff_samples = combined_samples[:, :, i]  # (n_chains, n_iterations)
 
-                # Flatten to get combined posterior (includes between-chain variance)
+                # CORRECTED: Test each realization/chain separately
+                coverages = []
+                widths = []
+                ci_lowers = []
+                ci_uppers = []
+
+                for chain_idx in range(n_chains):
+                    # Get samples for THIS realization only
+                    chain_samples = diff_samples[chain_idx, :]
+
+                    # Calculate credible interval for THIS realization
+                    lower_pct = (1 - conf_level) / 2 * 100
+                    upper_pct = (1 + conf_level) / 2 * 100
+                    ci_lower = np.percentile(chain_samples, lower_pct)
+                    ci_upper = np.percentile(chain_samples, upper_pct)
+
+                    # Get true value
+                    true_val = true_spectrum[i]
+
+                    # Test coverage for THIS realization
+                    coverage = (
+                        1.0 if (true_val >= ci_lower and true_val <= ci_upper) else 0.0
+                    )
+                    width = ci_upper - ci_lower
+
+                    coverages.append(coverage)
+                    widths.append(width)
+                    ci_lowers.append(ci_lower)
+                    ci_uppers.append(ci_upper)
+
+                # Calculate statistics across realizations
+                empirical_coverage = np.mean(coverages)  # Should be ~conf_level
+                mean_width = np.mean(widths)
+                std_width = np.std(widths)
+
+                # Also compute combined posterior stats for reference
                 combined_posterior = diff_samples.flatten()
-
-                # Calculate combined posterior statistics
                 est_mean = np.mean(combined_posterior)
-                est_std = np.std(combined_posterior)  # Includes between-chain variance!
-
-                # Get true value
-                true_val = true_spectrum[i]
-
-                # Calculate credible interval from combined posterior
-                # Use percentiles for proper Bayesian credible interval
-                lower_pct = (1 - conf_level) / 2 * 100
-                upper_pct = (1 + conf_level) / 2 * 100
-                ci_lower = np.percentile(combined_posterior, lower_pct)
-                ci_upper = np.percentile(combined_posterior, upper_pct)
-
-                # Test coverage (single test on combined posterior)
-                coverage = (
-                    1.0 if (true_val >= ci_lower and true_val <= ci_upper) else 0.0
-                )
-                width = ci_upper - ci_lower
+                est_std = np.std(combined_posterior)
 
                 bucket_metrics.append(
                     {
                         "diffusivity": diff_val,
-                        "coverage": coverage,
-                        "width_mean": width,
-                        "width_std": 0.0,  # Single combined interval, no variance
+                        "coverage": empirical_coverage,  # Now averaged across realizations!
+                        "width_mean": mean_width,
+                        "width_std": std_width,  # Now we have variance!
                         "n_realizations": n_chains,
                         "est_mean": est_mean,
                         "est_std": est_std,
-                        "ci_lower": ci_lower,
-                        "ci_upper": ci_upper,
+                        "ci_lower": np.mean(ci_lowers),  # Average interval bounds
+                        "ci_upper": np.mean(ci_uppers),
                     }
                 )
 
