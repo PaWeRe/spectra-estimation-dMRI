@@ -318,27 +318,36 @@ class DiffusivitySpectraDataset(BaseModel):
 
             # Gibbs Plotting - Core diagnostic plots
             if len(gibbs_spectra) > 0:
-                # 1. Distribution plot (first realization only)
-                self._plot_gibbs_distribution(
+                # 1a. Credible intervals (clinical reporting view)
+                self._plot_gibbs_credible_intervals(
                     group_id, gibbs_spectra[0], kappa, mean_true, sd, local, idx=0
                 )
+                # 1b. Posterior shape (full distribution view)
+                self._plot_posterior_shape(
+                    group_id, gibbs_spectra[0], kappa, mean_true, sd, local, idx=0
+                )
+                # 1c. Multi-realization credible interval comparison
+                if len(gibbs_spectra) >= 2:
+                    self._plot_multi_realization_intervals(
+                        group_id, gibbs_spectra, kappa, mean_true, sd, local
+                    )
                 # 2. Stability plot (all realizations)
                 self._plot_stability_analysis(
                     group_id, gibbs_spectra, kappa, mean_true, sd, local
                 )
-                # 3. Multi-chain trace plot - all realizations (ArviZ with R-hat)
-                if len(gibbs_spectra) >= 2:
-                    self._plot_multichain_trace(
-                        group_id, gibbs_spectra, kappa, sd, local
-                    )
-                    # 3b. Rank plot for multi-chain diagnostics (ArviZ)
-                    self._plot_rank(group_id, gibbs_spectra, kappa, sd, local)
-                    # 3c. Save ArviZ summary statistics to CSV
-                    self._save_arviz_summary(group_id, gibbs_spectra, sd, local)
-                    # 3d. Autocorrelation & ESS plot per diffusivity bucket (ArviZ)
-                    self._plot_autocorrelation_ess_per_diff(
-                        group_id, gibbs_spectra, kappa, sd, local
-                    )
+                # 3. Convergence diagnostics for FIRST realization only
+                # (Each realization now has multiple chains - we check convergence once)
+                self._plot_multichain_trace(
+                    group_id, gibbs_spectra[0], kappa, sd, local
+                )
+                # 3b. Rank plot for multi-chain diagnostics (ArviZ)
+                self._plot_rank(group_id, gibbs_spectra[0], kappa, sd, local)
+                # 3c. Save ArviZ summary statistics to CSV
+                self._save_arviz_summary(group_id, gibbs_spectra[0], sd, local)
+                # 3d. Autocorrelation & ESS plot per diffusivity bucket (ArviZ)
+                self._plot_autocorrelation_ess_per_diff(
+                    group_id, gibbs_spectra[0], kappa, sd, local
+                )
                 # 4. Uncertainty coverage vs width analysis by diffusivity bucket
                 spectrum_pair = exp_config.dataset.spectrum_pair if exp_config else None
                 self._plot_uncertainty_coverage_width_by_diff(
@@ -655,10 +664,18 @@ class DiffusivitySpectraDataset(BaseModel):
             }
         )
 
-    def _plot_gibbs_distribution(
+    def _plot_gibbs_credible_intervals(
         self, group_id, spectrum, kappa, mean_true, signal_decay, local, idx=0
     ):
-        """Plot distribution/box plots for a single Gibbs sampling result."""
+        """
+        Plot 95% credible intervals for a SINGLE realization.
+
+        This shows what a clinician would see for ONE patient's data:
+        - Posterior mean (point estimate)
+        - 95% credible interval (uncertainty)
+        - True values for validation
+        - MAP initialization for comparison
+        """
         if spectrum.spectrum_samples is None:
             return
 
@@ -666,12 +683,134 @@ class DiffusivitySpectraDataset(BaseModel):
         import matplotlib.pyplot as plt
         import numpy as np
 
-        samples = np.array(spectrum.spectrum_samples)
+        samples = np.array(
+            spectrum.spectrum_samples
+        )  # Shape: (n_iterations, n_diffusivities)
         diffusivities = np.array(spectrum.diffusivities)
+        n_diff = len(diffusivities)
 
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(14, 8))
 
-        # Create boxplot
+        # Calculate credible intervals for THIS realization (use MEDIAN, not mean)
+        posterior_median = np.median(samples, axis=0)  # More robust than mean
+        ci_lower = np.percentile(samples, 2.5, axis=0)
+        ci_upper = np.percentile(samples, 97.5, axis=0)
+
+        x_positions = np.arange(1, n_diff + 1)
+
+        # Plot credible intervals as error bars
+        errors = np.array([posterior_median - ci_lower, ci_upper - posterior_median])
+        ax.errorbar(
+            x_positions,
+            posterior_median,
+            yerr=errors,
+            fmt="o",
+            color="blue",
+            markersize=10,
+            capsize=5,
+            capthick=2,
+            elinewidth=2,
+            label=f"Posterior Median ± 95% CI (Realization {idx+1})",
+            alpha=0.8,
+        )
+
+        # Add MAP initialization if available
+        if spectrum.spectrum_init is not None:
+            ax.plot(
+                x_positions,
+                spectrum.spectrum_init,
+                "s",
+                color="green",
+                label="Initial R (MAP)",
+                markersize=8,
+                alpha=0.6,
+            )
+
+        # Add true spectrum if available
+        if mean_true is not None:
+            ax.plot(
+                x_positions,
+                mean_true,
+                "r^",
+                markersize=12,
+                label="True Spectrum",
+                linewidth=3,
+                alpha=0.9,
+            )
+
+            # Calculate coverage for this realization
+            coverage = (
+                np.sum((mean_true >= ci_lower) & (mean_true <= ci_upper)) / n_diff * 100
+            )
+
+            # Calculate mean interval width
+            mean_width = np.mean(ci_upper - ci_lower)
+
+            subtitle = (
+                f"\nCoverage: {coverage:.1f}% | Mean Interval Width: {mean_width:.3f}"
+            )
+        else:
+            subtitle = ""
+
+        # Customize plot
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=45)
+        ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ms)", fontsize=12)
+        ax.set_ylabel("Relative Fraction", fontsize=12)
+        ax.grid(True, alpha=0.3)
+
+        title = f"Single-Patient Uncertainty (Realization {idx+1}) | Group: {group_id[:8]}\n"
+        title += (
+            f"Method: {spectrum.inference_method.upper()} | "
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | λ={getattr(spectrum, 'prior_strength', None)} | "
+            f"κ={kappa:.2e}{subtitle}"
+        )
+        ax.set_title(title, fontsize=11)
+        ax.legend(loc="best", fontsize=10)
+
+        plt.tight_layout()
+        if not local:
+            wandb.log({f"credible_intervals_{group_id}_real{idx+1}": wandb.Image(fig)})
+        if local:
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/credible_intervals.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
+        plt.close(fig)
+
+    def _plot_posterior_shape(
+        self, group_id, spectrum, kappa, mean_true, signal_decay, local, idx=0
+    ):
+        """
+        Plot full posterior distribution as simple boxplots.
+
+        Original boxplot showing:
+        - Box: 25th-75th percentile (IQR)
+        - Whiskers: extend to data range
+        - Mean line
+        - MAP initialization
+        - True spectrum
+
+        Useful for seeing distribution shape and skewness.
+        """
+        if spectrum.spectrum_samples is None:
+            return
+
+        import wandb
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        samples = np.array(
+            spectrum.spectrum_samples
+        )  # Shape: (n_iterations, n_diffusivities)
+        diffusivities = np.array(spectrum.diffusivities)
+        n_diff = len(diffusivities)
+
+        fig, ax = plt.subplots(figsize=(14, 8))
+
+        # Create boxplot (original simple version)
         ax.boxplot(
             samples,
             showfliers=False,
@@ -682,7 +821,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Add MAP initialization if available
         if spectrum.spectrum_init is not None:
-            x_positions = np.arange(1, len(diffusivities) + 1)
+            x_positions = np.arange(1, n_diff + 1)
             ax.plot(
                 x_positions,
                 spectrum.spectrum_init,
@@ -693,7 +832,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Add true spectrum if available
         if mean_true is not None:
-            x_positions = np.arange(1, len(diffusivities) + 1)
+            x_positions = np.arange(1, n_diff + 1)
             ax.vlines(
                 x_positions,
                 0,
@@ -708,8 +847,9 @@ class DiffusivitySpectraDataset(BaseModel):
         ax.set_ylabel("Relative Fraction")
         ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=45)
 
-        title = f"Gibbs Distribution | Group: {group_id[:8]} | Realization: {idx+1}\n"
+        title = f"Posterior Distribution (Boxplot) | Group: {group_id[:8]} | Realization: {idx+1}\n"
         title += (
+            f"Method: {spectrum.inference_method.upper()} | "
             f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
             f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
             f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)} | "
@@ -722,9 +862,147 @@ class DiffusivitySpectraDataset(BaseModel):
 
         plt.tight_layout()
         if not local:
-            wandb.log({f"distribution_{group_id}_real{idx+1}": wandb.Image(fig)})
+            wandb.log({f"posterior_shape_{group_id}_real{idx+1}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/distribution.pdf"
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/posterior_shape.pdf"
+            os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+            with PdfPages(output_pdf_path) as pdf:
+                pdf.savefig(fig)
+        plt.close(fig)
+
+    def _plot_multi_realization_intervals(
+        self, group_id, spectra_list, kappa, mean_true, signal_decay, local
+    ):
+        """
+        Plot credible intervals for ALL realizations in a grid layout.
+
+        This shows the key insight: intervals should vary across noise realizations,
+        but EACH interval should capture the true value ~95% of the time.
+
+        Uses posterior MEDIAN (more robust than mean for skewed distributions).
+        Grid layout: 2-3 columns for better readability.
+        """
+        import wandb
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        if not spectra_list:
+            return
+
+        diffusivities = np.array(spectra_list[0].diffusivities)
+        n_diff = len(diffusivities)
+        n_realizations = len(spectra_list)
+
+        # Determine grid layout: prefer 2-3 columns
+        n_cols = min(3, n_diff) if n_diff > 1 else 1
+        n_rows = (n_diff + n_cols - 1) // n_cols
+
+        fig, axes = plt.subplots(
+            n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows), squeeze=False
+        )
+        axes_flat = axes.flatten()
+
+        # For each diffusivity bucket
+        for d_idx, diff_val in enumerate(diffusivities):
+            ax = axes_flat[d_idx]
+
+            # Collect intervals from all realizations (using MEDIAN)
+            medians = []
+            ci_lowers = []
+            ci_uppers = []
+
+            for spec in spectra_list:
+                if spec.spectrum_samples is not None:
+                    samples = np.array(spec.spectrum_samples)
+                    medians.append(
+                        np.median(samples[:, d_idx])
+                    )  # Use median instead of mean
+                    ci_lowers.append(np.percentile(samples[:, d_idx], 2.5))
+                    ci_uppers.append(np.percentile(samples[:, d_idx], 97.5))
+
+            x_positions = np.arange(1, n_realizations + 1)
+
+            # Plot each realization's interval
+            for i, (median, lower, upper) in enumerate(
+                zip(medians, ci_lowers, ci_uppers)
+            ):
+                ax.errorbar(
+                    i + 1,
+                    median,
+                    yerr=[[median - lower], [upper - median]],
+                    fmt="o",
+                    color="blue",
+                    markersize=7,
+                    capsize=4,
+                    alpha=0.7,
+                    elinewidth=2,
+                )
+
+            # Add true value
+            if mean_true is not None:
+                ax.axhline(
+                    mean_true[d_idx],
+                    color="red",
+                    linestyle="--",
+                    linewidth=2,
+                    label="True Value",
+                    alpha=0.8,
+                )
+
+                # Calculate coverage for this bucket
+                coverage = (
+                    np.sum(
+                        [
+                            (mean_true[d_idx] >= lower and mean_true[d_idx] <= upper)
+                            for lower, upper in zip(ci_lowers, ci_uppers)
+                        ]
+                    )
+                    / n_realizations
+                    * 100
+                )
+
+                # Calculate mean width
+                mean_width = np.mean(
+                    [upper - lower for lower, upper in zip(ci_lowers, ci_uppers)]
+                )
+
+                ax.set_title(
+                    f"D={diff_val:.2f}\nCoverage: {coverage:.0f}% | Width: {mean_width:.3f}",
+                    fontsize=10,
+                    fontweight="bold",
+                )
+            else:
+                ax.set_title(f"D={diff_val:.2f}", fontsize=10, fontweight="bold")
+
+            ax.set_xlabel("Realization", fontsize=10)
+            ax.set_ylabel("Fraction", fontsize=10)
+            ax.grid(True, alpha=0.3, axis="y")
+            ax.set_xticks(x_positions)
+
+            if d_idx == 0 and mean_true is not None:
+                ax.legend(loc="best", fontsize=9)
+
+        # Hide unused subplots
+        for idx in range(n_diff, len(axes_flat)):
+            axes_flat[idx].set_visible(False)
+
+        # Add overall title
+        title = f"95% Credible Intervals Across Realizations | Group: {group_id[:8]}\n"
+        title += (
+            f"Method: {spectra_list[0].inference_method.upper()} | "
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectra_list[0], 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectra_list[0], 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectra_list[0], 'prior_type', None)} | λ={getattr(spectra_list[0], 'prior_strength', None)} | "
+            f"κ={kappa:.2e}\n"
+            f"Point estimate = Posterior Median (robust to skewness) | Each interval from ONE noise realization"
+        )
+        fig.suptitle(title, fontsize=11, y=0.995)
+
+        plt.tight_layout(rect=[0, 0, 1, 0.98])
+        if not local:
+            wandb.log({f"multi_realization_intervals_{group_id}": wandb.Image(fig)})
+        if local:
+            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/multi_realization_intervals.pdf"
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
@@ -1785,10 +2063,11 @@ class DiffusivitySpectraDataset(BaseModel):
         return df_results
 
     def _plot_autocorrelation_ess_per_diff(
-        self, group_id, gibbs_spectra, kappa, signal_decay, local
+        self, group_id, spectrum, kappa, signal_decay, local
     ):
         """
         Plot autocorrelation and ESS for each diffusivity dimension separately.
+        NOW WORKS WITH: Single spectrum containing multiple chains (from one realization)
         This allows easy comparison across different diffusivity buckets.
         Uses arviz.plot_autocorr() and arviz.ess() for multi-chain data.
         """
@@ -1796,26 +2075,30 @@ class DiffusivitySpectraDataset(BaseModel):
         import arviz as az
         import numpy as np
 
-        if len(gibbs_spectra) < 2:
+        if spectrum is None:
+            return
+
+        # Load InferenceData from file (contains multiple chains)
+        if spectrum.inference_data is None or not os.path.exists(
+            spectrum.inference_data
+        ):
             print(
-                f"[INFO] Skipping autocorr per diff for {group_id}: Need at least 2 chains"
+                f"[WARNING] No inference data found for {group_id}, skipping autocorr plot"
             )
             return
 
-        # Collect samples from all chains
-        all_chains = []
-        for spectrum in gibbs_spectra:
-            if spectrum.spectrum_samples is not None:
-                all_chains.append(np.array(spectrum.spectrum_samples))
-
-        if len(all_chains) < 2:
-            return
-
-        diffusivities = np.array(gibbs_spectra[0].diffusivities)
+        idata = az.from_netcdf(spectrum.inference_data)
+        diffusivities = np.array(spectrum.diffusivities)
         n_diffs = len(diffusivities)
 
-        # Convert to ArviZ InferenceData format
-        idata = self._create_inference_data(gibbs_spectra, diffusivities)
+        # Get chain info
+        n_chains = idata.posterior.sizes["chain"]
+
+        if n_chains < 2:
+            print(
+                f"[INFO] Skipping autocorr plot for {group_id}: Only {n_chains} chain (need ≥2)"
+            )
+            return
 
         # Calculate ESS for each diffusivity
         var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
@@ -1827,6 +2110,9 @@ class DiffusivitySpectraDataset(BaseModel):
         if n_diffs == 1:
             axes = axes.reshape(1, -1)
 
+        # Get n_iterations from idata
+        n_iterations = idata.posterior.sizes["draw"]
+
         # Plot each diffusivity separately
         for i, (diff, var_name) in enumerate(zip(diffusivities, var_names)):
             # Autocorrelation plot (left column)
@@ -1834,7 +2120,7 @@ class DiffusivitySpectraDataset(BaseModel):
             az.plot_autocorr(
                 idata,
                 var_names=[var_name],
-                max_lag=min(100, all_chains[0].shape[0] // 10),
+                max_lag=min(100, n_iterations // 10),
                 combined=False,
                 ax=ax_autocorr,
             )
@@ -1858,10 +2144,10 @@ class DiffusivitySpectraDataset(BaseModel):
             f"Autocorrelation & ESS per Diffusivity Bucket | Group: {group_id[:8]}\n"
         )
         title += (
-            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(gibbs_spectra[0], 'data_snr', None)} | "
-            f"Sampler SNR: {getattr(gibbs_spectra[0], 'sampler_snr', None)} | "
-            f"Prior: {getattr(gibbs_spectra[0], 'prior_type', None)} | Strength: {getattr(gibbs_spectra[0], 'prior_strength', None)}\n"
-            f"Chains: {len(all_chains)} | Iterations: {all_chains[0].shape[0]} | κ={kappa:.2e}"
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)}\n"
+            f"Chains: {n_chains} | Iterations: {n_iterations} | κ={kappa:.2e}"
         )
         fig.suptitle(title, fontsize=11, y=0.995)
         plt.tight_layout(rect=[0, 0, 1, 0.99])
@@ -1875,42 +2161,40 @@ class DiffusivitySpectraDataset(BaseModel):
                 pdf.savefig(fig)
         plt.close(fig)
 
-    def _plot_multichain_trace(
-        self, group_id, gibbs_spectra, kappa, signal_decay, local
-    ):
+    def _plot_multichain_trace(self, group_id, spectrum, kappa, signal_decay, local):
         """
         Plot multi-chain traces with R-hat diagnostic using ArviZ.
-        Treats each noise realization as a separate chain.
+        NOW WORKS WITH: Single spectrum containing multiple chains (from one realization)
         Uses arviz.plot_trace() and arviz.rhat() directly.
         """
         import wandb
         import arviz as az
         import numpy as np
 
-        if len(gibbs_spectra) < 2:
+        if spectrum is None:
+            return
+
+        # Load InferenceData from file (contains multiple chains)
+        if spectrum.inference_data is None or not os.path.exists(
+            spectrum.inference_data
+        ):
             print(
-                f"[INFO] Skipping multi-chain trace for {group_id}: Need at least 2 chains (realizations)"
+                f"[WARNING] No inference data found for {group_id}, skipping trace plot"
             )
             return
 
-        # Collect samples from all chains
-        all_chains = []
-        for spectrum in gibbs_spectra:
-            if spectrum.spectrum_samples is not None:
-                all_chains.append(np.array(spectrum.spectrum_samples))
+        idata = az.from_netcdf(spectrum.inference_data)
+        diffusivities = np.array(spectrum.diffusivities)
 
-        if len(all_chains) < 2:
+        # Get chain info
+        n_chains = idata.posterior.sizes["chain"]
+        n_iterations = idata.posterior.sizes["draw"]
+
+        if n_chains < 2:
             print(
-                f"[INFO] Skipping multi-chain trace for {group_id}: Need at least 2 valid chains"
+                f"[INFO] Skipping multi-chain trace for {group_id}: Only {n_chains} chain (need ≥2 for R-hat)"
             )
             return
-
-        n_chains = len(all_chains)
-        n_iterations = all_chains[0].shape[0]
-        diffusivities = np.array(gibbs_spectra[0].diffusivities)
-
-        # Convert to ArviZ InferenceData format
-        idata = self._create_inference_data(gibbs_spectra, diffusivities)
 
         # Calculate R-hat using ArviZ
         rhat_data = az.rhat(idata)
@@ -1936,9 +2220,10 @@ class DiffusivitySpectraDataset(BaseModel):
         # Add overall title with R-hat summary
         title = f"Multi-Chain Trace Plot with R-hat (ArviZ) | Group: {group_id[:8]}\n"
         title += (
-            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(gibbs_spectra[0], 'data_snr', None)} | "
-            f"Sampler SNR: {getattr(gibbs_spectra[0], 'sampler_snr', None)} | "
-            f"Prior: {getattr(gibbs_spectra[0], 'prior_type', None)} | Strength: {getattr(gibbs_spectra[0], 'prior_strength', None)}\n"
+            f"Method: {spectrum.inference_method.upper()} | "
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)}\n"
             f"Chains: {n_chains} | Iterations/chain: {n_iterations} | κ={kappa:.2e} | "
             f"Max R̂: {max_rhat:.3f} | Mean R̂: {mean_rhat:.3f} | Status: {convergence_status}"
         )
@@ -1955,9 +2240,10 @@ class DiffusivitySpectraDataset(BaseModel):
                 pdf.savefig(fig)
         plt.close(fig)
 
-    def _plot_rank(self, group_id, gibbs_spectra, kappa, signal_decay, local):
+    def _plot_rank(self, group_id, spectrum, kappa, signal_decay, local):
         """
         Plot rank plots for multi-chain diagnostics using ArviZ.
+        NOW WORKS WITH: Single spectrum containing multiple chains (from one realization)
         Rank plots help identify non-convergence and mixing issues.
         Only generates plots for multiple chains.
         """
@@ -1965,29 +2251,29 @@ class DiffusivitySpectraDataset(BaseModel):
         import arviz as az
         import numpy as np
 
-        if len(gibbs_spectra) < 2:
+        if spectrum is None:
+            return
+
+        # Load InferenceData from file (contains multiple chains)
+        if spectrum.inference_data is None or not os.path.exists(
+            spectrum.inference_data
+        ):
             print(
-                f"[INFO] Skipping rank plot for {group_id}: Need at least 2 chains (realizations)"
+                f"[WARNING] No inference data found for {group_id}, skipping rank plot"
             )
             return
 
-        # Collect samples from all chains
-        all_chains = []
-        for spectrum in gibbs_spectra:
-            if spectrum.spectrum_samples is not None:
-                all_chains.append(np.array(spectrum.spectrum_samples))
+        idata = az.from_netcdf(spectrum.inference_data)
+        diffusivities = np.array(spectrum.diffusivities)
 
-        if len(all_chains) < 2:
+        # Get chain info
+        n_chains = idata.posterior.sizes["chain"]
+
+        if n_chains < 2:
             print(
-                f"[INFO] Skipping rank plot for {group_id}: Need at least 2 valid chains"
+                f"[INFO] Skipping rank plot for {group_id}: Only {n_chains} chain (need ≥2 for rank plot)"
             )
             return
-
-        n_chains = len(all_chains)
-        diffusivities = np.array(gibbs_spectra[0].diffusivities)
-
-        # Convert to ArviZ InferenceData format
-        idata = self._create_inference_data(gibbs_spectra, diffusivities)
 
         # Plot rank plots using ArviZ
         axes = az.plot_rank(idata, figsize=(14, 3 * len(diffusivities)))
@@ -1997,9 +2283,10 @@ class DiffusivitySpectraDataset(BaseModel):
         # Add overall title
         title = f"Rank Plot (ArviZ) | Group: {group_id[:8]}\n"
         title += (
-            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(gibbs_spectra[0], 'data_snr', None)} | "
-            f"Sampler SNR: {getattr(gibbs_spectra[0], 'sampler_snr', None)} | "
-            f"Prior: {getattr(gibbs_spectra[0], 'prior_type', None)} | Strength: {getattr(gibbs_spectra[0], 'prior_strength', None)}\n"
+            f"Method: {spectrum.inference_method.upper()} | "
+            f"Zone: {signal_decay.a_region} | Data SNR: {getattr(spectrum, 'data_snr', None)} | "
+            f"Sampler SNR: {getattr(spectrum, 'sampler_snr', None)} | "
+            f"Prior: {getattr(spectrum, 'prior_type', None)} | Strength: {getattr(spectrum, 'prior_strength', None)}\n"
             f"Chains: {n_chains} | κ={kappa:.2e} | Note: Uniform distribution indicates good mixing"
         )
         fig.suptitle(title, fontsize=11, y=0.995)
@@ -2014,31 +2301,31 @@ class DiffusivitySpectraDataset(BaseModel):
                 pdf.savefig(fig)
         plt.close(fig)
 
-    def _save_arviz_summary(self, group_id, gibbs_spectra, signal_decay, local):
+    def _save_arviz_summary(self, group_id, spectrum, signal_decay, local):
         """
         Generate and save ArviZ summary statistics to CSV.
         Includes ESS (bulk/tail), R-hat, mean, std, MCSE, and credible intervals for each diffusivity bucket.
+
+        NOW WORKS WITH: Single spectrum containing multiple chains (from one realization)
         """
         import arviz as az
         import pandas as pd
         import numpy as np
 
-        if not gibbs_spectra:
+        if spectrum is None:
             return
 
-        # Collect samples from all chains
-        all_chains = []
-        for spectrum in gibbs_spectra:
-            if spectrum.spectrum_samples is not None:
-                all_chains.append(np.array(spectrum.spectrum_samples))
-
-        if not all_chains:
+        # Load InferenceData from file (contains multiple chains)
+        if spectrum.inference_data is None or not os.path.exists(
+            spectrum.inference_data
+        ):
+            print(
+                f"[WARNING] No inference data found for {group_id}, skipping ArviZ summary"
+            )
             return
 
-        diffusivities = np.array(gibbs_spectra[0].diffusivities)
-
-        # Convert to ArviZ InferenceData format
-        idata = self._create_inference_data(gibbs_spectra, diffusivities)
+        idata = az.from_netcdf(spectrum.inference_data)
+        diffusivities = np.array(spectrum.diffusivities)
 
         # Generate ArviZ summary with all diagnostics
         # kind="all" includes both stats and diagnostics (rhat, ess, mcse)
@@ -2056,18 +2343,17 @@ class DiffusivitySpectraDataset(BaseModel):
         # Add metadata columns
         summary_df.insert(0, "group_id", group_id)
         summary_df.insert(1, "zone", signal_decay.a_region)
-        summary_df.insert(2, "data_snr", getattr(gibbs_spectra[0], "data_snr", None))
+        summary_df.insert(2, "data_snr", getattr(spectrum, "data_snr", None))
+        summary_df.insert(3, "sampler_snr", getattr(spectrum, "sampler_snr", None))
+        summary_df.insert(4, "prior_type", getattr(spectrum, "prior_type", None))
         summary_df.insert(
-            3, "sampler_snr", getattr(gibbs_spectra[0], "sampler_snr", None)
+            5, "prior_strength", getattr(spectrum, "prior_strength", None)
         )
-        summary_df.insert(
-            4, "prior_type", getattr(gibbs_spectra[0], "prior_type", None)
-        )
-        summary_df.insert(
-            5, "prior_strength", getattr(gibbs_spectra[0], "prior_strength", None)
-        )
-        summary_df.insert(6, "n_chains", len(all_chains))
-        summary_df.insert(7, "n_iterations", all_chains[0].shape[0])
+        # Get n_chains from idata
+        n_chains = idata.posterior.sizes["chain"]
+        n_iterations = idata.posterior.sizes["draw"]
+        summary_df.insert(6, "n_chains", n_chains)
+        summary_df.insert(7, "n_iterations", n_iterations)
 
         # Save to CSV if in local mode
         if local:
