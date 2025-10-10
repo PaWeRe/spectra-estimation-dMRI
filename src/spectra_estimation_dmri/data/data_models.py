@@ -260,6 +260,49 @@ class DiffusivitySpectraDataset(BaseModel):
         with open(index_path, "r") as f:
             return json.load(f)
 
+    @staticmethod
+    def _get_config_specific_filename(base_name, spectrum, exp_config):
+        """
+        Generate config-specific filename to prevent overwrites during sweeps.
+
+        Args:
+            base_name: Base filename (e.g., 'credible_intervals')
+            spectrum: DiffusivitySpectrum object
+            exp_config: Experiment configuration from Hydra
+
+        Returns:
+            Filename string with config-specific suffix
+        """
+        # Extract key config parameters
+        inference_method = spectrum.inference_method
+        snr = getattr(spectrum, "data_snr", "unk")
+        prior_type = getattr(spectrum, "prior_type", "unk")
+        prior_strength = getattr(spectrum, "prior_strength", "unk")
+
+        # Get spectrum pair if available
+        spectrum_pair = "unk"
+        if exp_config is not None and hasattr(exp_config, "dataset"):
+            if hasattr(exp_config.dataset, "spectrum_pair"):
+                spectrum_pair = exp_config.dataset.spectrum_pair
+            elif hasattr(exp_config.dataset, "name"):
+                spectrum_pair = exp_config.dataset.name
+
+        # Format SNR and strength for filename
+        snr_str = f"snr{int(snr)}" if snr != "unk" and snr is not None else "snrunk"
+        strength_str = (
+            f"str{prior_strength}"
+            if prior_strength != "unk" and prior_strength is not None
+            else "strunk"
+        )
+
+        # Create config-specific suffix
+        config_suffix = (
+            f"{inference_method}_{spectrum_pair}_{snr_str}_{prior_type}_{strength_str}"
+        )
+
+        # Return filename with config suffix
+        return f"{base_name}_{config_suffix}.pdf"
+
     def run_diagnostics(self, exp_config=None, local=True):
         """
         Run diagnostics and generate three types of plots:
@@ -320,38 +363,54 @@ class DiffusivitySpectraDataset(BaseModel):
             if len(gibbs_spectra) > 0:
                 # 1a. Credible intervals (clinical reporting view)
                 self._plot_gibbs_credible_intervals(
-                    group_id, gibbs_spectra[0], kappa, mean_true, sd, local, idx=0
+                    group_id,
+                    gibbs_spectra[0],
+                    kappa,
+                    mean_true,
+                    sd,
+                    local,
+                    exp_config,
+                    idx=0,
                 )
                 # 1b. Posterior shape (full distribution view)
                 self._plot_posterior_shape(
-                    group_id, gibbs_spectra[0], kappa, mean_true, sd, local, idx=0
+                    group_id,
+                    gibbs_spectra[0],
+                    kappa,
+                    mean_true,
+                    sd,
+                    local,
+                    exp_config,
+                    idx=0,
                 )
                 # 1c. Multi-realization credible interval comparison
                 if len(gibbs_spectra) >= 2:
                     self._plot_multi_realization_intervals(
-                        group_id, gibbs_spectra, kappa, mean_true, sd, local
+                        group_id, gibbs_spectra, kappa, mean_true, sd, local, exp_config
                     )
                 # 2. Stability plot (all realizations)
                 self._plot_stability_analysis(
-                    group_id, gibbs_spectra, kappa, mean_true, sd, local
+                    group_id, gibbs_spectra, kappa, mean_true, sd, local, exp_config
                 )
                 # 3. Convergence diagnostics for FIRST realization only
                 # (Each realization now has multiple chains - we check convergence once)
                 self._plot_multichain_trace(
-                    group_id, gibbs_spectra[0], kappa, sd, local
+                    group_id, gibbs_spectra[0], kappa, sd, local, exp_config
                 )
                 # 3b. Rank plot for multi-chain diagnostics (ArviZ)
-                self._plot_rank(group_id, gibbs_spectra[0], kappa, sd, local)
+                self._plot_rank(
+                    group_id, gibbs_spectra[0], kappa, sd, local, exp_config
+                )
                 # 3c. Save ArviZ summary statistics to CSV
                 self._save_arviz_summary(group_id, gibbs_spectra[0], sd, local)
                 # 3d. Autocorrelation & ESS plot per diffusivity bucket (ArviZ)
                 self._plot_autocorrelation_ess_per_diff(
-                    group_id, gibbs_spectra[0], kappa, sd, local
+                    group_id, gibbs_spectra[0], kappa, sd, local, exp_config
                 )
                 # 4. Uncertainty coverage vs width analysis by diffusivity bucket
                 spectrum_pair = exp_config.dataset.spectrum_pair if exp_config else None
                 self._plot_uncertainty_coverage_width_by_diff(
-                    group_id, gibbs_spectra, kappa, sd, local, spectrum_pair
+                    group_id, gibbs_spectra, kappa, sd, local, spectrum_pair, exp_config
                 )
                 # 5. Generate CSV with uncertainty metrics
                 self._csv_uncertainty_coverage_width_by_diff(
@@ -665,7 +724,15 @@ class DiffusivitySpectraDataset(BaseModel):
         )
 
     def _plot_gibbs_credible_intervals(
-        self, group_id, spectrum, kappa, mean_true, signal_decay, local, idx=0
+        self,
+        group_id,
+        spectrum,
+        kappa,
+        mean_true,
+        signal_decay,
+        local,
+        exp_config,
+        idx=0,
     ):
         """
         Plot 95% credible intervals for a SINGLE realization.
@@ -774,14 +841,26 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"credible_intervals_{group_id}_real{idx+1}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/credible_intervals.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "credible_intervals", spectrum, exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
         plt.close(fig)
 
     def _plot_posterior_shape(
-        self, group_id, spectrum, kappa, mean_true, signal_decay, local, idx=0
+        self,
+        group_id,
+        spectrum,
+        kappa,
+        mean_true,
+        signal_decay,
+        local,
+        exp_config,
+        idx=0,
     ):
         """
         Plot full posterior distribution as simple boxplots.
@@ -864,14 +943,18 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"posterior_shape_{group_id}_real{idx+1}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/posterior_shape.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "posterior_shape", spectrum, exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
         plt.close(fig)
 
     def _plot_multi_realization_intervals(
-        self, group_id, spectra_list, kappa, mean_true, signal_decay, local
+        self, group_id, spectra_list, kappa, mean_true, signal_decay, local, exp_config
     ):
         """
         Plot credible intervals for ALL realizations in a grid layout.
@@ -1002,14 +1085,18 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"multi_realization_intervals_{group_id}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/multi_realization_intervals.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "multi_realization_intervals", spectra_list[0], exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
         plt.close(fig)
 
     def _plot_stability_analysis(
-        self, group_id, spectra, kappa, mean_true, signal_decay, local
+        self, group_id, spectra, kappa, mean_true, signal_decay, local, exp_config
     ):
         """Plot stability analysis of either MAP or Gibbs point estimates across realizations."""
         import wandb
@@ -1187,7 +1274,11 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"stability": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/stability.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "stability", spectra[0], exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
@@ -1530,6 +1621,7 @@ class DiffusivitySpectraDataset(BaseModel):
         signal_decay,
         local,
         spectrum_pair=None,
+        exp_config=None,
         confidence_levels=[0.50, 0.75, 0.90, 0.95],
     ):
         """
@@ -1594,7 +1686,11 @@ class DiffusivitySpectraDataset(BaseModel):
             wandb.log({f"uncertainty_calibration_{group_id}": wandb.Image(fig)})
         else:
             # Save to local file when in local mode
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/uncertainty_calibration.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "uncertainty_calibration", spectra_list[0], exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
@@ -2063,7 +2159,7 @@ class DiffusivitySpectraDataset(BaseModel):
         return df_results
 
     def _plot_autocorrelation_ess_per_diff(
-        self, group_id, spectrum, kappa, signal_decay, local
+        self, group_id, spectrum, kappa, signal_decay, local, exp_config
     ):
         """
         Plot autocorrelation and ESS for each diffusivity dimension separately.
@@ -2155,13 +2251,19 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"autocorr_ess_per_diff_{group_id}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/autocorrelation_ess_per_diff.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "autocorrelation_ess_per_diff", spectrum, exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
         plt.close(fig)
 
-    def _plot_multichain_trace(self, group_id, spectrum, kappa, signal_decay, local):
+    def _plot_multichain_trace(
+        self, group_id, spectrum, kappa, signal_decay, local, exp_config
+    ):
         """
         Plot multi-chain traces with R-hat diagnostic using ArviZ.
         NOW WORKS WITH: Single spectrum containing multiple chains (from one realization)
@@ -2234,13 +2336,17 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"multichain_trace_{group_id}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/multichain_trace.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "multichain_trace", spectrum, exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)
         plt.close(fig)
 
-    def _plot_rank(self, group_id, spectrum, kappa, signal_decay, local):
+    def _plot_rank(self, group_id, spectrum, kappa, signal_decay, local, exp_config):
         """
         Plot rank plots for multi-chain diagnostics using ArviZ.
         NOW WORKS WITH: Single spectrum containing multiple chains (from one realization)
@@ -2295,7 +2401,11 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"rank_plot_{group_id}": wandb.Image(fig)})
         if local:
-            output_pdf_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/rank_plot.pdf"
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
+            filename = self._get_config_specific_filename(
+                "rank_plot", spectrum, exp_config
+            )
+            output_pdf_path = os.path.join(base_dir, filename)
             os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
             with PdfPages(output_pdf_path) as pdf:
                 pdf.savefig(fig)

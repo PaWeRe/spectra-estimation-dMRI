@@ -1,0 +1,123 @@
+Initializing NUTS using jitter+adapt_diag...
+Total samples: 1
+Tumor samples: 0
+Regions: Counter({'sim': 1})
+GGG distribution: Counter()
+Total samples: 1
+Tumor samples: 0
+Regions: Counter({'sim': 1})
+GGG distribution: Counter()
+Total samples: 1
+Tumor samples: 0
+Regions: Counter({'sim': 1})
+GGG distribution: Counter()
+Total samples: 1
+Tumor samples: 0
+Regions: Counter({'sim': 1})
+GGG distribution: Counter()
+Total samples: 1
+Tumor samples: 0
+Regions: Counter({'sim': 1})
+GGG distribution: Counter()
+strength:0.01
+[DEBUG] sampler_sigma: 0.0001
+[DEBUG] data_sigma: 0.0001
+[DEBUG] Precision matrix condition number: 20874319810.485622
+[DEBUG] Min Eigenvalue precision matrix: [9.62168094e-02 4.48656318e+01 6.67804429e+03 4.15962722e+05
+ 1.21621998e+07 1.90015302e+08 2.00846127e+09]
+{'signal_values': [0.7239658606483871, 0.5557480036177634, 0.44581738908873825, 0.370955522557022, 0.31720143683156216, 0.2770063076866401, 0.24598157675642326, 0.22085905259857108, 0.20015859180157525, 0.18276806376517726, 0.16776252471452638, 0.15452614296738684, 0.14292550478031374, 0.13253004231902027, 0.12285722806322794], 'b_values': [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5], 'snr': 10000.0, 'likelihood': {'type': 'gaussian'}, 'prior': {'type': 'ridge', 'strength': 0.01, 'nonnegative': True}, 'inference': {'name': 'nuts', 'n_iter': 10000, 'tune': 1000, 'n_chains': 4, 'target_accept': 0.95, 'sampler_snr': 10000, 'init': 'map'}, 'spectrum_pair': 'ttz_newdiff1'}
+[NUTS] Starting sampling with 4 chains, 10000 iterations
+[NUTS] Prior: ridge, strength: 0.01
+[NUTS] Sampler σ: 0.0001 (SNR: 10000)
+[NUTS] Target acceptance: 0.95
+[NUTS] Compiling model and starting sampling...
+[2025-10-10 13:42:32,687][pymc.sampling.mcmc][INFO] - Initializing NUTS using jitter+adapt_diag...
+Multiprocess sampling (4 chains in 4 jobs)
+[2025-10-10 13:42:36,389][pymc.sampling.mcmc][INFO] - Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [R]
+[2025-10-10 13:42:36,390][pymc.sampling.mcmc][INFO] - NUTS: [R]
+                                                                                
+                              Step      Grad      Sampli…                       
+  Progre…   Draws   Diverg…   size      evals     Speed     Elapsed   Remaini…  
+ ────────────────────────────────────────────────────────────────────────────── 
+  ━━━━━━━   11000   0         0.00      1023      61.31     0:02:59   0:00:00   
+                                                  draws/s                       
+  ━━━━━━━   11000   9         0.00      1023      62.31     0:02:56   0:00:00   
+                                                  draws/s                       
+  ━━━━━━━   11000   214       0.00      1023      62.94     0:02:54   0:00:00   
+                                                  draws/s                       
+  ━━━━━━━   11000   0         0.00      1023      60.84     0:03:00   0:00:00   
+                                                  draws/s                       
+                                                                                
+
+Sampling 4 chains for 1_000 tune and 10_000 draw iterations (4_000 + 40_000 draws total) took 181 seconds.
+[2025-10-10 13:45:37,212][pymc.sampling.mcmc][INFO] - Sampling 4 chains for 1_000 tune and 10_000 draw iterations (4_000 + 40_000 draws total) took 181 seconds.
+There were 223 divergences after tuning. Increase `target_accept` or reparameterize.
+[2025-10-10 13:45:37,373][pymc.stats.convergence][ERROR] - There were 223 divergences after tuning. Increase `target_accept` or reparameterize.
+Chain 0 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+[2025-10-10 13:45:37,373][pymc.stats.convergence][WARNING] - Chain 0 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+Chain 1 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+[2025-10-10 13:45:37,373][pymc.stats.convergence][WARNING] - Chain 1 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+Chain 2 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+[2025-10-10 13:45:37,373][pymc.stats.convergence][WARNING] - Chain 2 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+Chain 3 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+[2025-10-10 13:45:37,373][pymc.stats.convergence][WARNING] - Chain 3 reached the maximum tree depth. Increase `max_treedepth`, increase `target_accept` or reparameterize.
+The rhat statistic is larger than 1.01 for some parameters. This indicates problems during sampling. See https://arxiv.org/abs/1903.08008 for details
+[2025-10-10 13:45:37,373][pymc.stats.convergence][INFO] - The rhat statistic is larger than 1.01 for some parameters. This indicates problems during sampling. See https://arxiv.org/abs/1903.08008 for details
+The effective sample size per chain is smaller than 100 for some parameters.  A higher number is needed for reliable rhat and ess computation. See https://arxiv.org/abs/1903.08008 for details
+[2025-10-10 13:45:37,373][pymc.stats.convergence][ERROR] - The effective sample size per chain is smaller than 100 for some parameters.  A higher number is needed for reliable rhat and ess computation. See https://arxiv.org/abs/1903.08008 for details
+Initializing NUTS using jitter+adapt_diag...
+[NUTS] Sampling complete!
+Ridge strength: 0.01
+[NUTS] Saved inference data to: /Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/inference/4347a3037f79.nc
+
+[NUTS] Convergence Diagnostics:
+  Max R-hat: 1.0500
+  Min ESS_bulk: 107
+  Min ESS_tail: 184
+  ⚠️  Nearly converged (R-hat < 1.10)
+
+============================================================
+SAMPLER COMPARISON METRICS
+============================================================
+Spectrum ID: 4347a3037f79
+Inference: nuts | Spectrum: ttz_newdiff1
+SNR: 10000.0 | Prior: ridge (0.01)
+Chains: 4 | Iterations: 10000
+Diffusivities: 7 | κ: 1.53e+05
+
+--- Convergence ---
+Status: not_converged
+Max R-hat: 1.0505
+Min ESS (bulk): 107
+Min ESS (tail): 184
+
+--- Accuracy ---
+L2 Error (RMSE): 0.003355
+L1 Error (MAE): 0.002721
+Max Error: 0.006517
+
+--- Uncertainty ---
+Mean Interval Width: 0.104002
+Median Interval Width: 0.103048
+Interval Sharpness: 31.00
+============================================================
+
+[INFO] Saved metrics to: /Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/comparison/sampler_metrics.csv
+strength:0.01
+[DEBUG] sampler_sigma: 0.0001
+[DEBUG] data_sigma: 0.0001
+[DEBUG] Precision matrix condition number: 20874319810.485622
+[DEBUG] Min Eigenvalue precision matrix: [9.62168094e-02 4.48656318e+01 6.67804429e+03 4.15962722e+05
+ 1.21621998e+07 1.90015302e+08 2.00846127e+09]
+{'signal_values': [0.7243839345580058, 0.5557717613442069, 0.44618337699832195, 0.370900007843579, 0.31739619481008896, 0.27718942979020333, 0.24588146178416653, 0.22091688014865032, 0.20028510445116304, 0.18272493167908194, 0.16780363651863647, 0.15452003084983193, 0.14289237384730602, 0.13251361636925688, 0.12290287942699879], 'b_values': [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5], 'snr': 10000.0, 'likelihood': {'type': 'gaussian'}, 'prior': {'type': 'ridge', 'strength': 0.01, 'nonnegative': True}, 'inference': {'name': 'nuts', 'n_iter': 10000, 'tune': 1000, 'n_chains': 4, 'target_accept': 0.95, 'sampler_snr': 10000, 'init': 'map'}, 'spectrum_pair': 'ttz_newdiff1'}
+[NUTS] Starting sampling with 4 chains, 10000 iterations
+[NUTS] Prior: ridge, strength: 0.01
+[NUTS] Sampler σ: 0.0001 (SNR: 10000)
+[NUTS] Target acceptance: 0.95
+[NUTS] Compiling model and starting sampling...
+[2025-10-10 13:45:38,228][pymc.sampling.mcmc][INFO] - Initializing NUTS using jitter+adapt_diag...
+Multiprocess sampling (4 chains in 4 jobs)
+[2025-10-10 13:45:38,468][pymc.sampling.mcmc][INFO] - Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [R]
+[2025-10-10 13:45:38,468][pymc.sampling.mcmc][INFO] - NUTS: [R]

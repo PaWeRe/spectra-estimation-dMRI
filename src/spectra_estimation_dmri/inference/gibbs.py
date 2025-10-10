@@ -61,6 +61,16 @@ class GibbsSamplerClean:
         # Get configuration
         n_iter = self.config.inference.n_iter
         burn_in = self.config.inference.burn_in
+
+        # Ensure burn_in doesn't exceed n_iter
+        if burn_in >= n_iter:
+            original_burn_in = burn_in
+            burn_in = max(0, n_iter // 5)  # Use 20% of iterations as burn-in
+            print(
+                f"[WARNING] burn_in ({original_burn_in}) >= n_iter ({n_iter}). "
+                f"Setting burn_in to {burn_in} (20% of n_iter)"
+            )
+
         n_chains = getattr(self.config.inference, "n_chains", 4)  # Default: 4 chains
         prior_type = self.model.prior_config.type
         prior_strength = self.model.prior_config.get("strength", 0.0)

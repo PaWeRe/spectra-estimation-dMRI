@@ -27,6 +27,14 @@ from spectra_estimation_dmri.biomarkers import (
     BiomarkerVisualizer,
 )
 
+# Import sampler comparison tools
+from spectra_estimation_dmri.analysis.sampler_comparison import (
+    extract_metrics_from_spectrum,
+    log_metrics_to_wandb,
+    save_metrics_to_csv,
+    print_metrics_summary,
+)
+
 # TODO: TRAIN NNET (e.g. DIFFUSION MODEL) AND RELEASE AS PART OF REPO (LIKE EMILY ALSENTZER!! https://arxiv.org/pdf/1904.03323
 
 
@@ -114,9 +122,14 @@ def main(cfg: DictConfig):
     inference_dir = os.path.join(os.getcwd(), "results", "inference")
     plots_dir = os.path.join(os.getcwd(), "results", "plots")
     biomarker_dir = os.path.join(os.getcwd(), "results", "biomarkers")
+    comparison_dir = os.path.join(os.getcwd(), "results", "comparison")
     os.makedirs(inference_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
     os.makedirs(biomarker_dir, exist_ok=True)
+    os.makedirs(comparison_dir, exist_ok=True)
+
+    # Set up sampler comparison metrics CSV
+    comparison_csv_path = os.path.join(comparison_dir, "sampler_metrics.csv")
 
     for signal_decay_dataset in signal_decay_datasets:
         for i, signal_decay in enumerate(signal_decay_dataset.samples):
@@ -212,6 +225,14 @@ def main(cfg: DictConfig):
                     unique_hash=spectra_id,
                 )
                 spectra.append(spectrum)
+
+                # Extract and log sampler comparison metrics
+                metrics = extract_metrics_from_spectrum(spectrum, cfg)
+                print_metrics_summary(metrics)
+                save_metrics_to_csv(metrics, comparison_csv_path, append=True)
+                if not cfg.local:
+                    log_metrics_to_wandb(metrics)
+
             elif cfg.inference.name == "nuts":
                 infer = NUTSSampler(model, signal_decay, cfg)
                 spectrum = infer.run(
@@ -222,6 +243,14 @@ def main(cfg: DictConfig):
                     unique_hash=spectra_id,
                 )
                 spectra.append(spectrum)
+
+                # Extract and log sampler comparison metrics
+                metrics = extract_metrics_from_spectrum(spectrum, cfg)
+                print_metrics_summary(metrics)
+                save_metrics_to_csv(metrics, comparison_csv_path, append=True)
+                if not cfg.local:
+                    log_metrics_to_wandb(metrics)
+
             elif cfg.inference.name == "vb":
                 pass  # To be implemented
 

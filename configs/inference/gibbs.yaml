@@ -3,5 +3,5 @@ init: map
 n_iter: 100000
 burn_in: 10000
 n_chains: 4 # Number of parallel chains (for convergence diagnostics)
-sampler_snr: 1000 # SNR used by the Gibbs sampler (optional, falls back to dataset SNR if not set)
+sampler_snr: 500 # SNR used by the Gibbs sampler (optional, falls back to dataset SNR if not set)
 use_sandy_sampler: false # Use truncated normal instead of rejection sampler

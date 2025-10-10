@@ -174,18 +174,29 @@ class NUTSSampler:
         else:
             initial_R = np.ones(n_dim) * 0.1
 
+        # Reformat inference data to match Gibbs format (with diff_X.X variable names)
+        # This is needed for compatibility with diagnostic plotting functions
+        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+        posterior_data = {}
+        for i, var_name in enumerate(var_names):
+            # Extract data for this diffusivity across all chains
+            posterior_data[var_name] = samples[:, :, i]  # (n_chains, n_iterations)
+
+        # Create new InferenceData with properly named variables
+        idata_formatted = az.from_dict(posterior=posterior_data)
+
         # Save inference data
         inference_data_path = None
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
             fname = f"{unique_hash}.nc"
             inference_data_path = os.path.join(save_dir, fname)
-            idata.to_netcdf(inference_data_path)
+            idata_formatted.to_netcdf(inference_data_path)
             print(f"[NUTS] Saved inference data to: {inference_data_path}")
 
         # Print convergence diagnostics
         print("\n[NUTS] Convergence Diagnostics:")
-        summary = az.summary(idata, var_names=["R"])
+        summary = az.summary(idata_formatted)
         max_rhat = summary["r_hat"].max()
         min_ess_bulk = summary["ess_bulk"].min()
         min_ess_tail = summary["ess_tail"].min()
