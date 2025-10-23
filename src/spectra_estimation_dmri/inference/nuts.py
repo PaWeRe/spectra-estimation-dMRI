@@ -20,17 +20,19 @@ except ImportError:
 
 class NUTSSampler:
     """
-    NUTS sampler for spectrum estimation.
+    NUTS sampler for spectrum estimation with HalfNormal prior.
 
-    Supports:
-    - uniform prior: Truncated normal likelihood with flat prior
-    - ridge prior: Truncated normal likelihood with Gaussian prior
-    - lasso prior: Truncated normal likelihood with Laplace prior
+    Uses:
+    - HalfNormal prior for R (naturally enforces R >= 0 with smooth gradients)
+    - Inferred sigma with weakly informative prior (improves uncertainty calibration)
+    - Ridge regularization via prior_strength parameter
 
     Advantages over Gibbs:
-    - Better exploration of truncated spaces
+    - Better exploration of positive-constrained spaces
+    - Smooth gradient geometry (no boundary discontinuities)
     - Handles correlations more efficiently
-    - Typically faster convergence
+    - Adaptive noise level estimation
+    - Robust to prior misspecification
     """
 
     def __init__(self, model, signal_decay, config):
@@ -67,19 +69,35 @@ class NUTSSampler:
         n_chains = getattr(self.config.inference, "n_chains", 4)
         tune_steps = getattr(self.config.inference, "tune", 1000)
         target_accept = getattr(self.config.inference, "target_accept", 0.95)
+        infer_sigma = getattr(
+            self.config.inference, "infer_sigma", True
+        )  # Default: infer
+        sigma_prior = getattr(
+            self.config.inference, "sigma_prior", "halfcauchy"
+        )  # halfnormal or halfcauchy
 
-        # Get sampler SNR (falls back to data SNR)
+        # Get prior configuration (simplified - only using ridge)
+        prior_type = self.model.prior_config.type
+        prior_strength = self.model.prior_config.get("strength", 0.01)
+
+        # Estimate data noise level from SNR (if available)
+        # Model: signal = U @ R + noise, where noise ~ Normal(0, σ)
+        # If signal amplitude ~ 1 and SNR is given, then σ ≈ 1/SNR
         sampler_snr = getattr(self.config.inference, "sampler_snr", None)
         if sampler_snr is None:
             sampler_snr = getattr(self.config.dataset, "snr", None)
-        if sampler_snr is not None:
-            sampler_sigma = 1.0 / sampler_snr
-        else:
-            sampler_sigma = 1.0
 
-        # Get prior configuration
-        prior_type = self.model.prior_config.type
-        prior_strength = self.model.prior_config.get("strength", 0.0)
+        # For HalfCauchy: SNR is optional (robust to no prior knowledge)
+        # For HalfNormal: SNR helps center the prior (less robust)
+        if sampler_snr is not None:
+            sigma_expected = 1.0 / sampler_snr
+        else:
+            # Generic weakly informative prior for dMRI noise
+            # Covers typical range: σ ∈ [0.0001, 0.1] for normalized signal
+            if sigma_prior == "halfcauchy":
+                sigma_expected = 0.01  # HalfCauchy beta (median)
+            else:
+                sigma_expected = 0.015  # HalfNormal scale (~ mean 0.012)
 
         # Get spectrum pair info
         pair = self.config.dataset.spectrum_pair
@@ -87,57 +105,73 @@ class NUTSSampler:
         true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
 
         print(f"[NUTS] Starting sampling with {n_chains} chains, {n_iter} iterations")
-        print(f"[NUTS] Prior: {prior_type}, strength: {prior_strength}")
-        print(f"[NUTS] Sampler σ: {sampler_sigma:.4f} (SNR: {sampler_snr})")
+        print(
+            f"[NUTS] Ridge regularization: λ = {prior_strength} → σ_R = {1.0/np.sqrt(prior_strength):.2f}"
+        )
+        if infer_sigma:
+            snr_info = f" (from SNR={sampler_snr:.0f})" if sampler_snr else " (generic)"
+            print(f"[NUTS] Noise: σ will be INFERRED using {sigma_prior.upper()} prior")
+            print(f"[NUTS]   Prior scale: {sigma_expected:.4f}{snr_info}")
+        else:
+            print(f"[NUTS] Noise: σ FIXED at {sigma_expected:.4f}")
         print(f"[NUTS] Target acceptance: {target_accept}")
 
-        # Build PyMC model
+        # Build PyMC model with clear mathematical priors
         with pm.Model() as pymc_model:
-            # Define prior for spectrum R (with truncation R >= 0)
-            if prior_type == "uniform":
-                # Flat prior (improper but works with truncation)
-                R = pm.TruncatedNormal(
-                    "R",
-                    mu=0.5,  # Arbitrary, will be dominated by likelihood
-                    sigma=100.0,  # Very wide
-                    lower=0.0,
-                    shape=n_dim,
-                )
+            # ═══════════════════════════════════════════════════════════════
+            # PRIOR 1: Spectrum R (the quantity we care about)
+            # ═══════════════════════════════════════════════════════════════
+            # Ridge regularization: minimize ||y - U@R||² + λ||R||²
+            # Bayesian equivalent: R ~ Normal(0, σ_R²) where σ_R² = 1/λ
+            # Since R ≥ 0, use HalfNormal with same variance
+            #
+            # Math: prior_strength = λ → σ_R = 1/√λ
+            sigma_R = 1.0 / np.sqrt(prior_strength) if prior_strength > 0 else 10.0
+            R = pm.HalfNormal(
+                "R",
+                sigma=sigma_R,
+                shape=n_dim,
+            )
 
-            elif prior_type == "ridge":
-                # Gaussian (L2) prior - naturally handled by PyMC
-                prior_sigma = (
-                    1.0 / np.sqrt(prior_strength) if prior_strength > 0 else 100.0
-                )
-                R = pm.TruncatedNormal(
-                    "R",
-                    mu=0.0,
-                    sigma=prior_sigma,
-                    lower=0.0,
-                    shape=n_dim,
-                )
-
-            elif prior_type == "lasso":
-                # Laplace (L1) prior
-                prior_b = 1.0 / prior_strength if prior_strength > 0 else 100.0
-                # Use Half-Laplace since we have R >= 0 constraint
-                R = pm.Laplace(
-                    "R_unconstrained",
-                    mu=0.0,
-                    b=prior_b,
-                    shape=n_dim,
-                )
-                R = pm.Deterministic("R", pm.math.maximum(R, 0.0))
-
+            # ═══════════════════════════════════════════════════════════════
+            # PRIOR 2: Noise level σ (can be inferred or fixed)
+            # ═══════════════════════════════════════════════════════════════
+            if infer_sigma:
+                if sigma_prior == "halfcauchy":
+                    # HALFCAUCHY: Robust to prior misspecification (Gelman recommendation)
+                    # HalfCauchy(beta=b) has:
+                    #   - Median = b (50% probability σ < b)
+                    #   - Heavy tails → robust when SNR estimate is very wrong
+                    #   - 95% mass approximately in [0.025×b, 40×b] (very wide!)
+                    #
+                    # Best for: Real data with uncertain noise levels
+                    sigma = pm.HalfCauchy(
+                        "sigma",
+                        beta=sigma_expected,  # Median at expected value
+                    )
+                else:  # halfnormal
+                    # HALFNORMAL: Faster sampling, needs better SNR estimate
+                    # HalfNormal(scale=s) has:
+                    #   - Mean ≈ 0.8s, mode at ≈ 0.7s
+                    #   - Light tails → less robust when SNR estimate is wrong
+                    #   - 95% mass approximately in [0, 3.3×s]
+                    #
+                    # Best for: Simulations or data with reliable SNR estimate
+                    sigma_prior_scale = 2.0 * sigma_expected  # Allows flexibility
+                    sigma = pm.HalfNormal(
+                        "sigma",
+                        sigma=sigma_prior_scale,
+                    )
             else:
-                raise ValueError(f"Unknown prior type: {prior_type}")
+                # FIX σ: Use deterministic value (no inference)
+                sigma = sigma_expected
 
             # Likelihood: signal = U @ R + noise
             mu = pm.math.dot(U, R)
             obs = pm.Normal(
                 "obs",
                 mu=mu,
-                sigma=sampler_sigma,
+                sigma=sigma,
                 observed=signal,
             )
 
@@ -167,6 +201,28 @@ class NUTSSampler:
         spectrum_vector = np.mean(samples_flat, axis=0)
         spectrum_std = np.std(samples_flat, axis=0)
 
+        # Get sigma statistics (inferred or fixed)
+        if infer_sigma:
+            sigma_samples = idata.posterior["sigma"].values
+            sigma_mean = np.mean(sigma_samples)
+            sigma_std = np.std(sigma_samples)
+            print(f"\n[NUTS] Inferred noise level:")
+            print(f"  σ_data = {sigma_mean:.4f} ± {sigma_std:.4f}")
+            print(f"  Expected: {sigma_expected:.4f}")
+            if sampler_snr is not None:
+                inferred_snr = 1.0 / sigma_mean
+                rel_diff = (sigma_mean - sigma_expected) / sigma_expected * 100
+                print(
+                    f"  Inferred SNR: {inferred_snr:.1f} (expected: {sampler_snr:.1f})"
+                )
+                print(f"  Relative difference: {rel_diff:+.1f}%")
+        else:
+            sigma_samples = None
+            sigma_mean = sigma_expected
+            sigma_std = 0.0
+            print(f"\n[NUTS] Fixed noise level:")
+            print(f"  σ_data = {sigma_mean:.4f} (not inferred)")
+
         # Get initial estimate (MAP from model)
         init_method = getattr(self.config.inference, "init", "map")
         if init_method == "map":
@@ -181,6 +237,10 @@ class NUTSSampler:
         for i, var_name in enumerate(var_names):
             # Extract data for this diffusivity across all chains
             posterior_data[var_name] = samples[:, :, i]  # (n_chains, n_iterations)
+
+        # Also include sigma in the saved data (if inferred)
+        if infer_sigma and sigma_samples is not None:
+            posterior_data["sigma"] = sigma_samples
 
         # Create new InferenceData with properly named variables
         idata_formatted = az.from_dict(posterior=posterior_data)
@@ -212,6 +272,9 @@ class NUTSSampler:
             print("  ❌ NOT CONVERGED (R-hat >= 1.10)")
 
         # Create result object (same format as Gibbs)
+        # Convert sigma to SNR for storage (sampler_snr field expects SNR, not sigma!)
+        inferred_snr = 1.0 / sigma_mean if sigma_mean > 0 else None
+
         spectrum = DiffusivitySpectrum(
             inference_method="nuts",
             signal_decay=self.signal_decay,
@@ -225,10 +288,10 @@ class NUTSSampler:
             inference_data=inference_data_path,
             spectra_id=unique_hash,
             init_method=init_method,
-            prior_type=prior_type,
+            prior_type="ridge",  # Simplified - only using ridge now
             prior_strength=prior_strength,
             data_snr=getattr(self.config.dataset, "snr", None),
-            sampler_snr=sampler_snr,
+            sampler_snr=inferred_snr,  # Store inferred SNR (1/sigma)
         )
 
         return spectrum

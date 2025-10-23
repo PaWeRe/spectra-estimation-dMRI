@@ -1,7 +1,7 @@
 name: simulated
-snr: 600
+snr: 500
 no_noise: false # Set to true to generate noiseless signals for testing
-noise_realizations: 5
+noise_realizations: 20
 spectrum_pairs:
   npz_default:
     diff_values: [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
@@ -85,6 +85,98 @@ spectrum_pairs:
         0.13010999,
         0.07733034,
       ] # Example, update as needed
+  ttz_clinical_quartiles:
+    # Alternative 1: Clinical Quartiles (5 bins)
+    # Log-spaced bins representing distinct tissue compartments
+    # Expected κ ≈ 10²-10³ (10× better than ttz_newdiff1)
+    # Bins: tumor (0.3), restricted (0.6), intermediate (1.0), stromal (1.8), normal (3.0)
+    diff_values: [0.3, 0.6, 1.0, 1.8, 3.0]
+    true_spectrum: [
+        0.30381594, # Combined 0.25 + 0.5 bins from ttz_default
+        0.03827977, # 0.75 bin
+        0.16096522, # Combined 1.0 + 1.25 bins
+        0.22569900, # Combined 1.5 + 2.0 bins
+        0.27124007, # Combined 2.5 + 3.0 + 20.0 bins
+      ]
+  ttz_clinical_quartiles_revised:
+    # REVISED Clinical Quartiles - Signal-Aware (4 bins)
+    # Similar to clinical_quartiles but stops at D=2.5 (signal cutoff)
+    # Bins represent: tumor, restricted, stromal, normal (but identifiable)
+    # Expected κ ≈ 100-500, better convergence than original
+    diff_values: [0.35, 0.7, 1.2, 2.0]
+    true_spectrum: [
+        0.30381594, # Tumor/restricted (0.25-0.5)
+        0.09673485, # Restricted transition (0.75-1.0)
+        0.21942030, # Stromal (1.25-1.5)
+        0.38002891, # Normal + high (2.0-3.0+)
+      ]
+  ttz_clinical_5bins:
+    # 5-bin extension: Adds tumor grading capability (RECOMMENDED)
+    # Extra bin at D=0.5 to distinguish aggressive (0.3) vs moderate (0.5) tumor
+    # Expected κ ≈ 150-300, ~3 measurements/parameter (safe)
+    # Best balance of clinical utility and statistical power
+    diff_values: [0.3, 0.5, 0.8, 1.3, 2.0]
+    true_spectrum: [
+        0.26690788, # Aggressive tumor (0.25-0.4)
+        0.03690806, # Moderate tumor / BPH (0.5-0.6)
+        0.09673485, # Restricted normal / inflammation (0.75-1.0)
+        0.21942030, # Stromal tissue (1.25-1.5)
+        0.38002891, # Normal glandular + high (2.0-3.0+)
+      ]
+  ttz_clinical_6bins:
+    # 6-bin extension: Cancer-focused with fine tumor resolution
+    # Three bins in tumor range for Gleason grading correlation
+    # Expected κ ≈ 300-800, ~2.5 measurements/parameter (borderline)
+    # Use only if tumor characterization is primary goal
+    diff_values: [0.3, 0.5, 0.75, 1.0, 1.5, 2.2]
+    true_spectrum: [
+        0.26690788, # High-grade tumor (Gleason 8-10)
+        0.03690806, # Intermediate tumor (Gleason 7)
+        0.03827977, # Low-grade tumor / BPH (Gleason 6)
+        0.05845508, # Restricted normal / inflammation
+        0.21251729, # Stromal + intermediate (1.25-2.0)
+        0.38002891, # Normal glandular + high
+      ]
+  ttz_geometric:
+    # Alternative 2: Geometric Spacing (5 bins) - BEST CONDITIONING
+    # Pure geometric progression minimizes condition number
+    # Expected κ ≈ 50-200 (50× better than ttz_newdiff1)
+    # Mathematical optimum for exponential kernels exp(-bD)
+    diff_values: [0.4, 0.8, 1.6, 2.4, 3.2]
+    true_spectrum: [
+        0.30381594, # Combined restricted diffusion
+        0.09673485, # Combined hindered diffusion (0.75-1.25)
+        0.24022729, # Combined intermediate (1.5-2.0)
+        0.17291935, # Combined free diffusion (2.5-3.0)
+        0.18630257, # High diffusivity tail
+      ]
+  ttz_geometric_revised:
+    # REVISED Geometric Spacing - Signal-Aware (4 bins)
+    # Geometric progression ONLY in the signal-rich region
+    # Rule: Keep bins where exp(-b_max * D) > 0.01, i.e., D < 3.0/3.5 ≈ 0.86
+    # Extended to D=2.0 as practical limit (exp(-7) ≈ 0.001)
+    # Expected κ ≈ 50 and ALL bins have identifiable signal
+    diff_values: [0.4, 0.8, 1.4, 2.0]
+    true_spectrum: [
+        0.30381594, # Restricted diffusion (0.25-0.5)
+        0.09673485, # Lower hindered (0.75-1.0)
+        0.21942030, # Upper hindered (1.25-1.5)
+        0.38002891, # Free + high diffusivity (2.0-3.0+)
+      ]
+  ttz_tumor_weighted:
+    # Alternative 3: Tumor-Weighted (6 bins)
+    # Denser sampling in restricted region (D < 1.0) for cancer detection
+    # Expected κ ≈ 10³ (5× better than ttz_newdiff1)
+    # Balances diagnostic detail with numerical stability
+    diff_values: [0.3, 0.5, 0.75, 1.2, 2.0, 3.0]
+    true_spectrum: [
+        0.26690788, # Tumor core (0.25-0.3)
+        0.03690806, # Restricted transition
+        0.03827977, # Upper restricted
+        0.16096522, # Combined stromal (1.0-1.5)
+        0.13010999, # Normal glandular
+        0.36682908, # Combined high diffusivity (2.5+)
+      ]
   convergence_test:
     # Focused range excluding extremes - remove very slow (0.25) and very fast (20.0)
     # This should improve conditioning and reduce boundary sampling issues

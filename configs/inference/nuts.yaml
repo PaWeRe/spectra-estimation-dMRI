@@ -3,6 +3,14 @@ n_iter: 2000 # Number of draws per chain (after tuning)
 tune: 1000 # Number of tuning steps
 n_chains: 4 # Number of parallel chains
 target_accept: 0.95 # Higher = more careful sampling (0.8-0.99)
-sampler_snr: 10000 # SNR used by sampler (optional, falls back to dataset SNR)
+
+# Noise level inference
+infer_sigma: true # true = infer σ from data, false = fix σ at 1/SNR
+sigma_prior: halfcauchy # Prior on σ: 'halfcauchy' (robust) or 'halfnormal' (faster)
+sampler_snr:
+  null # SNR for σ prior (optional - HalfCauchy works well without it!)
+  # null = use generic prior, number = use 1/SNR as guide
+  # Falls back to dataset.snr if not specified
+
 init: map # Initialization: 'map', 'random', or 'zeros'
 
