@@ -190,7 +190,7 @@ class GibbsSamplerClean:
             # Create variable names for each diffusivity
             pair = self.config.dataset.spectrum_pair
             diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
-            var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+            var_names = [f"diff_{diff:.2f}" for diff in diffusivities]
 
             # Create posterior dict with separate variables
             posterior_data = {}

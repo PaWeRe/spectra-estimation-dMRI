@@ -69,35 +69,23 @@ class NUTSSampler:
         n_chains = getattr(self.config.inference, "n_chains", 4)
         tune_steps = getattr(self.config.inference, "tune", 1000)
         target_accept = getattr(self.config.inference, "target_accept", 0.95)
-        infer_sigma = getattr(
-            self.config.inference, "infer_sigma", True
-        )  # Default: infer
-        sigma_prior = getattr(
-            self.config.inference, "sigma_prior", "halfcauchy"
-        )  # halfnormal or halfcauchy
 
-        # Get prior configuration (simplified - only using ridge)
+        # Get prior configuration
         prior_type = self.model.prior_config.type
         prior_strength = self.model.prior_config.get("strength", 0.01)
 
-        # Estimate data noise level from SNR (if available)
-        # Model: signal = U @ R + noise, where noise ~ Normal(0, σ)
-        # If signal amplitude ~ 1 and SNR is given, then σ ≈ 1/SNR
+        # Get SNR for prior centering (optional - HalfCauchy is robust if missing)
         sampler_snr = getattr(self.config.inference, "sampler_snr", None)
         if sampler_snr is None:
             sampler_snr = getattr(self.config.dataset, "snr", None)
 
-        # For HalfCauchy: SNR is optional (robust to no prior knowledge)
-        # For HalfNormal: SNR helps center the prior (less robust)
+        # Set prior scale for sigma
         if sampler_snr is not None:
             sigma_expected = 1.0 / sampler_snr
         else:
             # Generic weakly informative prior for dMRI noise
             # Covers typical range: σ ∈ [0.0001, 0.1] for normalized signal
-            if sigma_prior == "halfcauchy":
-                sigma_expected = 0.01  # HalfCauchy beta (median)
-            else:
-                sigma_expected = 0.015  # HalfNormal scale (~ mean 0.012)
+            sigma_expected = 0.01  # HalfCauchy beta (median)
 
         # Get spectrum pair info
         pair = self.config.dataset.spectrum_pair
@@ -108,12 +96,9 @@ class NUTSSampler:
         print(
             f"[NUTS] Ridge regularization: λ = {prior_strength} → σ_R = {1.0/np.sqrt(prior_strength):.2f}"
         )
-        if infer_sigma:
-            snr_info = f" (from SNR={sampler_snr:.0f})" if sampler_snr else " (generic)"
-            print(f"[NUTS] Noise: σ will be INFERRED using {sigma_prior.upper()} prior")
-            print(f"[NUTS]   Prior scale: {sigma_expected:.4f}{snr_info}")
-        else:
-            print(f"[NUTS] Noise: σ FIXED at {sigma_expected:.4f}")
+        snr_info = f" (from SNR={sampler_snr:.0f})" if sampler_snr else " (generic)"
+        print(f"[NUTS] Noise: σ will be INFERRED using HALFCAUCHY prior")
+        print(f"[NUTS]   Prior scale: {sigma_expected:.4f}{snr_info}")
         print(f"[NUTS] Target acceptance: {target_accept}")
 
         # Build PyMC model with clear mathematical priors
@@ -134,37 +119,19 @@ class NUTSSampler:
             )
 
             # ═══════════════════════════════════════════════════════════════
-            # PRIOR 2: Noise level σ (can be inferred or fixed)
+            # PRIOR 2: Noise level σ (ALWAYS INFERRED)
             # ═══════════════════════════════════════════════════════════════
-            if infer_sigma:
-                if sigma_prior == "halfcauchy":
-                    # HALFCAUCHY: Robust to prior misspecification (Gelman recommendation)
-                    # HalfCauchy(beta=b) has:
-                    #   - Median = b (50% probability σ < b)
-                    #   - Heavy tails → robust when SNR estimate is very wrong
-                    #   - 95% mass approximately in [0.025×b, 40×b] (very wide!)
-                    #
-                    # Best for: Real data with uncertain noise levels
-                    sigma = pm.HalfCauchy(
-                        "sigma",
-                        beta=sigma_expected,  # Median at expected value
-                    )
-                else:  # halfnormal
-                    # HALFNORMAL: Faster sampling, needs better SNR estimate
-                    # HalfNormal(scale=s) has:
-                    #   - Mean ≈ 0.8s, mode at ≈ 0.7s
-                    #   - Light tails → less robust when SNR estimate is wrong
-                    #   - 95% mass approximately in [0, 3.3×s]
-                    #
-                    # Best for: Simulations or data with reliable SNR estimate
-                    sigma_prior_scale = 2.0 * sigma_expected  # Allows flexibility
-                    sigma = pm.HalfNormal(
-                        "sigma",
-                        sigma=sigma_prior_scale,
-                    )
-            else:
-                # FIX σ: Use deterministic value (no inference)
-                sigma = sigma_expected
+            # HALFCAUCHY: Robust to prior misspecification (Gelman recommendation)
+            # HalfCauchy(beta=b) has:
+            #   - Median = b (50% probability σ < b)
+            #   - Heavy tails → robust when SNR estimate is very wrong
+            #   - 95% mass approximately in [0.025×b, 40×b] (very wide!)
+            #
+            # This is the KEY innovation: jointly inferring R and σ!
+            sigma = pm.HalfCauchy(
+                "sigma",
+                beta=sigma_expected,  # Median at expected value
+            )
 
             # Likelihood: signal = U @ R + noise
             mu = pm.math.dot(U, R)
@@ -201,27 +168,22 @@ class NUTSSampler:
         spectrum_vector = np.mean(samples_flat, axis=0)
         spectrum_std = np.std(samples_flat, axis=0)
 
-        # Get sigma statistics (inferred or fixed)
-        if infer_sigma:
-            sigma_samples = idata.posterior["sigma"].values
-            sigma_mean = np.mean(sigma_samples)
-            sigma_std = np.std(sigma_samples)
-            print(f"\n[NUTS] Inferred noise level:")
-            print(f"  σ_data = {sigma_mean:.4f} ± {sigma_std:.4f}")
-            print(f"  Expected: {sigma_expected:.4f}")
-            if sampler_snr is not None:
-                inferred_snr = 1.0 / sigma_mean
-                rel_diff = (sigma_mean - sigma_expected) / sigma_expected * 100
-                print(
-                    f"  Inferred SNR: {inferred_snr:.1f} (expected: {sampler_snr:.1f})"
-                )
-                print(f"  Relative difference: {rel_diff:+.1f}%")
-        else:
-            sigma_samples = None
-            sigma_mean = sigma_expected
-            sigma_std = 0.0
-            print(f"\n[NUTS] Fixed noise level:")
-            print(f"  σ_data = {sigma_mean:.4f} (not inferred)")
+        # Extract sigma statistics (always inferred)
+        sigma_samples = idata.posterior["sigma"].values
+        sigma_mean = np.mean(sigma_samples)
+        sigma_std = np.std(sigma_samples)
+        inferred_snr = 1.0 / sigma_mean
+
+        print(f"\n[NUTS] Inferred noise level:")
+        print(f"  σ_posterior = {sigma_mean:.4f} ± {sigma_std:.4f}")
+        print(f"  σ_expected = {sigma_expected:.4f}")
+        print(f"  SNR_posterior = {inferred_snr:.1f}")
+
+        if sampler_snr is not None:
+            rel_diff = (sigma_mean - sigma_expected) / sigma_expected * 100
+            snr_rel_diff = (inferred_snr - sampler_snr) / sampler_snr * 100
+            print(f"  SNR_expected = {sampler_snr:.1f}")
+            print(f"  SNR relative error: {snr_rel_diff:+.1f}%")
 
         # Get initial estimate (MAP from model)
         init_method = getattr(self.config.inference, "init", "map")
@@ -230,17 +192,16 @@ class NUTSSampler:
         else:
             initial_R = np.ones(n_dim) * 0.1
 
-        # Reformat inference data to match Gibbs format (with diff_X.X variable names)
+        # Reformat inference data to match Gibbs format (with diff_X.XX variable names)
         # This is needed for compatibility with diagnostic plotting functions
-        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+        var_names = [f"diff_{diff:.2f}" for diff in diffusivities]
         posterior_data = {}
         for i, var_name in enumerate(var_names):
             # Extract data for this diffusivity across all chains
             posterior_data[var_name] = samples[:, :, i]  # (n_chains, n_iterations)
 
-        # Also include sigma in the saved data (if inferred)
-        if infer_sigma and sigma_samples is not None:
-            posterior_data["sigma"] = sigma_samples
+        # Also include sigma in the saved data
+        posterior_data["sigma"] = sigma_samples
 
         # Create new InferenceData with properly named variables
         idata_formatted = az.from_dict(posterior=posterior_data)

@@ -407,6 +407,10 @@ class DiffusivitySpectraDataset(BaseModel):
                 self._plot_autocorrelation_ess_per_diff(
                     group_id, gibbs_spectra[0], kappa, sd, local, exp_config
                 )
+                # 4. SNR/Sigma inference diagnostics (for NUTS with infer_sigma=True)
+                self._plot_snr_posterior_diagnostics(
+                    group_id, gibbs_spectra, kappa, sd, local, exp_config
+                )
                 # 4. Uncertainty coverage vs width analysis by diffusivity bucket
                 spectrum_pair = exp_config.dataset.spectrum_pair if exp_config else None
                 self._plot_uncertainty_coverage_width_by_diff(
@@ -451,6 +455,166 @@ class DiffusivitySpectraDataset(BaseModel):
             self._plot_cross_config_stability_analysis(
                 group_key, spectra_list, exp_config
             )
+
+    def _plot_snr_posterior_diagnostics(
+        self,
+        group_id,
+        spectra_list,
+        kappa,
+        signal_decay,
+        local,
+        exp_config=None,
+    ):
+        """
+        Plot SNR/sigma credible intervals for NUTS inference.
+
+        Creates a single clean plot showing:
+        - Boxplot/credible intervals for SNR across realizations
+        - Comparison to true/expected SNR
+        - Similar style to posterior_shape plots
+
+        Only works for NUTS (always infers sigma).
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import arviz as az
+
+        # Filter to NUTS spectra only
+        nuts_spectra = [s for s in spectra_list if s.inference_method == "nuts"]
+        if not nuts_spectra:
+            return
+
+        # Check if we have inference data with sigma
+        spectra_with_sigma = []
+        for spectrum in nuts_spectra:
+            if spectrum.inference_data and os.path.exists(spectrum.inference_data):
+                try:
+                    idata = az.from_netcdf(spectrum.inference_data)
+                    if "sigma" in idata.posterior:
+                        spectra_with_sigma.append(spectrum)
+                except:
+                    pass
+
+        if not spectra_with_sigma:
+            print(f"[INFO] No NUTS spectra with sigma inference found for {group_id}")
+            return
+
+        # Extract SNR posteriors from all realizations
+        all_snr_samples_by_realization = []
+        snr_means = []
+        snr_cis = []
+
+        for spectrum in spectra_with_sigma:
+            idata = az.from_netcdf(spectrum.inference_data)
+            sigma_samples = idata.posterior["sigma"].values.flatten()
+            snr_samples = 1.0 / sigma_samples
+
+            all_snr_samples_by_realization.append(snr_samples)
+            snr_means.append(np.mean(snr_samples))
+            snr_cis.append(np.percentile(snr_samples, [2.5, 97.5]))
+
+        # Get true/expected SNR if available
+        true_snr = spectra_with_sigma[0].data_snr
+        n_realizations = len(spectra_with_sigma)
+
+        # Create figure (single clean plot)
+        fig, ax = plt.subplots(figsize=(10, 7))
+
+        # Create boxplot (one box per realization)
+        bp = ax.boxplot(
+            all_snr_samples_by_realization,
+            showfliers=False,
+            showmeans=True,
+            meanline=False,
+            meanprops=dict(
+                marker="D", markerfacecolor="red", markersize=8, linestyle="none"
+            ),
+            medianprops=dict(color="blue", linewidth=2),
+            boxprops=dict(linewidth=1.5),
+            whiskerprops=dict(linewidth=1.5),
+            capprops=dict(linewidth=1.5),
+        )
+
+        # Add true SNR line if available
+        if true_snr:
+            ax.axhline(
+                true_snr,
+                color="darkgreen",
+                linestyle="--",
+                linewidth=2.5,
+                label=f"Ground Truth",
+                zorder=10,
+            )
+
+            # Calculate overall bias
+            overall_mean = np.mean(snr_means)
+            bias = overall_mean - true_snr
+            rel_error = (bias / true_snr) * 100
+
+            # Add text box with statistics (better positioning for publication)
+            stats_text = (
+                f"Estimated SNR: {overall_mean:.1f}\n"
+                f"Bias: {bias:+.1f} ({rel_error:+.1f}%)"
+            )
+            ax.text(
+                0.98,
+                0.02,
+                stats_text,
+                transform=ax.transAxes,
+                va="bottom",
+                ha="right",
+                fontsize=11,
+                bbox=dict(
+                    boxstyle="round", facecolor="white", alpha=0.9, 
+                    edgecolor="black", linewidth=1.5
+                ),
+                zorder=15,
+            )
+
+        # Customize plot
+        ax.set_xlabel("Realization", fontsize=13, fontweight="bold")
+        ax.set_ylabel("SNR (Signal-to-Noise Ratio)", fontsize=13, fontweight="bold")
+        ax.set_xticks(range(1, n_realizations + 1))
+        ax.set_xticklabels([f"{i}" for i in range(1, n_realizations + 1)])
+        ax.grid(True, alpha=0.3, axis="y")
+        ax.legend(loc="upper right", fontsize=11)
+
+        # Title (concise for publication)
+        method_str = spectra_with_sigma[0].inference_method.upper()
+        prior_str = f"{spectra_with_sigma[0].prior_type} (λ={spectra_with_sigma[0].prior_strength})"
+
+        # Concise title
+        title = f"Joint SNR and Spectrum Inference"
+        
+        # Detailed subtitle with key parameters
+        subtitle = f"Method: {method_str} | Prior: {prior_str} | Realizations: {n_realizations}"
+        if true_snr:
+            subtitle += f" | True SNR: {true_snr:.0f}"
+
+        ax.set_title(title, fontsize=13, fontweight="bold", pad=20)
+        ax.text(
+            0.5, 1.02, subtitle,
+            transform=ax.transAxes,
+            ha="center", va="bottom",
+            fontsize=10, style="italic"
+        )
+
+        plt.tight_layout()
+
+        # Save
+        fname = f"snr_posterior_{method_str.lower()}_{group_id[:8]}.pdf"
+        if local:
+            plt.savefig(
+                os.path.join("results", "plots", "plot", fname),
+                dpi=300,
+                bbox_inches="tight",
+            )
+        else:
+            wandb.log({f"snr_posterior/{group_id[:8]}": wandb.Image(fig)})
+
+        plt.close()
+
+        print(f"[INFO] Saved SNR posterior plot for {group_id[:8]}")
 
     def _plot_cross_config_stability_analysis(
         self, group_key, spectra_list, exp_config, local
@@ -562,7 +726,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Customize plot
         ax.set_xticks(positions_base)
-        ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=45)
+        ax.set_xticklabels([f"{d:.2f}" for d in diffusivities], rotation=45)
         ax.set_ylabel("Relative Fraction")
         ax.set_xlabel("Diffusivity Value (μm²/ms)")
 
@@ -821,7 +985,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Customize plot
         ax.set_xticks(x_positions)
-        ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=45)
+        ax.set_xticklabels([f"{d:.2f}" for d in diffusivities], rotation=45)
         ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ms)", fontsize=12)
         ax.set_ylabel("Relative Fraction", fontsize=12)
         ax.grid(True, alpha=0.3)
@@ -895,7 +1059,7 @@ class DiffusivitySpectraDataset(BaseModel):
             showfliers=False,
             showmeans=True,
             meanline=True,
-            labels=[f"{d:.1f}" for d in diffusivities],
+            labels=[f"{d:.2f}" for d in diffusivities],
         )
 
         # Add MAP initialization if available
@@ -924,7 +1088,7 @@ class DiffusivitySpectraDataset(BaseModel):
         # Customize plot
         ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ms)")
         ax.set_ylabel("Relative Fraction")
-        ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=45)
+        ax.set_xticklabels([f"{d:.2f}" for d in diffusivities], rotation=45)
 
         title = f"Posterior Distribution (Boxplot) | Group: {group_id[:8]} | Realization: {idx+1}\n"
         title += (
@@ -1239,7 +1403,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Customize plot
         ax.set_xticks(positions)
-        ax.set_xticklabels([f"{d:.1f}" for d in diffusivities], rotation=90)
+        ax.set_xticklabels([f"{d:.2f}" for d in diffusivities], rotation=90)
         ax.set_ylabel("Relative Fraction")
         ax.set_xlabel("Diffusivity Value")
 
@@ -1443,13 +1607,13 @@ class DiffusivitySpectraDataset(BaseModel):
             ax.plot(
                 np.arange(len(samples)),
                 samples[:, j],
-                label=f"D={diff:.1f}",
+                label=f"D={diff:.2f}",
                 alpha=0.8,
                 linewidth=1,
             )
             ax.set_xlabel("Iteration")
             ax.set_ylabel("Fraction")
-            ax.set_title(f"D = {diff:.1f}")
+            ax.set_title(f"D = {diff:.2f}")
             ax.grid(True, alpha=0.3)
             ax.legend()
 
@@ -1530,7 +1694,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
             ax.set_xlabel("Lag")
             ax.set_ylabel("Autocorrelation")
-            ax.set_title(f"D = {diff:.1f}")
+            ax.set_title(f"D = {diff:.2f}")
             ax.grid(True, alpha=0.3)
             ax.legend(fontsize=8)
 
@@ -1589,7 +1753,7 @@ class DiffusivitySpectraDataset(BaseModel):
                     break
 
             lags = np.arange(1, len(autocorr) + 1)
-            ax.plot(lags, autocorr, label=f"D = {diff:.1f}", linewidth=1.5, alpha=0.8)
+            ax.plot(lags, autocorr, label=f"D = {diff:.2f}", linewidth=1.5, alpha=0.8)
 
         # Add reference lines
         ax.axhline(y=0, color="k", linestyle="--", alpha=0.5)
@@ -2197,7 +2361,7 @@ class DiffusivitySpectraDataset(BaseModel):
             return
 
         # Calculate ESS for each diffusivity
-        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+        var_names = [f"diff_{diff:.2f}" for diff in diffusivities]
         ess_bulk = az.ess(idata, method="bulk")
         ess_tail = az.ess(idata, method="tail")
 
@@ -2223,7 +2387,7 @@ class DiffusivitySpectraDataset(BaseModel):
             ess_b = float(ess_bulk[var_name].values)
             ess_t = float(ess_tail[var_name].values)
             ax_autocorr.set_title(
-                f"Autocorrelation: D={diff:.1f} | ESS_bulk={ess_b:.0f}, ESS_tail={ess_t:.0f}",
+                f"Autocorrelation: D={diff:.2f} | ESS_bulk={ess_b:.0f}, ESS_tail={ess_t:.0f}",
                 fontsize=11,
                 fontweight="bold",
             )
@@ -2232,7 +2396,7 @@ class DiffusivitySpectraDataset(BaseModel):
             ax_ess = axes[i, 1]
             az.plot_ess(idata, var_names=[var_name], kind="evolution", ax=ax_ess)
             ax_ess.set_title(
-                f"ESS Evolution: D={diff:.1f}", fontsize=11, fontweight="bold"
+                f"ESS Evolution: D={diff:.2f}", fontsize=11, fontweight="bold"
             )
 
         # Add overall title
@@ -2302,7 +2466,7 @@ class DiffusivitySpectraDataset(BaseModel):
         rhat_data = az.rhat(idata)
 
         # Extract R-hat values for summary
-        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+        var_names = [f"diff_{diff:.2f}" for diff in diffusivities]
         rhat_values = [float(rhat_data[var_name].values) for var_name in var_names]
         max_rhat = np.max(rhat_values)
         mean_rhat = np.mean(rhat_values)
@@ -2509,7 +2673,7 @@ class DiffusivitySpectraDataset(BaseModel):
         chains_array = np.stack(all_chains, axis=0)
 
         # Create variable names for each diffusivity
-        var_names = [f"diff_{diff:.1f}" for diff in diffusivities]
+        var_names = [f"diff_{diff:.2f}" for diff in diffusivities]
 
         # Create xarray Dataset for posterior
         posterior_data = {}

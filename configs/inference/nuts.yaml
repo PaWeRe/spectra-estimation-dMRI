@@ -4,12 +4,11 @@ tune: 1000 # Number of tuning steps
 n_chains: 4 # Number of parallel chains
 target_accept: 0.95 # Higher = more careful sampling (0.8-0.99)
 
-# Noise level inference
-infer_sigma: true # true = infer σ from data, false = fix σ at 1/SNR
-sigma_prior: halfcauchy # Prior on σ: 'halfcauchy' (robust) or 'halfnormal' (faster)
+# Noise level inference (ALWAYS INFERRED - this is the key innovation!)
+# σ ~ HalfCauchy(beta) where beta is set based on SNR if available
 sampler_snr:
-  null # SNR for σ prior (optional - HalfCauchy works well without it!)
-  # null = use generic prior, number = use 1/SNR as guide
+  null # SNR for σ prior scale (optional - HalfCauchy is robust without it!)
+  # null = use generic prior (beta=0.01), number = use 1/SNR as beta
   # Falls back to dataset.snr if not specified
 
 init: map # Initialization: 'map', 'random', or 'zeros'

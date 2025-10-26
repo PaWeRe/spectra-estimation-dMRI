@@ -46,7 +46,7 @@ def plot_d_spectra_sample_boxplot(
         fig, ax = plt.subplots()
         ax.set_xlabel(r"Diffusivity Value ($\mu$m$^2$/ ms.)")
         ax.set_ylabel("Relative Fraction")
-        tick_labels = [str(number) for number in d_spectra_sample.diffusivities]
+        tick_labels = [f"{number:.2f}" for number in d_spectra_sample.diffusivities]
         if skip:
             for i in range(0, len(d_spectra_sample.diffusivities)):
                 if i % 2 == 1:
@@ -94,7 +94,7 @@ def plot_d_spectra_sample_autocorrelation(d_spectra_sample, max_lag=2000, ax=Non
         ax.plot(
             np.arange(this_max_lag),
             acf,
-            label=f"D={d_spectra_sample.diffusivities[dim]}",
+            label=f"D={d_spectra_sample.diffusivities[dim]:.2f}",
         )
     ax.set_xlabel("Sample Lag")
     ax.set_ylabel("Autocorrelation")
