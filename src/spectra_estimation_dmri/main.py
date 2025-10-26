@@ -87,6 +87,11 @@ def main(cfg: DictConfig):
             json_path=cfg.dataset.signal_decays_json,
             metadata_path=cfg.dataset.metadata_csv,
         )
+        # Apply subset sampling if configured
+        max_samples = getattr(cfg.dataset, "max_samples", None)
+        if max_samples is not None and max_samples > 0:
+            print(f"[INFO] Limiting to first {max_samples} samples for testing")
+            signal_decay_dataset.samples = signal_decay_dataset.samples[:max_samples]
         signal_decay_dataset.summary()
         spectrum_model = ProbabilisticModel(
             likelihood_config=cfg.likelihood,
@@ -257,134 +262,50 @@ def main(cfg: DictConfig):
     # Create spectra dataset for biomarker analysis
     spectra_dataset = DiffusivitySpectraDataset(spectra=spectra)
 
-    ### 3) CANCER BIOMARKER ANALYSIS ###
+    ### 3) CANCER BIOMARKER ANALYSIS (SIMPLE & LEAN) ###
     biomarker_results = None
     if getattr(cfg, "biomarker_analysis", {}).get("enabled", False):
         print("\n" + "=" * 60)
-        print("CANCER BIOMARKER ANALYSIS")
+        print("SIMPLE GLEASON SCORE PREDICTION")
         print("=" * 60)
 
         try:
-            # Initialize biomarker pipeline
-            biomarker_pipeline = BiomarkerPipeline(cfg)
+            from .biomarkers.simple_gleason_predictor import simple_biomarker_analysis
 
-            # Run biomarker analysis
-            if cfg.biomarker_analysis.model_comparison.enabled:
-                print("[INFO] Running biomarker model comparison...")
-                biomarker_results = biomarker_pipeline.run_model_comparison(
-                    spectra_dataset
+            # Get metadata path
+            metadata_path = cfg.dataset.get(
+                "metadata_path", "src/spectra_estimation_dmri/data/bwh/metadata.csv"
+            )
+
+            # Run simple biomarker analysis
+            predictor, X, y, metrics = simple_biomarker_analysis(
+                spectra_dataset=spectra_dataset,
+                metadata_path=metadata_path,
+                output_dir=biomarker_dir,
+                model_type=cfg.classifier.get("name", "logistic"),
+                use_uncertainty=cfg.biomarker_analysis.get("use_uncertainty", True),
+                use_mc_predictions=cfg.biomarker_analysis.get(
+                    "use_mc_predictions", False
+                ),
+            )
+
+            biomarker_results = {
+                "predictor": predictor,
+                "features": X,
+                "targets": y,
+                "metrics": metrics,
+            }
+
+            # Log to W&B
+            if not cfg.local:
+                wandb.log(
+                    {
+                        "biomarker/accuracy": metrics.get("accuracy", 0),
+                        "biomarker/auc": metrics.get("auc", 0),
+                        "biomarker/sensitivity": metrics.get("sensitivity", 0),
+                        "biomarker/specificity": metrics.get("specificity", 0),
+                    }
                 )
-            else:
-                print(f"[INFO] Running single biomarker model: {cfg.classifier.name}")
-                biomarker_results = biomarker_pipeline.run_single_model(
-                    spectra_dataset, cfg.classifier.name
-                )
-
-            # Get best model for visualization
-            best_biomarker = biomarker_pipeline.get_best_model()
-
-            if best_biomarker is not None:
-
-                try:
-                    y_true, _ = best_biomarker.prepare_targets(spectra_dataset)
-                    if len(y_true) > 0:
-                        y_pred, y_prob = best_biomarker.predict(spectra_dataset)
-                        y_prob_positive = y_prob[:, 1] if y_prob.ndim > 1 else y_prob
-
-                        # Initialize visualizer and evaluator
-                        visualizer = BiomarkerVisualizer()
-                        evaluator = BiomarkerEvaluator()
-
-                        # Create comprehensive evaluation
-                        evaluation_results = evaluator.evaluate_comprehensive(
-                            y_true,
-                            y_pred,
-                            y_prob_positive,
-                            model_name=best_biomarker.model_type,
-                        )
-
-                        # Create visualizations
-                        print("[INFO] Creating biomarker visualizations...")
-
-                        # ROC curve
-                        fig_roc = visualizer.plot_roc_curve(
-                            y_true,
-                            y_prob_positive,
-                            model_name=best_biomarker.model_type,
-                            save_path=os.path.join(biomarker_dir, "roc_curve.png"),
-                        )
-
-                        # Confusion matrix
-                        fig_cm = visualizer.plot_confusion_matrix(
-                            y_true,
-                            y_pred,
-                            save_path=os.path.join(
-                                biomarker_dir, "confusion_matrix.png"
-                            ),
-                        )
-
-                        # Feature importance
-                        feature_importance = best_biomarker.get_feature_importance()
-                        if feature_importance:
-                            fig_fi = visualizer.plot_feature_importance(
-                                feature_importance,
-                                title=f"Feature Importance - {best_biomarker.model_type}",
-                                save_path=os.path.join(
-                                    biomarker_dir, "feature_importance.png"
-                                ),
-                            )
-
-                        # Calibration plot
-                        fig_cal = visualizer.plot_calibration_curve(
-                            y_true,
-                            y_prob_positive,
-                            model_name=best_biomarker.model_type,
-                            save_path=os.path.join(biomarker_dir, "calibration.png"),
-                        )
-
-                        # Comprehensive dashboard
-                        fig_dashboard = visualizer.create_biomarker_dashboard(
-                            evaluation_results,
-                            y_true,
-                            y_pred,
-                            y_prob_positive,
-                            feature_importance=feature_importance,
-                            save_path=os.path.join(biomarker_dir, "dashboard.png"),
-                        )
-
-                        # Generate and print evaluation report
-                        report = evaluator.generate_report(evaluation_results)
-                        print("\n" + report)
-
-                        # Save report to file
-                        report_path = os.path.join(
-                            biomarker_dir, "evaluation_report.txt"
-                        )
-                        with open(report_path, "w") as f:
-                            f.write(report)
-
-                        # Log summary report from pipeline
-                        pipeline_report = biomarker_pipeline.get_summary_report()
-                        print("\n" + pipeline_report)
-
-                        # Save pipeline report
-                        pipeline_report_path = os.path.join(
-                            biomarker_dir, "pipeline_summary.txt"
-                        )
-                        with open(pipeline_report_path, "w") as f:
-                            f.write(pipeline_report)
-
-                        print(
-                            f"[INFO] Biomarker analysis completed. Results saved to: {biomarker_dir}"
-                        )
-
-                except Exception as e:
-                    print(f"[WARNING] Error in biomarker visualization: {str(e)}")
-                    print(
-                        "[INFO] Biomarker analysis completed but visualization failed"
-                    )
-            else:
-                print("[WARNING] No valid biomarker model found")
 
         except Exception as e:
             print(f"[ERROR] Biomarker analysis failed: {str(e)}")

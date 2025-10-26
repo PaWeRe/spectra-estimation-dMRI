@@ -13,3 +13,5 @@ b_values:
   [0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5, 2.75, 3., 3.25, 3.5]
 signal_decays_json: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/signal_decays.json
 metadata_csv: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/metadata.csv
+# Subset sampling for testing (null = use all samples)
+max_samples: null # Set to integer (e.g. 5) for quick testing
