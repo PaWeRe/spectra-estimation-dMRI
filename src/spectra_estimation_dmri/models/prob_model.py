@@ -29,7 +29,8 @@ class ProbabilisticModel:
         no_noise: bool = False,
     ):
         self.data_snr = data_snr
-        self.data_sigma = 1 / self.data_snr
+        # For real data (BWH), data_snr is None (unknown)
+        self.data_sigma = 1 / self.data_snr if self.data_snr is not None else None
         self.likelihood_config = likelihood_config or {}
         self.prior_config = prior_config
         self.true_spectrum = true_spectrum
