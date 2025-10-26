@@ -292,6 +292,40 @@ spectrum_pairs:
         0.07733034, # Normal glandular
         0.07777243, # Free water
       ]
+  # ========================================================================
+  # GEOMETRIC SIGNAL-SPACING (Per Stephan - simple math model)
+  # Formula: S(D) = exp(-b_max*D) with b_max=3.5, D_max=3.0
+  # Bins equally spaced in log(S) → D_i = -ln(S_i)/b_max, round to 0.25
+  # ========================================================================
+  geometric_8bins:
+    # 8 bins: geometric spacing, optimized conditioning (RECOMMENDED)
+    # Drop D=1.75 from full geometric series → κ = 3.46e5 (23x better!)
+    diff_values: [0.25, 0.75, 1.0, 1.5, 2.25, 2.5, 3.0, 20.0]
+    true_spectrum: [
+        0.26690788, # D=0.25 (tumor)
+        0.03827977, # D=0.75 (low-grade tumor)
+        0.05845508, # D=1.0 (restricted)
+        0.10251014, # D=1.5 (hindered)
+        0.24624372, # D=2.25 (combined 1.75-2.5, normal/stromal)
+        0.09558901, # D=2.5 (glandular)
+        0.07733034, # D=3.0 (high diffusivity)
+        0.11610717, # D=20 (free water)
+      ]
+  geometric_9bins:
+    # 9 bins: full geometric spacing (κ = 7.88e6, needs strong regularization)
+    # Use with prior.strength >= 1.5
+    diff_values: [0.25, 0.75, 1.0, 1.5, 1.75, 2.25, 2.5, 3.0, 20.0]
+    true_spectrum: [
+        0.26690788, # D=0.25 (tumor)
+        0.03827977, # D=0.75 (low-grade tumor)
+        0.05845508, # D=1.0 (restricted)
+        0.10251014, # D=1.5 (hindered)
+        0.1161373, # D=1.75 (stromal)
+        0.13010999, # D=2.25 (normal)
+        0.09558901, # D=2.5 (glandular)
+        0.07733034, # D=3.0 (high diffusivity)
+        0.11610717, # D=20 (free water)
+      ]
 spectrum_pair: npz_default # select which pair to use
 b_values:
   [0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5, 2.75, 3., 3.25, 3.5]

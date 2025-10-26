@@ -1,7 +1,15 @@
 # Hydra config for the bwh dataset
-# No b_values as they are pre-determined by protocol ran during data acquisition
 name: bwh
 true_spectrum_name: None
-diff_values: [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 20.00]
+# Geometric signal-spacing discretization (8 bins, optimized conditioning)
+# Formula: S(D) = exp(-b_max*D) with b_max=3.5
+# Bins equally spaced in log(S) → D_i = -ln(S_i)/b_max, rounded to 0.25
+# Drop D=1.75 for better conditioning: κ = 3.46e5 (vs 7.88e6 with 9 bins)
+# Result: [0.25, 0.75, 1.0, 1.5, 2.25, 2.5, 3.0, 20.0]
+# Includes D=20 for free water (CSF/vascular at b=0)
+diff_values: [0.25, 0.75, 1.0, 1.5, 2.25, 2.5, 3.0, 20.0]
+# B-values from BWH acquisition protocol (0-3500 s/mm²)
+b_values:
+  [0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5, 2.75, 3., 3.25, 3.5]
 signal_decays_json: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/signal_decays.json
 metadata_csv: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/metadata.csv
