@@ -47,11 +47,14 @@ class MAPInference:
                 idata.to_netcdf(inference_data_path)
 
         # Create result object
-        pair = self.config.dataset.spectrum_pair
-        diffusivities = self.config.dataset.spectrum_pairs[
-            pair
-        ].diff_values  # TODO: this only works for sim case, make sure to make it work with bwh
-        true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
+        if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+            pair = self.config.dataset.spectrum_pair
+            diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
+            true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
+        else:
+            # For BWH data, get directly from config
+            diffusivities = self.config.dataset.diff_values
+            true_spectrum = None
         spectrum = DiffusivitySpectrum(
             inference_method="map",
             signal_decay=self.signal_decay,

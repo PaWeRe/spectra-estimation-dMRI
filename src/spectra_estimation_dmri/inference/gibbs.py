@@ -188,8 +188,11 @@ class GibbsSamplerClean:
         if return_idata:
             # all_chains shape: (n_chains, n_iterations, n_dim)
             # Create variable names for each diffusivity
-            pair = self.config.dataset.spectrum_pair
-            diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
+            if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+                pair = self.config.dataset.spectrum_pair
+                diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
+            else:
+                diffusivities = self.config.dataset.diff_values
             var_names = [f"diff_{diff:.2f}" for diff in diffusivities]
 
             # Create posterior dict with separate variables
@@ -232,9 +235,13 @@ class GibbsSamplerClean:
         spectrum_std = np.std(samples_flat, axis=0)
 
         # Create result object
-        pair = self.config.dataset.spectrum_pair
-        diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
-        true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
+        if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+            pair = self.config.dataset.spectrum_pair
+            diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
+            true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
+        else:
+            diffusivities = self.config.dataset.diff_values
+            true_spectrum = None
 
         spectrum = DiffusivitySpectrum(
             inference_method="gibbs",

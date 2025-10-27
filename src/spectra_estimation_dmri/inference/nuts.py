@@ -87,10 +87,15 @@ class NUTSSampler:
             # Covers typical range: σ ∈ [0.0001, 0.1] for normalized signal
             sigma_expected = 0.01  # HalfCauchy beta (median)
 
-        # Get spectrum pair info
-        pair = self.config.dataset.spectrum_pair
-        diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
-        true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
+        # Get spectrum pair info (only for simulated data)
+        if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+            pair = self.config.dataset.spectrum_pair
+            diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
+            true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
+        else:
+            # For BWH data, get from dataset config directly
+            diffusivities = self.config.dataset.diff_values
+            true_spectrum = None
 
         print(f"[NUTS] Starting sampling with {n_chains} chains, {n_iter} iterations")
         print(
