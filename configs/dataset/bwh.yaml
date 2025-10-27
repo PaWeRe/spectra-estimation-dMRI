@@ -17,3 +17,8 @@ signal_decays_json: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/si
 metadata_csv: ${hydra:runtime.cwd}/src/spectra_estimation_dmri/data/bwh/metadata.csv
 # Subset sampling for testing (null = use all samples)
 max_samples: null # Set to integer (e.g. 5) for quick testing
+
+# Biomarker analysis configuration (automatic for BWH)
+biomarker_n_mc_samples: 200 # Number of MC samples for uncertainty propagation
+biomarker_regularization: 1.0 # L2 regularization strength for logistic regression
+biomarker_adc_b_range: [0.0, 1.25] # ADC b-value range in ms units (0-1250 s/mm²)
