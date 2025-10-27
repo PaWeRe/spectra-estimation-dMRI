@@ -47,7 +47,10 @@ class MAPInference:
                 idata.to_netcdf(inference_data_path)
 
         # Create result object
-        if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+        if (
+            hasattr(self.config.dataset, "spectrum_pair")
+            and self.config.dataset.spectrum_pair is not None
+        ):
             pair = self.config.dataset.spectrum_pair
             diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
             true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum

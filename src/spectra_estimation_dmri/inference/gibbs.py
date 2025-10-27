@@ -55,6 +55,12 @@ class GibbsSamplerClean:
         """
         # Get data
         signal = np.array(self.signal_decay.signal_values)
+
+        # Normalize signal by S_0 (b=0 value) for numerical stability
+        # This ensures signal is in [0, 1] range, matching prior expectations
+        S_0 = signal[0] if signal[0] > 0 else 1.0
+        signal_normalized = signal / S_0
+
         U = self.model.U_matrix()
         n_dim = U.shape[1]
 
@@ -93,14 +99,15 @@ class GibbsSamplerClean:
         print(
             f"[Gibbs Clean] SNR={sampler_snr}, σ={sigma:.6f}, prior={prior_type}, λ={prior_strength}"
         )
+        print(f"[Gibbs Clean] Signal normalization: S_0 = {S_0:.1f}")
         print(
             f"[Gibbs Clean] n_dim={n_dim}, n_iter={n_iter}, burn_in={burn_in}, n_chains={n_chains}"
         )
 
-        # Get initial R (shared across chains)
+        # Get initial R (shared across chains, using normalized signal)
         init_method = self.config.inference.get("init", "map")
         if init_method == "map":
-            R_init = self.model.map_estimate(signal).copy()
+            R_init = self.model.map_estimate(signal_normalized).copy()
         elif init_method == "random":
             R_init = np.abs(np.random.randn(n_dim))
         elif init_method == "zeros":
@@ -143,7 +150,7 @@ class GibbsSamplerClean:
                 # One Gibbs sweep: update each component
                 for i in range(n_dim):
                     # 1. Compute residual excluding component i
-                    residual = signal - U @ R + U[:, i] * R[i]
+                    residual = signal_normalized - U @ R + U[:, i] * R[i]
 
                     # 2. Compute conditional precision
                     if prior_type == "uniform":
@@ -188,7 +195,10 @@ class GibbsSamplerClean:
         if return_idata:
             # all_chains shape: (n_chains, n_iterations, n_dim)
             # Create variable names for each diffusivity
-            if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+            if (
+                hasattr(self.config.dataset, "spectrum_pair")
+                and self.config.dataset.spectrum_pair is not None
+            ):
                 pair = self.config.dataset.spectrum_pair
                 diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
             else:
@@ -235,7 +245,10 @@ class GibbsSamplerClean:
         spectrum_std = np.std(samples_flat, axis=0)
 
         # Create result object
-        if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+        if (
+            hasattr(self.config.dataset, "spectrum_pair")
+            and self.config.dataset.spectrum_pair is not None
+        ):
             pair = self.config.dataset.spectrum_pair
             diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
             true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum

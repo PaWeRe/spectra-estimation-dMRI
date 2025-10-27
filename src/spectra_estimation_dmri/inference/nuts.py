@@ -61,6 +61,12 @@ class NUTSSampler:
         """
         # Get configuration
         signal = np.array(self.signal_decay.signal_values)
+
+        # Normalize signal by S_0 (b=0 value) for numerical stability
+        # This ensures signal is in [0, 1] range, matching prior expectations
+        S_0 = signal[0] if signal[0] > 0 else 1.0
+        signal_normalized = signal / S_0
+
         U = self.model.U_matrix()
         n_dim = U.shape[1]
 
@@ -88,7 +94,10 @@ class NUTSSampler:
             sigma_expected = 0.01  # HalfCauchy beta (median)
 
         # Get spectrum pair info (only for simulated data)
-        if hasattr(self.config.dataset, 'spectrum_pair') and self.config.dataset.spectrum_pair is not None:
+        if (
+            hasattr(self.config.dataset, "spectrum_pair")
+            and self.config.dataset.spectrum_pair is not None
+        ):
             pair = self.config.dataset.spectrum_pair
             diffusivities = self.config.dataset.spectrum_pairs[pair].diff_values
             true_spectrum = self.config.dataset.spectrum_pairs[pair].true_spectrum
@@ -144,7 +153,7 @@ class NUTSSampler:
                 "obs",
                 mu=mu,
                 sigma=sigma,
-                observed=signal,
+                observed=signal_normalized,
             )
 
             # Sample using NUTS
@@ -179,10 +188,11 @@ class NUTSSampler:
         sigma_std = np.std(sigma_samples)
         inferred_snr = 1.0 / sigma_mean
 
-        print(f"\n[NUTS] Inferred noise level:")
+        print(f"\n[NUTS] Inferred noise level (on normalized signal):")
         print(f"  σ_posterior = {sigma_mean:.4f} ± {sigma_std:.4f}")
         print(f"  σ_expected = {sigma_expected:.4f}")
         print(f"  SNR_posterior = {inferred_snr:.1f}")
+        print(f"  Signal normalization: S_0 = {S_0:.1f}")
 
         if sampler_snr is not None:
             rel_diff = (sigma_mean - sigma_expected) / sigma_expected * 100
@@ -190,10 +200,10 @@ class NUTSSampler:
             print(f"  SNR_expected = {sampler_snr:.1f}")
             print(f"  SNR relative error: {snr_rel_diff:+.1f}%")
 
-        # Get initial estimate (MAP from model)
+        # Get initial estimate (MAP from model, using normalized signal)
         init_method = getattr(self.config.inference, "init", "map")
         if init_method == "map":
-            initial_R = self.model.map_estimate(signal).copy()
+            initial_R = self.model.map_estimate(signal_normalized).copy()
         else:
             initial_R = np.ones(n_dim) * 0.1
 
