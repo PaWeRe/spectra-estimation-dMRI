@@ -1,0 +1,12 @@
+#! /bin/bash -f
+printf -v image '%06d' $1
+echo creating links for slice $slice
+ln -s $image.IMA  slice$1-$image.IMA
+nbndir=45
+until [ $nbndir -lt 1 ]; do
+  i=$(($1 + $2*nbndir))
+  echo $i $nbndir
+  printf -v image '%06d' $i
+  ln -s $image.IMA  slice$1-$image.IMA
+  let nbndir-=1
+done  

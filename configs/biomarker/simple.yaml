@@ -1,0 +1,6 @@
+name: simple
+enabled: true
+use_uncertainty: true  # Include uncertainty features (std, CI width)
+use_mc_predictions: false  # Use Monte Carlo predictions (slower but gives prediction uncertainty)
+gleason_threshold: 2  # GGG threshold: >2 is high-grade cancer
+
