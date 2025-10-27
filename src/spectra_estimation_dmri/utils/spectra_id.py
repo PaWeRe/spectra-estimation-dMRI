@@ -34,7 +34,7 @@ def set_spectra_id(signal_decay, exp_config):
         "inference": inference_cfg,
         "spectrum_pair": spectrum_pair,
     }
-    print(hash_dict)
+    # Debug: print(hash_dict)
     json_repr = json.dumps(hash_dict, sort_keys=True, separators=(",", ":"))
     return hashlib.md5(json_repr.encode("utf-8")).hexdigest()[:12]
 
