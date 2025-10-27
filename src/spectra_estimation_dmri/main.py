@@ -20,13 +20,6 @@ from spectra_estimation_dmri.data.data_models import (
     DiffusivitySpectraDataset,
 )
 
-# Import biomarker analysis components
-from spectra_estimation_dmri.biomarkers import (
-    BiomarkerPipeline,
-    BiomarkerEvaluator,
-    BiomarkerVisualizer,
-)
-
 # Import sampler comparison tools
 from spectra_estimation_dmri.analysis.sampler_comparison import (
     extract_metrics_from_spectrum,
@@ -177,16 +170,34 @@ def main(cfg: DictConfig):
                     f"[INFO] Loaded precomputed result: {output_path} (spectra_id: {spectra_id})"
                 )
                 # Load spectrum from .nc file
-                # TODO: retrieve spectrum init as well and change None in SpectrumDiffusivity object below!
                 idata = az.from_netcdf(output_path)
+
+                # Handle different inference methods and variable formats
                 if cfg.inference.name == "map":
                     spectrum_vector = idata.posterior["R"].values[0, 0, :].tolist()
                     spectrum_samples = None
                     spectrum_std = None
-                elif cfg.inference.name == "gibbs":
-                    samples = idata.posterior["R"].values.reshape(
-                        -1, idata.posterior["R"].shape[-1]
-                    )
+                elif cfg.inference.name in ["gibbs", "nuts"]:
+                    # Check if data is in "R" format (old) or "diff_X.XX" format (new NUTS)
+                    if "R" in idata.posterior:
+                        # Old format: single "R" variable
+                        samples = idata.posterior["R"].values.reshape(
+                            -1, idata.posterior["R"].shape[-1]
+                        )
+                    else:
+                        # New format: separate "diff_X.XX" variables
+                        # Reconstruct R matrix from individual diffusivity variables
+                        var_names = [f"diff_{d:.2f}" for d in diff_values]
+                        samples_list = []
+                        for var_name in var_names:
+                            # Shape: (n_chains, n_draws)
+                            var_samples = idata.posterior[var_name].values
+                            samples_list.append(var_samples)
+                        # Stack: (n_diffusivities, n_chains, n_draws) -> (n_chains, n_draws, n_diffusivities)
+                        samples_array = np.stack(samples_list, axis=-1)
+                        # Reshape to (n_chains * n_draws, n_diffusivities)
+                        samples = samples_array.reshape(-1, len(diff_values))
+
                     spectrum_vector = samples.mean(axis=0).tolist()
                     spectrum_samples = samples.tolist()
                     spectrum_std = samples.std(axis=0).tolist()
@@ -194,12 +205,20 @@ def main(cfg: DictConfig):
                     spectrum_vector = []
                     spectrum_samples = None
                     spectrum_std = None
+
+                # Compute spectrum_init (MAP estimate)
+                # Normalize signal for consistency with inference code
+                signal_values = np.array(signal_decay.signal_values)
+                S_0 = signal_values[0] if signal_values[0] > 0 else 1.0
+                signal_normalized = signal_values / S_0
+                spectrum_init = model.map_estimate(signal_normalized).tolist()
+
                 spectrum = DiffusivitySpectrum(
                     inference_method=cfg.inference.name,
                     signal_decay=signal_decay,
                     diffusivities=diff_values,
                     design_matrix_U=model.U_matrix(),
-                    # spectrum_init=,
+                    spectrum_init=spectrum_init,
                     spectrum_vector=spectrum_vector,
                     spectrum_samples=spectrum_samples,
                     spectrum_std=spectrum_std,
@@ -262,53 +281,49 @@ def main(cfg: DictConfig):
     # Create spectra dataset for biomarker analysis
     spectra_dataset = DiffusivitySpectraDataset(spectra=spectra)
 
-    ### 3) CANCER BIOMARKER ANALYSIS (SIMPLE & LEAN) ###
+    ### 3) CANCER BIOMARKER ANALYSIS ###
     biomarker_results = None
-    if getattr(cfg, "biomarker_analysis", {}).get("enabled", False):
+
+    # Automatic biomarker analysis for BWH dataset
+    if cfg.dataset.name == "bwh":
         print("\n" + "=" * 60)
-        print("SIMPLE GLEASON SCORE PREDICTION")
+        print("BWH BIOMARKER ANALYSIS")
         print("=" * 60)
 
         try:
-            from .biomarkers.simple_gleason_predictor import simple_biomarker_analysis
-
-            # Get metadata path
-            metadata_path = cfg.dataset.get(
-                "metadata_path", "src/spectra_estimation_dmri/data/bwh/metadata.csv"
+            from spectra_estimation_dmri.biomarkers.pipeline import (
+                run_biomarker_analysis,
             )
 
-            # Run simple biomarker analysis
-            predictor, X, y, metrics = simple_biomarker_analysis(
+            # Run comprehensive biomarker analysis
+            n_mc_samples = getattr(cfg.dataset, "biomarker_n_mc_samples", 200)
+            regularization = getattr(cfg.dataset, "biomarker_regularization", 1.0)
+            adc_b_range = getattr(cfg.dataset, "biomarker_adc_b_range", [0.0, 1.0])
+
+            biomarker_results = run_biomarker_analysis(
                 spectra_dataset=spectra_dataset,
-                metadata_path=metadata_path,
                 output_dir=biomarker_dir,
-                model_type=cfg.classifier.get("name", "logistic"),
-                use_uncertainty=cfg.biomarker_analysis.get("use_uncertainty", True),
-                use_mc_predictions=cfg.biomarker_analysis.get(
-                    "use_mc_predictions", False
+                n_mc_samples=n_mc_samples,
+                regularization=regularization,
+                adc_b_range=(
+                    tuple(adc_b_range) if isinstance(adc_b_range, list) else adc_b_range
                 ),
             )
 
-            biomarker_results = {
-                "predictor": predictor,
-                "features": X,
-                "targets": y,
-                "metrics": metrics,
-            }
-
-            # Log to W&B
-            if not cfg.local:
-                wandb.log(
-                    {
-                        "biomarker/accuracy": metrics.get("accuracy", 0),
-                        "biomarker/auc": metrics.get("auc", 0),
-                        "biomarker/sensitivity": metrics.get("sensitivity", 0),
-                        "biomarker/specificity": metrics.get("specificity", 0),
-                    }
-                )
+            # Log summary metrics to W&B
+            if not cfg.local and biomarker_results is not None:
+                results_dict = biomarker_results.get("results", {})
+                for task_name, task_results in results_dict.items():
+                    for result in task_results:
+                        if result is not None and "Full LR" in result["feature_name"]:
+                            auc = result["metrics"].get("auc", 0)
+                            wandb.log({f"biomarker/{task_name}/auc": auc})
 
         except Exception as e:
+            import traceback
+
             print(f"[ERROR] Biomarker analysis failed: {str(e)}")
+            print(traceback.format_exc())
             print("[INFO] Continuing with spectrum diagnostics...")
 
     ### 4) SPECTRUM DIAGNOSTICS AND PLOTTING ###
@@ -316,6 +331,26 @@ def main(cfg: DictConfig):
     print("SPECTRUM DIAGNOSTICS")
     print("=" * 60)
     spectra_dataset.run_diagnostics(exp_config=cfg, local=cfg.local)
+
+    ### 5) ISMRM ABSTRACT EXPORTS (BWH only) ###
+    if cfg.dataset.name == "bwh" and biomarker_results is not None:
+        try:
+            from spectra_estimation_dmri.visualization import (
+                create_all_ismrm_exports,
+                group_spectra_by_region,
+            )
+
+            ismrm_dir = os.path.join(cfg.project_root, "results", "ismrm_exports")
+            regions = group_spectra_by_region(spectra_dataset)
+
+            create_all_ismrm_exports(
+                spectra_dataset=spectra_dataset,
+                results_dict=biomarker_results.get("results", {}),
+                regions=regions,
+                output_dir=ismrm_dir,
+            )
+        except Exception as e:
+            print(f"[WARNING] ISMRM export failed: {str(e)}")
 
     # Final summary
     print("\n" + "=" * 60)

@@ -305,10 +305,10 @@ class DiffusivitySpectraDataset(BaseModel):
 
     def run_diagnostics(self, exp_config=None, local=True):
         """
-        Run diagnostics and generate three types of plots:
-        1. Distribution/box plots for Gibbs sampling
-        2. Stability analysis comparing MAP and Gibbs point estimates
-        3. Trace plots for Gibbs sampling
+        Run diagnostics and generate plots.
+
+        For BWH dataset: Regional boxplots and statistics
+        For simulated data: Distribution/stability/trace plots
 
         Groups spectra by group_id to analyze different noise realizations together.
         """
@@ -321,6 +321,17 @@ class DiffusivitySpectraDataset(BaseModel):
 
         if exp_config is None:
             raise ValueError("exp_config must be provided to group spectra correctly.")
+
+        # Check if this is BWH dataset
+        is_bwh = exp_config.dataset.name == "bwh"
+
+        if is_bwh:
+            # Use BWH-specific visualization
+            from spectra_estimation_dmri.visualization import run_bwh_diagnostics
+
+            output_dir = "results/plots/bwh"
+            run_bwh_diagnostics(self, output_dir=output_dir)
+            return  # Skip standard simulation diagnostics
 
         # Group spectra by group_id (excludes noise realizations)
         groups = defaultdict(list)
@@ -565,8 +576,11 @@ class DiffusivitySpectraDataset(BaseModel):
                 ha="right",
                 fontsize=11,
                 bbox=dict(
-                    boxstyle="round", facecolor="white", alpha=0.9, 
-                    edgecolor="black", linewidth=1.5
+                    boxstyle="round",
+                    facecolor="white",
+                    alpha=0.9,
+                    edgecolor="black",
+                    linewidth=1.5,
                 ),
                 zorder=15,
             )
@@ -585,7 +599,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Concise title
         title = f"Joint SNR and Spectrum Inference"
-        
+
         # Detailed subtitle with key parameters
         subtitle = f"Method: {method_str} | Prior: {prior_str} | Realizations: {n_realizations}"
         if true_snr:
@@ -593,10 +607,14 @@ class DiffusivitySpectraDataset(BaseModel):
 
         ax.set_title(title, fontsize=13, fontweight="bold", pad=20)
         ax.text(
-            0.5, 1.02, subtitle,
+            0.5,
+            1.02,
+            subtitle,
             transform=ax.transAxes,
-            ha="center", va="bottom",
-            fontsize=10, style="italic"
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            style="italic",
         )
 
         plt.tight_layout()
