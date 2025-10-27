@@ -22,7 +22,8 @@ def set_spectra_id(signal_decay, exp_config):
     likelihood_cfg = OmegaConf.to_container(exp_config.likelihood, resolve=True)
     prior_cfg = OmegaConf.to_container(exp_config.prior, resolve=True)
     inference_cfg = OmegaConf.to_container(exp_config.inference, resolve=True)
-    spectrum_pair = exp_config.dataset.spectrum_pair
+    # spectrum_pair only exists for simulated data, not BWH
+    spectrum_pair = getattr(exp_config.dataset, "spectrum_pair", None)
 
     hash_dict = {
         "signal_values": to_serializable(signal_decay.signal_values),
@@ -56,7 +57,8 @@ def get_group_id(signal_decay, exp_config):
     likelihood_cfg = OmegaConf.to_container(exp_config.likelihood, resolve=True)
     prior_cfg = OmegaConf.to_container(exp_config.prior, resolve=True)
     inference_cfg = OmegaConf.to_container(exp_config.inference, resolve=True)
-    spectrum_pair = exp_config.dataset.spectrum_pair
+    # spectrum_pair only exists for simulated data, not BWH
+    spectrum_pair = getattr(exp_config.dataset, "spectrum_pair", None)
 
     hash_dict = {
         # Exclude signal_values!
