@@ -120,9 +120,13 @@ def init_plot_matrix(
 
         if last_row:
             splot.set_xlabel(r"Diffusivity ($\mu$m$^2$/ms)", fontsize=10)
-            str_diffs = [""] + [f"{d:.2f}" for d in diffusivities] + [""]
+            # Set ticks to match boxplot positions (1-indexed)
+            str_diffs = [f"{d:.2f}" for d in diffusivities]
             splot.set_xticks(
-                np.arange(len(str_diffs)), labels=str_diffs, rotation=90, fontsize=6
+                np.arange(1, len(str_diffs) + 1),
+                labels=str_diffs,
+                rotation=90,
+                fontsize=6,
             )
 
         if first_in_row:
@@ -284,7 +288,7 @@ def plot_averaged_spectra(
         if diffusivities is None:
             diffusivities = spectra_list[0].diffusivities
 
-        # Collect all samples
+        # Collect all samples - need to handle variable sample counts
         all_samples = []
         for spectrum in spectra_list:
             arrays = spectrum.as_numpy()
@@ -293,8 +297,14 @@ def plot_averaged_spectra(
                 all_samples.append(samples)
 
         if len(all_samples) > 0:
+            # Find minimum number of samples across all spectra
+            min_n_samples = min(s.shape[0] for s in all_samples)
+
+            # Truncate all to same length
+            all_samples_truncated = [s[:min_n_samples, :] for s in all_samples]
+
             # Average across patients (mean of samples)
-            averaged_samples = np.mean(np.array(all_samples), axis=0)
+            averaged_samples = np.mean(np.array(all_samples_truncated), axis=0)
             averaged_regions[region_key] = averaged_samples
 
     if len(averaged_regions) == 0:
