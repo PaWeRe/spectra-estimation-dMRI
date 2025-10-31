@@ -1,0 +1,31 @@
+# BWH Dataset Configuration with Uncertainty Propagation Enabled
+# This extends the base BWH config with reproducibility and uncertainty features
+
+defaults:
+  - bwh # Inherit from base bwh.yaml
+
+# NEW: Reproducibility (fixes Issue #2 - random AUC changes)
+biomarker_random_seed: 42
+
+# NEW: Uncertainty propagation (fixes Issue #1 - missing uncertainty)
+biomarker_propagate_uncertainty: false # Set to true to enable (slower but complete)
+
+# Biomarker analysis parameters (existing)
+biomarker_n_mc_samples: 200 # Number of MC samples for feature extraction & uncertainty
+biomarker_regularization: 1.0 # L2 regularization for logistic regression
+biomarker_adc_b_range: [0.0, 1.0] # b-value range for ADC computation (ms)
+
+# Feature selection (existing)
+biomarker_use_feature_selection: true
+biomarker_n_features_to_select: 5
+biomarker_feature_selection_method: "univariate" # or "all"
+
+# Task-specific hyperparameters (optional - uncomment to override)
+# biomarker_use_optimized_configs: true
+# biomarker_regularization_pz: 0.5
+# biomarker_n_features_pz: 4
+# biomarker_regularization_tz: 0.5
+# biomarker_n_features_tz: 5
+# biomarker_regularization_ggg: 1.0
+# biomarker_n_features_ggg: 3
+

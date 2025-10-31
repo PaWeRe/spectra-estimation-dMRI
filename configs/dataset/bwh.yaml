@@ -21,4 +21,22 @@ max_samples: null # Set to integer (e.g. 5) for quick testing
 # Biomarker analysis configuration (automatic for BWH)
 biomarker_n_mc_samples: 200 # Number of MC samples for uncertainty propagation
 biomarker_regularization: 1.0 # L2 regularization strength for logistic regression
-biomarker_adc_b_range: [0.0, 1.25] # ADC b-value range in ms units (0-1250 s/mm²)
+biomarker_adc_b_range: [0.0, 1.0] # ADC b-value range in ms units (0-1250 s/mm²)
+
+# NEW: Reproducibility and uncertainty propagation
+biomarker_random_seed: 42 # Fixed random seed for reproducibility
+biomarker_propagate_uncertainty: false # Enable MC uncertainty through classifier (slower)
+
+# Feature selection
+biomarker_use_feature_selection: false # Enable automatic feature selection
+biomarker_n_features_to_select: 5 # Number of top features to select
+biomarker_feature_selection_method: "univariate" # Method: "univariate" or "all"
+
+# Task-specific hyperparameters (optional overrides)
+biomarker_use_optimized_configs: false # Use tuned hyperparameters from grid search
+biomarker_regularization_pz: null # PZ-specific regularization (null = use default)
+biomarker_regularization_tz: null # TZ-specific regularization (null = use default)
+biomarker_regularization_ggg: null # GGG-specific regularization (null = use default)
+biomarker_n_features_pz: null # PZ-specific n_features (null = use default)
+biomarker_n_features_tz: null # TZ-specific n_features (null = use default)
+biomarker_n_features_ggg: null # GGG-specific n_features (null = use default)
