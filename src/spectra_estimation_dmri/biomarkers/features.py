@@ -62,6 +62,7 @@ def extract_mc_features(
     diffusivities: np.ndarray,
     spectrum_samples: np.ndarray,
     n_mc_samples: int = 200,
+    random_seed: int = 42,
 ) -> Tuple[Dict[str, float], Dict[str, float], List[Dict[str, float]]]:
     """
     Extract features with Monte Carlo uncertainty propagation.
@@ -70,6 +71,7 @@ def extract_mc_features(
         diffusivities: Array of diffusivity values
         spectrum_samples: Posterior samples, shape (n_samples, n_diffusivities)
         n_mc_samples: Number of MC samples to use (randomly subsample if more available)
+        random_seed: Random seed for reproducible subsampling
 
     Returns:
         (mean_features, std_features, feature_samples):
@@ -81,7 +83,8 @@ def extract_mc_features(
 
     # Subsample if we have more than needed
     if n_available > n_mc_samples:
-        indices = np.random.choice(n_available, n_mc_samples, replace=False)
+        rng = np.random.RandomState(random_seed)
+        indices = rng.choice(n_available, n_mc_samples, replace=False)
         samples = spectrum_samples[indices]
     else:
         samples = spectrum_samples
@@ -109,6 +112,7 @@ def extract_features_from_dataset(
     spectra_dataset,
     n_mc_samples: int = 200,
     include_metadata: bool = True,
+    random_seed: int = 42,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Extract features from all spectra in dataset.
@@ -117,6 +121,7 @@ def extract_features_from_dataset(
         spectra_dataset: DiffusivitySpectraDataset object
         n_mc_samples: Number of MC samples per spectrum
         include_metadata: Whether to include patient/region metadata
+        random_seed: Random seed for reproducible MC sampling
 
     Returns:
         (features_df, uncertainty_df):
@@ -126,7 +131,7 @@ def extract_features_from_dataset(
     feature_rows = []
     uncertainty_rows = []
 
-    for spectrum in spectra_dataset.spectra:
+    for i, spectrum in enumerate(spectra_dataset.spectra):
         arrays = spectrum.as_numpy()
         diffusivities = arrays["diffusivities"]
         samples = arrays["spectrum_samples"]
@@ -137,21 +142,34 @@ def extract_features_from_dataset(
             features = extract_spectrum_features(diffusivities, spectrum_vec)
             uncertainties = {k: 0.0 for k in features.keys()}
         else:
-            # MC feature extraction
+            # MC feature extraction with unique seed per spectrum for reproducibility
             features, uncertainties, _ = extract_mc_features(
-                diffusivities, samples, n_mc_samples
+                diffusivities, samples, n_mc_samples, random_seed=random_seed + i
             )
 
         # Add metadata if requested
         if include_metadata:
-            features["patient_id"] = getattr(spectrum.signal_decay, "patient", None)
-            features["region"] = getattr(spectrum.signal_decay, "a_region", None)
+            patient_id = getattr(spectrum.signal_decay, "patient", None)
+            region = getattr(spectrum.signal_decay, "a_region", None)
+            is_tumor = getattr(spectrum.signal_decay, "is_tumor", False)
+
+            # Create unique ROI identifier (patient_region_tumor_status)
+            # CRITICAL: Include tumor status to distinguish tumor_pz from normal_pz!
+            if patient_id and region:
+                roi_id = f"{patient_id}_{region}_{'tumor' if is_tumor else 'normal'}"
+            else:
+                roi_id = None
+
+            features["roi_id"] = roi_id
+            features["patient_id"] = patient_id
+            features["region"] = region
             features["ggg"] = getattr(spectrum.signal_decay, "ggg", None)
             features["gs"] = getattr(spectrum.signal_decay, "gs", None)
-            features["is_tumor"] = getattr(spectrum.signal_decay, "is_tumor", None)
+            features["is_tumor"] = is_tumor
 
-            uncertainties["patient_id"] = features["patient_id"]
-            uncertainties["region"] = features["region"]
+            uncertainties["roi_id"] = roi_id
+            uncertainties["patient_id"] = patient_id
+            uncertainties["region"] = region
 
         feature_rows.append(features)
         uncertainty_rows.append(uncertainties)

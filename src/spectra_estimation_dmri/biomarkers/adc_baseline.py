@@ -100,7 +100,14 @@ def extract_adc_features(
         region = getattr(signal_decay, "a_region", None)
         ggg = getattr(signal_decay, "ggg", None)
         gs = getattr(signal_decay, "gs", None)
-        is_tumor = getattr(signal_decay, "is_tumor", None)
+        is_tumor = getattr(signal_decay, "is_tumor", False)
+
+        # Create unique ROI identifier (patient_region_tumor_status)
+        # CRITICAL: Include tumor status to distinguish tumor_pz from normal_pz!
+        if patient_id and region:
+            roi_id = f"{patient_id}_{region}_{'tumor' if is_tumor else 'normal'}"
+        else:
+            roi_id = None
 
         # Parse zone
         if region is not None:
@@ -116,6 +123,7 @@ def extract_adc_features(
 
         rows.append(
             {
+                "roi_id": roi_id,
                 "patient_id": patient_id,
                 "region": region,
                 "zone": zone,
