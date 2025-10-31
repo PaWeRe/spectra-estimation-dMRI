@@ -218,8 +218,18 @@ class NUTSSampler:
         # Also include sigma in the saved data
         posterior_data["sigma"] = sigma_samples
 
-        # Create new InferenceData with properly named variables
-        idata_formatted = az.from_dict(posterior=posterior_data)
+        # Prepare constant data (metadata that doesn't vary across iterations)
+        constant_data = {}
+        if true_spectrum is not None:
+            constant_data["true_spectrum"] = np.array(true_spectrum)
+        if initial_R is not None:
+            constant_data["spectrum_init"] = np.array(initial_R)
+
+        # Create new InferenceData with properly named variables + constant data
+        idata_formatted = az.from_dict(
+            posterior=posterior_data,
+            constant_data=constant_data if constant_data else None,
+        )
 
         # Save inference data
         inference_data_path = None
