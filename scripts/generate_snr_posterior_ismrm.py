@@ -177,7 +177,8 @@ def create_ismrm_snr_and_spectrum_combined(
     nc_files: list,
     true_snr: float = None,
     output_path: str = "snr_and_spectrum_ismrm.png",
-    width_px: int = 1200,
+    width_px: int = 1800,
+    height_px: int = 900,
     dpi: int = 150,
     realization_idx: int = 0,
 ):
@@ -192,12 +193,12 @@ def create_ismrm_snr_and_spectrum_combined(
         nc_files: List of inference NetCDF files
         true_snr: Ground truth SNR (if available)
         output_path: Path for PNG output
-        width_px: Width in pixels (default 1200 for 1200×600, 2:1 aspect for two subplots)
+        width_px: Width in pixels (default 1800 for 2:1 aspect ratio)
+        height_px: Height in pixels (default 900 for 2:1 aspect ratio, giving 1:1 subplots)
         dpi: DPI for rendering (default 150)
         realization_idx: Which realization to show in spectrum subplot
     """
-    # 2:1 aspect ratio for two subplots side-by-side
-    height_px = int(width_px / 2)
+    # Use 2:1 aspect ratio so each of the two side-by-side subplots is square (1:1)
     width_in = width_px / dpi
     height_in = height_px / dpi
 
@@ -370,16 +371,17 @@ def create_ismrm_snr_and_spectrum_combined(
         )
 
     # SNR subplot styling
-    ax1.set_xlabel("Realization", fontsize=10, fontweight="bold")
-    ax1.set_ylabel("SNR", fontsize=10, fontweight="bold")
+    ax1.set_xlabel("Realization", fontsize=13, fontweight="bold")
+    ax1.set_ylabel("SNR", fontsize=13, fontweight="bold")
     ax1.set_xticks(range(1, n_realizations + 1))
-    ax1.set_xticklabels([f"{i}" for i in range(1, n_realizations + 1)], fontsize=8)
+    ax1.set_xticklabels([f"{i}" for i in range(1, n_realizations + 1)], fontsize=11)
     ax1.grid(True, alpha=0.3, axis="y")
+    ax1.tick_params(axis="both", which="major", labelsize=11)
     if true_snr is not None:
-        ax1.legend(loc="upper right", fontsize=8)
+        ax1.legend(loc="upper right", fontsize=10)
     ax1.set_title(
         "Joint Inference: SNR Across Multiple Realizations",
-        fontsize=10,
+        fontsize=14,
         fontweight="bold",
     )
 
@@ -436,15 +438,16 @@ def create_ismrm_snr_and_spectrum_combined(
             )
 
         # Spectrum subplot styling
-        ax2.set_xlabel(r"Diffusivity ($\mu$m$^2$/ms)", fontsize=10, fontweight="bold")
-        ax2.set_ylabel("Relative Fraction", fontsize=10, fontweight="bold")
+        ax2.set_xlabel(r"Diffusivity ($\mu$m$^2$/ms)", fontsize=13, fontweight="bold")
+        ax2.set_ylabel("Relative Fraction", fontsize=13, fontweight="bold")
         ax2.set_xticklabels(
-            [f"{d:.2f}" for d in diffusivities], rotation=45, fontsize=8
+            [f"{d:.2f}" for d in diffusivities], rotation=45, fontsize=11
         )
         ax2.grid(True, alpha=0.3)
+        ax2.tick_params(axis="both", which="major", labelsize=11)
         ax2.set_title(
             f"Joint Inference: Spectrum (Realization {realization_idx+1})",
-            fontsize=10,
+            fontsize=14,
             fontweight="bold",
         )
 
@@ -457,7 +460,7 @@ def create_ismrm_snr_and_spectrum_combined(
             and all_true_spectra[realization_idx] is not None
         )
         if has_overlays:
-            ax2.legend(fontsize=8, loc="best")
+            ax2.legend(fontsize=10, loc="best")
     else:
         ax2.text(0.5, 0.5, "No spectrum samples", ha="center", va="center")
 
