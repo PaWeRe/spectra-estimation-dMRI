@@ -248,6 +248,52 @@ class DiffusivitySpectraDataset(BaseModel):
     def as_numpy(self):
         return [s.as_numpy() for s in self.spectra]
 
+    def deduplicate_by_roi(self, keep="first"):
+        """
+        Remove duplicate spectra for the same ROI (patient + region + tumor_status).
+
+        This is critical for LOOCV to prevent data leakage when multiple
+        inference runs exist for the same ROI.
+
+        IMPORTANT: ROI identity includes tumor status! A patient can have both
+        tumor_pz and normal_pz, which are DIFFERENT ROIs.
+
+        Args:
+            keep: 'first' or 'last' - which duplicate to keep
+
+        Returns:
+            DiffusivitySpectraDataset with unique ROIs only
+        """
+        seen_rois = set()
+        unique_spectra = []
+
+        spectra_list = self.spectra if keep == "first" else list(reversed(self.spectra))
+
+        for spectrum in spectra_list:
+            signal_decay = spectrum.signal_decay
+            patient = getattr(signal_decay, "patient", None)
+            region = getattr(signal_decay, "a_region", None)
+            is_tumor = getattr(signal_decay, "is_tumor", False)
+
+            # CRITICAL: Include tumor status in ROI ID!
+            # tumor_pz and normal_pz are DIFFERENT ROIs
+            roi_id = f"{patient}_{region}_{'tumor' if is_tumor else 'normal'}"
+
+            if roi_id not in seen_rois:
+                seen_rois.add(roi_id)
+                unique_spectra.append(spectrum)
+
+        if keep == "last":
+            unique_spectra = list(reversed(unique_spectra))
+
+        n_removed = len(self.spectra) - len(unique_spectra)
+        if n_removed > 0:
+            print(
+                f"[DEDUP] Removed {n_removed} duplicate ROIs ({len(self.spectra)} → {len(unique_spectra)} spectra)"
+            )
+
+        return DiffusivitySpectraDataset(spectra=unique_spectra)
+
     @staticmethod
     def save_index(index_dict, index_path):
         """Save an index (dict) mapping config hashes and sample IDs to file paths as JSON."""
