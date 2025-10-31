@@ -300,6 +300,40 @@ def main(cfg: DictConfig):
             regularization = getattr(cfg.dataset, "biomarker_regularization", 1.0)
             adc_b_range = getattr(cfg.dataset, "biomarker_adc_b_range", [0.0, 1.0])
 
+            # NEW: Reproducibility and uncertainty propagation parameters
+            random_seed = getattr(cfg.dataset, "biomarker_random_seed", 42)
+            propagate_uncertainty = getattr(
+                cfg.dataset, "biomarker_propagate_uncertainty", False
+            )
+
+            # Feature selection parameters
+            use_feature_selection = getattr(
+                cfg.dataset, "biomarker_use_feature_selection", True
+            )
+            n_features_to_select = getattr(
+                cfg.dataset, "biomarker_n_features_to_select", 5
+            )
+            feature_selection_method = getattr(
+                cfg.dataset, "biomarker_feature_selection_method", "univariate"
+            )
+
+            # Task-specific hyperparameters (optional)
+            use_optimized_configs = getattr(
+                cfg.dataset, "biomarker_use_optimized_configs", False
+            )
+            regularization_pz = getattr(
+                cfg.dataset, "biomarker_regularization_pz", None
+            )
+            regularization_tz = getattr(
+                cfg.dataset, "biomarker_regularization_tz", None
+            )
+            regularization_ggg = getattr(
+                cfg.dataset, "biomarker_regularization_ggg", None
+            )
+            n_features_pz = getattr(cfg.dataset, "biomarker_n_features_pz", None)
+            n_features_tz = getattr(cfg.dataset, "biomarker_n_features_tz", None)
+            n_features_ggg = getattr(cfg.dataset, "biomarker_n_features_ggg", None)
+
             biomarker_results = run_biomarker_analysis(
                 spectra_dataset=spectra_dataset,
                 output_dir=biomarker_dir,
@@ -308,6 +342,21 @@ def main(cfg: DictConfig):
                 adc_b_range=(
                     tuple(adc_b_range) if isinstance(adc_b_range, list) else adc_b_range
                 ),
+                # NEW: Reproducibility and uncertainty
+                random_seed=random_seed,
+                propagate_uncertainty=propagate_uncertainty,
+                # Feature selection
+                use_feature_selection=use_feature_selection,
+                n_features_to_select=n_features_to_select,
+                feature_selection_method=feature_selection_method,
+                # Task-specific hyperparameters
+                use_optimized_configs=use_optimized_configs,
+                regularization_pz=regularization_pz,
+                regularization_tz=regularization_tz,
+                regularization_ggg=regularization_ggg,
+                n_features_pz=n_features_pz,
+                n_features_tz=n_features_tz,
+                n_features_ggg=n_features_ggg,
             )
 
             # Log summary metrics to W&B
