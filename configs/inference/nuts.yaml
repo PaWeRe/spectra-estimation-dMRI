@@ -1,6 +1,6 @@
 name: nuts
 n_iter: 2000 # Number of draws per chain (after tuning)
-tune: 1000 # Number of tuning steps
+tune: 200 # Number of tuning steps
 n_chains: 4 # Number of parallel chains
 target_accept: 0.95 # Higher = more careful sampling (0.8-0.99)
 
