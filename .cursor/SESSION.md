@@ -42,15 +42,21 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
    - Headline finding: posterior uncertainty correlates with Gleason grade
    - Money figure: prostate segmentation + ADC vs LR probability map vs uncertainty map
 
+6. **Flagship figure v1** (`scripts/flagship_figure.py`):
+   - 4-panel: Anatomy | ADC | LR probability | Uncertainty (Laplace)
+   - LR trained on 81 PZ ROIs (27 tumor, 54 normal), applied to pixels
+   - ADC from monoexponential fit, uncertainty from Laplace approximation
+   - Results in `results/flagship_figure/`
+   - Issue: 72% pixels flagged tumor (LR calibration needs work, mask too broad)
+
 ### What's next (Session 2 priorities):
-1. **Build the flagship figure**: Segmentation + ADC map + LR probability map + uncertainty map (side-by-side)
-   - Need Laplace approximation or NUTS per pixel for uncertainty
-   - Compare ADC (monoexponential) vs our spectral biomarker
+1. **Refine flagship figure**: Proper prostate segmentation (tighter mask), recalibrate LR threshold, overlay ground truth ROI contours
 2. **Full robustness run**: `uv run python scripts/robustness_test.py` (no --fast flag, ~30 min)
 3. **Gmail OAuth**: Patrick restarts Cursor, authorizes Gmail, then we can read Stephan's emails
 4. **LaTeX**: Install basictex: `brew install --cask basictex`
 5. **Email Stephan**: Request patient demographics table, b-value mapping confirmation, additional GGG case
 6. **Start writing**: Theory section (all math is in the code), Methods section
+7. **NUTS per pixel for select ROIs**: Run NUTS on tumor ROI pixels for gold-standard uncertainty
 
 ### Decisions made:
 - Paper storyline: uncertainty as biomarker (not just classification improvement)
@@ -63,6 +69,13 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 - Exact b-value mapping for the 46 binary images
 - Patient demographics table and additional GGG case from Stephan
 - Whether to use standard segmentation model (nnU-Net) or manual contours for prostate gland
+
+### LR classifier details (from flagship_figure.py):
+- Trained on 81 PZ ROIs: 27 tumor, 54 normal
+- Features: 8 spectral bin fractions + 1 combo feature = 9 features
+- Key coefficients: D_0.25=+0.519 (tumor), D_3.00=-0.510 (normal), D_20.00=-0.605 (normal)
+- Positive coefficients → restricted diffusion (tumor signal)
+- Negative coefficients → high diffusion (normal tissue signal)
 
 ### Key file map:
 | File | Purpose |
@@ -78,6 +91,8 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 | `paper/main.tex` | LaTeX manuscript |
 | `.cursor/mcp.json` | Gmail MCP config (gitignored) |
 | `secrets/` | Google OAuth credentials (gitignored) |
+| `scripts/flagship_figure.py` | ADC vs spectral biomarker vs uncertainty |
+| `results/flagship_figure/` | Flagship figure + numerical data |
 | `8640-sl6-bin/` | 46 binary images (gitignored) |
 
 ---
