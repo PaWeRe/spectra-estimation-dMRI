@@ -4,6 +4,7 @@
 
 A human-AI collaborative system for producing an MRM journal manuscript.
 The human provides high-level direction; the agent handles all implementation.
+The system uses **Skills** (domain knowledge) and **Subagents** (parallel workers).
 
 ## System Diagram
 
@@ -15,41 +16,61 @@ The human provides high-level direction; the agent handles all implementation.
 │  Actions: Approve plans, give feedback, contact co-authors          │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │
-                    high-level direction
-                         feedback
+                    high-level direction / feedback
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    ORCHESTRATOR AGENT (Cursor/Claude)                │
+│                 ORCHESTRATOR AGENT (Cursor/Claude)                   │
 │                                                                     │
-│  Role: Task decomposition, skill activation, progress tracking      │
+│  Role: Task decomposition, delegation, progress tracking            │
 │  Context: .cursorrules + PAPER_PLAN.md + TODO list                  │
 │                                                                     │
-│  Capabilities:                                                      │
-│  • Reads code, configs, data, papers                                │
-│  • Writes code, LaTeX, configs                                      │
-│  • Runs scripts via shell (uv run python ...)                       │
-│  • Browses web for references, journal guidelines                   │
-│  • Manages git (branch, commit, diff)                               │
-│  • Tracks progress via TODO system                                  │
-│  • Activates skills based on task type                              │
-└───┬─────────┬──────────┬──────────┬──────────┬──────────┬───────────┘
-    │         │          │          │          │          │
-    ▼         ▼          ▼          ▼          ▼          ▼
-┌────────┐┌────────┐┌──────────┐┌────────┐┌──────────┐┌────────┐
-│  MRM   ││General ││ Spectrum ││Biomark-││Benchmark-││ Image  │
-│ Paper  ││Coding  ││Estimation││  er    ││  ing &   ││Process-│
-│Writing ││        ││          ││Creation││  Viz     ││  ing   │
-└───┬────┘└───┬────┘└────┬─────┘└───┬────┘└────┬─────┘└───┬────┘
-    │         │          │          │          │          │
-    ▼         ▼          ▼          ▼          ▼          ▼
-┌────────┐┌────────┐┌──────────┐┌────────┐┌──────────┐┌────────┐
-│paper/  ││configs/││inference/││biomark-││results/  ││8640-sl6│
-│sections││.cursor ││nuts.py   ││ers/    ││plots/    ││-bin/   │
-│refs.bib││git,uv  ││prob_mod. ││pipeline││figures/  ││loaders │
-│figures ││hydra   ││simulate  ││features││analysis  ││masks   │
-└────────┘└────────┘└──────────┘└────────┘└──────────┘└────────┘
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ SKILLS (.cursor/skills/) — Domain Knowledge                 │    │
+│  │                                                             │    │
+│  │ mrm-paper-writing   │ general-coding   │ spectrum-estimation│    │
+│  │ biomarker-creation   │ bench-viz        │ image-processing  │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  Can delegate to SUBAGENTS for parallel/isolated work:              │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ SUBAGENTS (.cursor/agents/) — Parallel Workers               │   │
+│  │                                                              │   │
+│  │ ┌──────────┐ ┌─────────────┐ ┌──────────┐ ┌─────────────┐  │   │
+│  │ │researcher│ │ computation │ │ verifier │ │latex-writer  │  │   │
+│  │ │ (fast)   │ │ (background)│ │ (fast)   │ │ (inherit)    │  │   │
+│  │ │ gather & │ │ run scripts │ │ validate │ │ draft LaTeX  │  │   │
+│  │ │ verify   │ │ & analysis  │ │ & check  │ │ sections     │  │   │
+│  │ └──────────┘ └─────────────┘ └──────────┘ └─────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+                               │
+                ┌──────────────┼──────────────┐
+                ▼              ▼              ▼
+         ┌──────────┐  ┌──────────┐  ┌──────────┐
+         │  paper/  │  │   src/   │  │ results/ │
+         │ LaTeX    │  │  Python  │  │ data &   │
+         │ sections │  │  package │  │ figures  │
+         └──────────┘  └──────────┘  └──────────┘
 ```
+
+## Skills vs Subagents
+
+| Aspect | Skills | Subagents |
+|--------|--------|-----------|
+| Purpose | Domain knowledge | Parallel execution |
+| Location | `.cursor/skills/*/SKILL.md` | `.cursor/agents/*.md` |
+| Activation | Loaded when relevant to task | Delegated by orchestrator |
+| Context | Shared with main agent | Independent context window |
+| Execution | Advisory (guide the agent) | Autonomous (do the work) |
+
+### When to use what
+- **"Write the theory section"** → Orchestrator reads `mrm-paper-writing` skill, delegates to `latex-writer` subagent
+- **"Run the full pipeline"** → Orchestrator reads `spectrum-estimation` skill, delegates to `computation` subagent (background)
+- **"Check if AUC numbers in the paper match results"** → Delegates to `researcher` subagent
+- **"Verify the methods section is accurate"** → Delegates to `verifier` subagent
+- **"Write intro AND run diagnostics"** → `latex-writer` and `computation` run in parallel
 
 ## Skill Interaction Patterns
 
