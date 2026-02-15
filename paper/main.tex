@@ -1,0 +1,195 @@
+% ======================================================================
+% MRM Manuscript: Fully Bayesian Uncertainty-Aware Biomarkers
+% for Image-Based Cancer Diagnosis: Application to Prostate Diffusion MRI
+%
+% Based on unofficial MRM LaTeX template by Riccardo Metere (2016)
+% Adapted for this manuscript
+% ======================================================================
+\documentclass[11pt]{article}
+
+% === Required Packages ===
+\usepackage{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lineno}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titling}
+\usepackage{natbib}
+\usepackage{mathtools}
+\usepackage{titlesec}
+\usepackage{lastpage}
+
+% === Additional Packages ===
+\usepackage[english]{babel}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{array}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{siunitx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% === Page Geometry (MRM: letter, 1in margins) ===
+\geometry{letterpaper,margin=1in}
+
+% === Hyperref ===
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdfborderstyle={/S/U/W 1}
+}
+
+% === Bibliography (MRM uses CSE style, fallback to unsrtnat) ===
+\setcitestyle{round,numbers}
+\bibliographystyle{unsrtnat}
+
+% === Line Spacing (MRM: ~1.5 for review) ===
+\linespread{1.5}
+
+% === Header/Footer ===
+\pagestyle{fancy}
+\renewcommand{\sectionmark}[1]{\markright{#1}}
+\lhead{\small}
+\chead{\small}
+\rhead{\small \textsc{Submitted to Magnetic Resonance in Medicine}}
+\lfoot{}
+\cfoot{}
+\rfoot{\thepage\ / \pageref{LastPage}}
+
+% === Section Formatting (MRM: no numbering) ===
+\titleformat{name=\section}{\normalfont\Large\bfseries}{}{0pt}{}
+\titleformat{name=\subsection}{\normalfont\large\bfseries}{}{0pt}{}
+\titleformat{name=\subsubsection}{\normalfont\normalsize\bfseries}{}{0pt}{}
+
+% === Custom Commands ===
+\newcommand{\email}[1]{\href{mailto:{#1}}{{#1}}}
+\newcommand{\keywords}[1]{\textbf{Keywords}: {#1}}
+\newcommand{\wordcount}[2]{\begin{tabular}{rl}%
+\textbf{Manuscript word count}: & {#1}\\
+\textbf{Abstract word count}: & {#2}\\
+\end{tabular}}
+
+% Math shortcuts
+\newcommand{\bval}{b}
+\newcommand{\Dvec}{\mathbf{D}}
+\newcommand{\Rvec}{\mathbf{R}}
+\newcommand{\svec}{\mathbf{s}}
+\newcommand{\Umat}{\mathbf{U}}
+\newcommand{\umsmm}{\si{\micro\meter\squared\per\milli\second}}
+
+% Figure caption with title
+\newcommand{\capt}[2][]{\caption[{#1}]{\textbf{{#1}}\newline{#2}}}
+
+% Draft helpers
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+\newcommand{\note}[1]{\textcolor{blue}{\textbf{[NOTE: #1]}}}
+\newcommand{\stephan}[1]{\textcolor{orange}{\textbf{[ASK STEPHAN: #1]}}}
+
+% Equation numbering with brackets (MRM style)
+\newtagform{brackets}{[}{]}
+\usetagform{brackets}
+
+% === Title ===
+\title{Magnetic Resonance in Medicine}
+
+% === Line Numbers ===
+\linenumbers
+
+% ======================================================================
+\begin{document}
+
+% === Title Page ===
+%TC:ignore
+\begin{titlepage}
+{\noindent\LARGE\bf Fully Bayesian Uncertainty-Aware Biomarkers for Image-Based Cancer Diagnosis: Application to Prostate Diffusion MRI}
+
+\bigskip
+
+\begin{flushleft}\large
+    Patrick Remerscheid\textsuperscript{1,{*}},
+    William M.\ Wells III\textsuperscript{2},
+    Stephan E.\ Maier\textsuperscript{2}
+\end{flushleft}
+
+\bigskip
+
+\noindent
+\begin{enumerate}[label=\textbf{\arabic*}]
+\item Independent Researcher, Switzerland
+\item Department of Radiology, Brigham and Women's Hospital, Harvard Medical School, Boston, MA, USA
+\end{enumerate}
+
+\bigskip
+
+\textbf{*} Corresponding author:
+
+\indent\indent
+\begin{tabular}{>{\bfseries}rl}
+Name        & Patrick Remerscheid \\
+E-mail      & \email{patrick.remerscheid@gmail.com} \\
+\end{tabular}
+
+\vfill
+
+\wordcount{\todo{count}}{$<$200}
+
+\end{titlepage}
+%TC:endignore
+
+\pagebreak
+
+% === Abstract ===
+%TC:break Abstract
+\input{sections/abstract}
+
+\bigskip
+\keywords{Bayesian inference, diffusion-weighted imaging, prostate MRI, uncertainty estimation, diffusivity spectra, cancer biomarkers}
+
+%TC:break _main_
+\pagebreak
+
+% === Main Sections ===
+\input{sections/introduction}
+\input{sections/theory}
+\input{sections/methods}
+\input{sections/results}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+% === Acknowledgments ===
+%TC:ignore
+\section{Acknowledgments}
+This study was supported in part by NIH grants P41EB028741 and R01CA241817.
+%TC:endignore
+
+% === References ===
+%TC:ignore
+\bibliography{references}
+%TC:endignore
+
+% === Figures and Tables ===
+%TC:ignore
+\pagebreak
+\input{sections/figures}
+
+\pagebreak
+\input{sections/tables}
+%TC:endignore
+
+% === Supporting Information ===
+%TC:ignore
+% \pagebreak
+% \renewcommand{\thefigure}{S\arabic{figure}}
+% \setcounter{figure}{0}
+% \input{sections/supporting}
+%TC:endignore
+
+\end{document}

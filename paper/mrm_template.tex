@@ -1,0 +1,433 @@
+% ======================================================================
+% ======================================================================
+% ======================================================================
+%
+% UNOFFICIAL LaTeX Template for Magnetic Resonance in Medicine
+%     Author: Riccardo Metere <metere@cbs.mpg.de>
+%       Date: Dec 2016
+%  Copyright: 2016 (C) Riccardo Metere
+%    License: LaTeX Project Public License (LPPL) 
+%
+% Instructions:
+% - Look for `%FIXME` for finding items requiring author's attention
+% - Comments starting with `% :` indicate a template comment
+% - Read the comments and if something is unclear please drop me a note
+%
+% ======================================================================
+% ======================================================================
+% ======================================================================
+
+% ======================================================================
+% : use the standard article class
+\documentclass[11pt]{article}
+
+% ======================================================================
+% : import packages
+
+% : required packages
+\usepackage{geometry}  % Flexible and complete interface to document dimensions
+\usepackage[T1]{fontenc}  % Standard package for selecting font encodings
+\usepackage[utf8x]{inputenc}  % Accept different input encodings
+\usepackage{lineno}  % Line numbers on paragraphs
+\usepackage{fancyhdr}  % Extensive control of page headers and footers in LaTeX2ε
+\usepackage{enumitem}  % Control layout of itemize, enumerate, description
+\usepackage{hyperref}  % Extensive support for hypertext in LaTeX
+\usepackage{titling}  % Control over the typesetting of the \maketitle command
+\usepackage{natbib}  % Flexible bibliography support
+\usepackage{mathtools}  % Mathematical tools to use with amsmath
+\usepackage{titlesec}  % Select alternative section titles
+\usepackage{lastpage}  % Reference last page for Page N of M type footers
+
+% : additional packages 
+\usepackage[english]{babel}  % Multilingual support for Plain TeX or LaTeX
+\usepackage{amsmath}  % AMS mathematical facilities for LaTeX
+\usepackage{amsfonts}  % TeX fonts from the American Mathematical Society
+\usepackage{amssymb}  % Additional symbols from American Mathematical Society
+\usepackage{wasysym}  % LaTeX support file to use the WASY2 fonts
+\usepackage{bbm}  % "Blackboard-style" cm fonts
+\usepackage{array}  % Extending the array and tabular environments
+\usepackage{xr}  % References to other LaTeX documents
+\usepackage{verbatim} % Reimplementation of and extensions to LaTeX verbatim
+\usepackage{float} % Improved interface for floating objects
+
+% ======================================================================
+% : set options
+
+% : set `geometry` options
+% `letterpaper` is equivalent to `size={8.5in,11in}`
+\geometry{letterpaper,margin=1in}  
+
+% : set `hyperref' options
+\hypersetup{%
+  pdfborderstyle={/S/U/W 1}% border style will be underline of width 1pt
+}
+
+% : set bibliography style
+\setcitestyle{round,numbers}
+\bibliographystyle{CSE}
+
+% : set the line spacing
+\linespread{1.5}
+
+% : set header and footer style
+\pagestyle{fancy}
+
+
+% ======================================================================
+% : (re)define LaTeX macros
+
+% : hide section numbering
+\titleformat{name=\section}{\normalfont\Large\bfseries}{}{0pt}{}
+\titleformat{name=\subsection}{\normalfont\large\bfseries}{}{0pt}{}
+\titleformat{name=\subsubsection}{\normalfont\normalsize\bfseries}{}{0pt}{}
+
+% : define `email` custom command
+\newcommand{\email}[1]{\href{mailto:{#1}}{{#1}}}
+
+% : define `keywords` custom command
+\newcommand{\keywords}[1]{\textbf{Keywords}: {#1}}
+
+% : define `wordcount` custom command
+\newcommand{\wordcount}[2]{\begin{tabular}{rl}%
+\textbf{Manuscript word count}: 	& {#1}\\
+\textbf{Abstract word count}: 		& {#2}\\
+\end{tabular}}
+
+% : define `optincludegraphics` custom command
+% : toggle including graphics in the manuscript
+% : do not include graphics
+\newcommand{\optincludegraphics}[2][]{}
+% : include graphics
+% \newcommand{\optincludegraphics}[2][{}]{\includegraphics[{#1}]{{#2}}}
+
+% : define `optinput` custom command
+% : toggle including files (including tables) in the manuscript
+% : do not include tables
+\newcommand{\optinput}[1]{}
+% : include tables
+% \newcommand{\optinput}[1]{\input{#1}}
+
+% : define `capt` custom command
+% : facilitate use of a title caption
+% : usage: \capt[<caption-title>}]{<caption-text>}
+\newcommand{\capt}[2][]{\caption[{#1}]{\textbf{{#1}}\newline{#2}}}
+
+% : fix format of references' list
+\renewcommand{\bibnumfmt}[1]{#1}
+
+% : fix format of equations
+\newtagform{brackets}{[}{]}
+\usetagform{brackets}
+
+% : define journal name
+\newcommand{\thejournal}[1]{Magnetic Resonance in Medicine}
+
+
+% ======================================================================
+% : set the title
+%TC:ignore
+%FIXME
+\title{\thejournal - Template}
+%TC:endignore
+
+
+% ======================================================================
+% : set header and footer appearance
+\renewcommand{\sectionmark}[1]{\markright{#1}}
+\newcommand{\sectioname}{\nouppercase{\rightmark}}
+% : header
+\lhead{\small }
+\chead{\small }
+\rhead{\small \textsc{Submited to \thejournal}}
+% : footer
+\lfoot{}
+\cfoot{}
+\rfoot{\thepage\ / \pageref{LastPage}}
+
+
+% ======================================================================
+% : start line numbers from here
+\linenumbers
+
+
+% ======================================================================
+% : automatic word count
+\immediate\write18{texcount -sum=1,1,1,1,1,1,1 -merge -incbib -dir -utf8 \jobname.tex > \jobname.wcTotal }
+\immediate\write18{texcount -sub=none -merge -incbib -dir -utf8 \jobname.tex | grep _main_ | grep -oE '[0-9]+' | python -c "import sys; print(sum(int(l) * w for l, w in zip(sys.stdin, [1, 1, 0, 0, 0, 0, 0])))" > \jobname.wcManuscript }
+\immediate\write18{texcount -sub=none -merge -incbib -dir -utf8 \jobname.tex | grep Abstract | grep -oE '[0-9]+' | python -c "import sys; print(sum(int(l) * w for l, w in zip(sys.stdin, [1, 1, 0, 0, 0, 0, 0])))" > \jobname.wcAbstract }
+
+% \newcommand{\wcTotal}{wcTotal FIXME}
+\newcommand{\wcTotal}{\clearpage{\noindent\large{\bf Detailed Word Count} (not to be included for submission)}\verbatiminput{\jobname.wcTotal}}
+% \newcommand{\wcManuscript}{wcManuscript FIXME}
+\newcommand{\wcManuscript}{\input{\jobname.wcManuscript}}
+% \newcommand{\wcAbstract}{wcAbstract FIXME}
+\newcommand{\wcAbstract}{\input{\jobname.wcAbstract}}
+
+
+
+% ======================================================================
+% ======================================================================
+% ======================================================================
+\begin{document}
+
+% ======================================================================
+%TC:ignore
+\begin{titlepage}
+{\noindent\LARGE\bf \thetitle}
+
+\bigskip
+
+% : Insert author names, affiliations and corresponding author email
+% : (do not include titles, positions, or degrees).
+%FIXME
+\begin{flushleft}\large
+	Adam Abbey\textsuperscript{1},
+	Ben Bentley\textsuperscript{2},
+	Chris Cooper\textsuperscript{3,{*}},
+	Dennis Deimler\textsuperscript{4}
+\end{flushleft}
+
+\bigskip
+
+\noindent
+%FIXME
+\begin{enumerate}[label=\textbf{\arabic*}]
+\item department, institution, city, country
+\item department, institution, city, country
+\item department, institution, city, country
+\item department, institution, city, country
+\end{enumerate}
+
+\bigskip
+
+% : Use the dagger symbol to denote a single equal contribution authorship.
+% : Multiple equal-contribution authorship may be included in the acknowledgments.
+%FIXME
+\textbf{{†}}: These authors contributed equally to this work.
+
+% : Use the asterisk to denote corresponding authorship.
+% : Provide email address in note below.
+%FIXME
+\textbf{*} Corresponding author:
+
+\indent\indent
+\begin{tabular}{>{\bfseries}rl}
+Name		& Adam Abbey													\\
+Department	& department													\\
+Institute	& institute														\\
+Address 	& street														\\
+			& zip city														\\
+            & country														\\
+E-mail		& \email{an@email.com}											\\
+\end{tabular}
+
+\vfill
+
+% ======================================================================
+% : set word count results (+++ must be included, --- must be excluded)
+% 	+++ introduction, theory, methods, results, discussion, conclusion,
+%		appendix, 
+% 	--- title page, abstract, figure captions, tables, table captions,
+%		references, revision markings
+% : first argument is the manuscript word count
+% : second argument is the abstract word count
+% : to use `texcount` results, use '%TC:ignore'/'%TC:endignore' directives.
+% : \wcManuscript and \wcAbstract should perform the correct word count.
+\wordcount{\wcManuscript}{\wcAbstract}
+
+% : display detailed word count
+%FIXME
+\wcTotal
+
+\end{titlepage}
+%TC:endignore
+% ======================================================================
+
+% ======================================================================
+% ======================================================================
+\pagebreak
+% ======================================================================
+% ======================================================================
+
+
+
+% ======================================================================
+%TC:break Abstract
+\begin{abstract}
+%FIXME
+The abstract of the paper should be written in the passive voice. Authors should avoid the use of the first person, and the length of the abstract should not exceed 200 words. The abstract of a Note, Rapid Communication, or Full Paper should be written in a structured format, which comprises the following headings:
+Purpose, Methods, Results, Conclusion.
+
+If a Magn Reson Med paper contains a Theory section (which is optional) either of the following two alternative structured abstract formats is also acceptable:
+Purpose, Theory, Methods, Results, Conclusion, or Purpose, Theory and Methods, Results, Conclusion.
+Abstracts for Review Articles, Mini-Reviews, and Workshop Summaries are also a maximum of 200 words, but do not use a structured format.
+
+At the end of the abstract, the authors should include a list of three to six keywords. Because the abstract will also be used by abstracting services, it must be self-contained, having no references to formulas, equations, or bibliographic citations that appear in the body of the manuscript. The use of citations in the abstract should be limited to when absolutely necessary. If necessary, please follow the formatting guidelines presented in the References section of the Information for Authors %\cite{test}.
+
+\textbf{Purpose}: The purpose.
+
+\textbf{Methods}: The methods.
+
+\textbf{Results}: The results.
+
+\textbf{Conclusion}: The conclusion.
+
+\end{abstract}
+
+% ======================================================================
+% : set search-engine keywords (3 to 6)
+\bigskip
+\keywords{using, keywords, is, extremely, important, nowadays}
+
+
+%TC:break _main_
+% ======================================================================
+% ======================================================================
+\pagebreak
+% ======================================================================
+% ======================================================================
+
+
+
+% ======================================================================
+\section{Introduction}
+% ======================================================================
+
+%FIXME
+In the Introduction section, the purpose of the study should be described, along with some background. “Bulk” citations should be avoided.  Instead, authors are encouraged to weave explanatory text around the citations so that the reader can better appreciate their connection to the current paper. If the work is hypothesis-driven, authors are encouraged to include the hypothesis in this section.
+
+
+
+% ======================================================================
+\section{Theory}
+% ======================================================================
+
+%FIXME
+A “Theory” section may be included after the Introduction, if a need exists. In the Theory section, detailed mathematical derivations can be accommodated. Alternatively, such derivations may be included in an Appendix. In general, the use of appendices is discouraged, but exceptions will be made if, for example, the work’s essence can be understood by readers without the need to grasp the details of the mathematical treatment. When present, appendices are included in the word count.
+
+
+% ======================================================================
+\section{Methods}
+% ======================================================================
+
+%FIXME
+The next section should start with the heading “Methods” (not “Materials and Methods”). It should succinctly describe the techniques and instrumentation used, define the patient population, etc.
+\begin{equation}
+\mathrm{Test for equation numbering - has to be with brackets}
+\end{equation}
+
+% ======================================================================
+\section{Results}
+% ======================================================================
+
+%FIXME
+In the “Results” section, significant findings and observations should be described. The section should not be a repetition of the figure captions.
+
+
+
+% ======================================================================
+\section{Discussion}
+% ======================================================================
+
+%FIXME
+In a separate section entitled “Discussion,” the results should be critically evaluated and interpreted and placed in the context of existing literature. Further, authors should highlight whether the data are in agreement or at variance with prior published findings. If a new method has been presented, its performance should be critically assessed and compared with alternative methods. Speculation and extrapolation should be minimized or avoided altogether, and, if presented, must be clearly identified as such and confined to the Discussion section.
+
+
+
+% ======================================================================
+\section{Conclusions}
+% ======================================================================
+
+%FIXME
+In the last section, “Conclusions” (which may be merged with “Discussion” into “Discussion and Conclusions” provided no speculation or extrapolation is presented) authors should state what can be concluded from the data presented. Please avoid making excessive claims.
+
+
+
+%TC:ignore
+% ======================================================================
+\section{Acknowledgments}
+% ======================================================================
+
+%FIXME
+An Acknowledgments section is optional and is placed between Conclusions and References. It is appropriate to acknowledge sources of funding and also to thank colleagues or coworkers for assistance in conducting the research or help with the writing of the manuscript. However, the practice of acknowledging typists and illustrators should be avoided, as should the use of flowery or effusive statements. Because journal space is very limited, the acknowledgment of anonymous referees is also discouraged.
+%TC:endignore
+
+
+
+%TC:ignore
+% ======================================================================
+% \section{References}
+% ======================================================================
+
+% dynamic bibliography (uncomment line below)
+% \bibliography{references} 
+
+
+% static bibliography
+% (the content of the .bbl file shall be included)
+
+%FIXME
+References should conform to the models for journal articles, abstracts, and books or book chapters published in the Information for Authors.
+
+References should be prepared according to CSE style. Refer to the CSE Style Manual, seventh edition (Reston, VA: Council of Science Editors in cooperation with the Rockefeller University Press, 2006). References should be cited in the text by a number in parentheses and listed at the end of the paper in numerical order. Private communication and unpublished material should be cited in the text and not be treated as a reference. Websites are acceptable as references only when no other publication is available and should follow the accepted format listed in the Author Guidelines. Abstracts are acceptable; however, the published version of the work supersedes the abstract except in cases where the original abstract contains unique information not found in the final manuscript. Authors should avoid citations of the abstract and the reviewed manuscript for the same work.
+
+"Submitted" or "in preparation" are not acceptable in the reference list. Journal citations require the full title of the article and include first and last page. All authors should be listed rather than “et al.,” unless the citation exceeds 10 authors. In that case, please list only the first three authors, followed by et al.  When referencing a work by such a group involved in a multicenter study or other named collaboration, it is acceptable to add “for the (full name of the study)” after the et al.
+
+Magn Reson Med strongly encourages authors to cite articles that appear online ahead of print, whenever appropriate. The online article often will have “how to cite” instructions associated with it, containing a digital object identifier (DOI) number. Authors should follow the same formatting as print citations and include the DOI and year the article published online. Please follow the journal’s instructions, keeping in mind Magn Reson Med’s use of journal abbreviations may differ.
+%TC:endignore
+
+
+%TC:ignore
+% ======================================================================
+\section{Figures and Tables}
+% ======================================================================
+
+% ======================================================================
+\begin{figure}[H] %FIXME
+\optincludegraphics[width=\textwidth]{plt/fig_name}
+\capt[This is the 1-line title of the figure.]{This is a longer text for detailed explanation. Should be longer than 1-line.}
+\label{fig:fig_name}
+\end{figure}
+
+% ======================================================================
+\begin{table}[H] %FIXME
+\capt[This is the 1-line title of the table.]{This is a longer text for detailed explanation. Should be longer than 1-line.}
+\optinput{tab/table_name}
+\label{tab:table_name}
+\end{table}
+
+%TC:endignore
+
+
+
+%TC:ignore
+% ======================================================================
+\section{Supporting Figures and Tables}
+% ======================================================================
+% : fix/reset numbering of supporting material
+\renewcommand{\thefigure}{S\arabic{figure}}
+\def\table{\def\figurename{Table}\figure}
+\setcounter{figure}{0}
+% ======================================================================
+
+% ======================================================================
+\begin{figure}[H] %FIXME
+\optincludegraphics[width=\textwidth]{plt/fig_name}
+\capt[This is the 1-line title of the figure.]{This is a longer text for detailed explanation. Should be longer than 1-line.}
+\label{S-fig:fig_name}
+\end{figure}
+
+% ======================================================================
+\begin{table}[H] %FIXME
+\capt[This is the 1-line title of the table.]{This is a longer text for detailed explanation. Should be longer than 1-line.}
+\optinput{tab/table_name}
+\label{S-tab:table_name}
+\end{table}
+
+%TC:endignore
+
+
+\end{document}
+% ======================================================================
+% ======================================================================
+% ======================================================================

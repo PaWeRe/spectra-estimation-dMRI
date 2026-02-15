@@ -1,0 +1,306 @@
+\documentclass{article}
+
+% Language setting
+% Replace `english' with e.g. `spanish' to change the document language
+\usepackage[english]{babel}
+
+% Set page size and margins
+% Replace `letterpaper' with `a4paper' for UK/EU standard size
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\title{Diffusivity Estimation Coolness}
+\author{You}
+\usepackage{amsmath}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present a Bayesian method of inverse Laplace transform that uses Gibbs sampling to provide spectra along with an estimate of the noise related uncertainty in the spectra; this uncertainty information is valuable in interpreting the results. This is applied to multi-b high SNR endorectal coil diffusion data of the prostate.
+The code and the analysis dataset, containing derived signal decay and available histopathology can be found under: [link to Github repo].
+\end{abstract}
+
+\section{Introduction}
+
+There is great interest to quantify the spectrum of diffusivities that underlie the observed diffusion signal decay; separate tissue compartments can be identified by their spectral peaks. This spectrum is defined by the inverse Laplace transform, but unfortunately this transform is very sensitive to noise omnipresent in diffusion MRI \cite{mulkern2017perils}.
+
+In \cite{langkilde2018evaluation}, 5 parametric models of diffusion spectra were analyzed, some on the data treated here. Inverse Laplace Transform by nonnegative least squares and related methods have been used in T2 relaxometry from NMR \cite{WHITTALL1989134} and MRI \cite{ioannidis2020inverse}. An approach similar to the one presented here was used to obtain posterior distributions on NMR T2 spectra on synthetic data \cite{prange2009quantifying}. As far as we know, the approach presented here has not been used for the analysis of diffusion MRI.
+
+\textbf{Contributions.} 
+Alternatives formulation: Speeding up clinically-relevant dMRI-based biomarker dev with modern probablistic modelling ... case study ADC for prostate cancer (we propose new biomarker superior in three main ways - more robust to noise, better gleason grade group differentiation, uncertainty quantification) ... ideally we can show that we can also quickly adapt framework to brain tumor biomarker based on dMRI ...?
+
+Three-fold: 1) curating and open-sourcing dataset of real signal decay based on internal cohort at BWH, 2) proposing accurate and efficient sampling algorithm for estimating diffusivity spectrum underlying diffusion MRI signal decays, 2) using diffusion coefficient distribution computed in step one to predict prostate cancer (biomarker analysis) ... promissing results for prediction of pathology / GGG !!! (compare properly with ADC)
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{image1.png}
+        \caption{First image}
+        \label{fig:img1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{image2.png}
+        \caption{Second image}
+        \label{fig:img2}
+    \end{subfigure}
+    \caption{Example image and signal data. Signal data is based on region of interests (ROIs) for tumor and normal tissue, delineated by a Radiologist at Brigham and Women's Hospital.}
+    \label{fig:signals_and_imgs}
+\end{figure}
+
+As shown in Fig.~\ref{fig:signals_and_imgs}, the results demonstrate...
+
+
+\section{Methods}
+
+\subsection{Problem Formulation}
+Assuming the Stejskal Tanner Expression \cite{TBD}, we model the observed diffusion signal as a Laplace Transform over a finite and discrete space of diffusivity compartments, that we model as relative fractions \(R_i\) and for which we require $R_i \ge 0$. This results in the following observation model for a single signal $s_j$ corresponding to b-value $b_j$:
+\begin{equation}
+ s_j = \sum_{i=1}^n R_i e^{-b_jD_i} = R^T U^{(j)}
+\end{equation}  
+Let $\mathbf{s} \in \mathbf{R}^{m}$, $\mathbf{D} \in \mathbb{R}^n$ and \[
+\mathbf{U} = 
+\begin{bmatrix}
+e^{-b_1 D_1} & \cdots & e^{-b_1 D_n} \\
+\vdots & \ddots & \vdots \\
+e^{-b_m D_1} & \cdots & e^{-b_m D_n}
+\end{bmatrix}
+\in \mathbb{R}^{m \times n}
+\] as the design matrix, then:
+\begin{equation} 
+    \mathbf{s} = \mathbf{U} \mathbf{R}, \quad \mathbf{R} \in \mathbb{R}_{\geq 0}^{n}
+\end{equation}
+Determining the relative fractions \(R_i\) is considered an ill-posed Inverse Laplace Transform (ILT) problem, as treated also by \cite{berman2013laplace} and \cite{prange2009quantifying} on NMR data. Under the independent and identically distributed Gaussian noise model, our observation likelihood is: 
+\begin{equation} 
+    p(\mathbf{s}|\mathbf{R},\mathbf{D},\mathbf{b}) = \mathcal{N}(\mathbf{s}; \mathbf{U} \mathbf{R}, \sigma^2 \mathbf{I}) 
+\end{equation}
+Assuming a uniform prior on $\mathbf{R}$, we can derive the posterior distribution on $\mathbf{R}$ using Bayes' rule as: 
+\begin{equation} 
+    p(\mathbf{R}|\mathbf{s}, \mathbf{D}, \mathbf{b}) \propto \mathcal{N}(\mathbf{R}; \mathbf{M}, \Sigma) 
+\end{equation} 
+Because $R_i \ge 0$, the posterior distribution $p(\mathbf{R}|\mathbf{s}, \mathbf{D}, \mathbf{b})$ corresponds to a truncated multivariate normal model with a unique solution, that can be efficiently computed using convex optimization via non-negative least squares (NNLS):
+\begin{equation} 
+    \mathbf{R}^* = \arg\min_{\mathbf{R} \ge 0} \left \| \mathbf{s} - \mathbf{U} \mathbf{R} \right \|_2^2
+\end{equation} 
+The regularizer 
+we are interested in characterizing the full posterior and obtain uncertainty estimates over $\mathbf{R}$. For this we consider approximate inference methods ... starting with Gibbs Sampling similar to \cite{prange2009quantifying} ... more accurate and efficient ways ...
+
+\subsection{Approximation via Sampling}
+Monte Carlo methods, specifically Gibbs sampling \cite{geman1984stochastic}, is straightforward for approximating non-negative multivariate normal distributions, as the conditional distributions on the \( R_i \) are available in closed form, and the marginals are non-negative univariate normal distributions that can be easily sampled \cite{TBD}.
+
+However, as pointed out by \cite{prange2009quantifying}, there are drawbacks when using plain Gibbs Sampling in high-dimensional and highly-correlated ... (slow mixing, getting stuck in local minima ...).
+
+We introduce a slightly modified sampling approach that builds upon the works of \cite{prange2009quantifying} and ... and attempts to increase the accuracy and efficiency of approximating the truncated multivariate normal distribution under our specific conditions (laplace kernels, noise, etc.) ...: 
+
+\subsubsection{Mode computation.}
+Suppose we want the most probable diffusivity distribution,
+$R^*$
+\begin{equation}
+   R^* = \arg \max_R \ln p(R|s,D,b,K) : R \geq 0
+\end{equation} 
+where $R \geq 0$ means $\forall_i R_i \geq 0$
+. Then,
+\begin{equation}
+    R^* = \arg \max_R \frac{-1}{2}[R^T \Sigma^{-1} R -2 R^T \Sigma^{-1} M ]: R \geq 0
+\end{equation}  
+This can be written:
+\begin{equation}
+   R^* = \arg \min_R \frac{1}{2} R^T P R + Q^T R : G R \leq 0
+\end{equation}
+where
+\begin{equation}
+ P = \Sigma^{-1} = K^{-1} + \frac{1}{\sigma^2} \sum_{j=1}^m  U^{(j)}U^{(j)T} \quad \mbox{and} \quad Q = - \Sigma^{-1} M
+\end{equation}
+and $G = -I$. This is a standard form of a  `quadratic programming' problem.
+
+\subsubsection{Sampling algorithm.}
+REPLACE WITH PSEUDOCODE!!
+Initial computation:
+\begin{itemize}
+  \item Set $R$ to some value, $R^*$ is natural,
+  \item Initialize collection of $R$ samples to be empty
+  \item For all $i$ calculate:
+    \begin{itemize}
+      \item  $\Sigma_{/ii}$ as in appendix
+      \item  $\Sigma_{i/i}$ as in appendix
+      \item  $\sigma^2_i$ as in appendix
+    \end{itemize}  
+\end{itemize}
+
+
+Do multiple Gibbs sweeps:
+\begin{itemize}
+  \item For all $i$:
+  \begin{itemize}
+    \item Calculate $\mu_i$ \mbox{as in appendix (for} R \mbox{not} X)
+    \item $R_i \leftarrow$ sample from truncated normal $N(\mu_i, \sigma^2_i) : R_i \geq 0$
+  \end{itemize}
+  \item Append $R$ to collection of samples
+\end{itemize}
+
+\textbf{Using only Inverse Covariance}
+The truncated MVN is not amenable to analytic analysis.
+As an alternative, we may characterize it using Gibbs' sampling.
+
+Suppose
+\begin{equation}
+  p(R|M, \Sigma) \propto  N(R; M, \Sigma)
+\end{equation}
+
+Initial computation:
+\begin{itemize}
+  \item Set $R$ to some value, $R^*$ is natural,
+  \item Initialize collection of $R$ samples to be empty
+  \item For all $i$ calculate:
+    \begin{itemize}
+      \item  $\Sigma^{-1}_{ii}$ as in appendix
+      \item  $\Sigma^{-1}_{i/i}$ as in appendix
+    \end{itemize}  
+\end{itemize}
+
+Do multiple Gibbs sweeps:
+\begin{itemize}
+  \item For all $i$:
+  \begin{itemize}
+    \item Calculate $\mu_i$ \mbox{as in appendix (for} R \mbox{not} X)
+    \item $\sigma^2_i$ as in appendix
+    \item $R_i \leftarrow$ sample from truncated normal $N(\mu_i, \sigma^2_i) : R_i \geq 0$
+  \end{itemize}
+  \item Append $R$ to collection of samples
+\end{itemize}
+
+\section{Experiments and Results}
+
+Experiment config with hydra \cite{Yadan2019Hydra}, data validation with pydantic, logging with WandB.
+
+\subsection{Data}
+
+All experiments were run on an internal dataset acquired at Brigham and Women's Hospital, previously introduced by \cite{langkilde2018evaluation} and comprised of 62 patients with symptoms of prostate cancer. For all patients, standard multiparametric MR exams as well as diffusion-weighted (DWI) sequences were acquired on a GE 3T Discovery MR750 scanner with endorectal coil. The DWI sequence relevant for our analysis consists of 15 diffusion MR images per patient, starting at $b=0$ to $b=3500$ $s/{mm^2}$ in 250 $s/{mm^2}$ equally spaced increments. All patients included in our analysis dispose of normal and tumor regions of interest (ROIs) in either peripheral (PZ) or transition zone (TZ) of the prostate gland, annotated by a Radiologist. For a subset of ROIs we additionally have corresponding Gleason Grade Groups derived from histopathology.
+
+\textbf{Data processing.} For every patient, disposing of a complete normal-tumor annotation pair for either PZ or TZ, we extract the 15 DWI sequences (corresponding to varying b-values), average over all intensity values in an annotated ROI and store the averaged signals as arrays together with all available metadata in a dictionary, printed to a json file (see link to code repository mentioned above). The derived patient data does not contain any PHI. After sampling we store all numerical data in hdf5 format and reference it in two final json datasets that are used for all downstream analyses, see \ref{tab:datasplit}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{|l|c|r|}
+    \hline
+    Left & Center & Right \\
+    \hline
+    A & B & C \\
+    1 & 2 & 3 \\
+    \hline
+  \end{tabular}
+  \caption{Example table with three columns.}
+  \label{tab:datasplit}
+\end{table}
+
+\subsection{Spectrum Estimation}
+\textbf{Gibbs sampler configuration.} The variance is formulated as $\sigma=1/SNR$, where $SNR=\sqrt{v/16}*c$ equals the signal to noise ratio and $c=150$ based on ???. Aligned with \cite{bourne2012microscopic} ... 10 diffusivity compartments are created, from 0.25 up to 20.0 $\mu m^2/ms$, see \ref{fig:avg_boxplots}. $R$ is initialized at the mode $R^*$ that is computed with a ??? solver. 90k sweeps are sampled with 10k of burn-in using ??? sec on ???. To improve conditioning mild L2 regularization ($\lambda_2=0.00001$) is added. Boxplots characterizing the average diffusion coefficient distribution per region (PZ vs TZ), as well as tumor vs normal tissue, is depicted in \ref{fig:avg_boxplots}. 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figs/roi_avgs.png}
+    \caption{Average diffusion coefficient distribution for region of interests (ROIs) in peripheral zone containing normal tissue ($n_{npz}=TBD$), tumor tissue ($n_{tpz}=TBD$), as well as transition zone for normal ($n_{ntz}=TBD$) and tumor tissue ($n_{ttz}=TBD$). The boxplots per diffusivity compartment allow for an interpretation of the uncertainty associated with a predicted peak.}
+    \label{fig:avg_boxplots}
+\end{figure}
+
+I
+
+\subsection{Cancer prediction}
+Peaks in the estimated diffusivity spectrum can aid in the diagnosis of disease \cite{TBD}, \cite{TBD}. In Fig.\ref{fig:gs_stratification} we correlate the mean relative fractions $R_{0.25}$ and $R_{2.5}$ with Gleason Scores.
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.7\textwidth}
+        \includegraphics[width=\textwidth]{figs/025_diff_gs_strat.png}
+        \caption{Gleason Score Stratified boxplot of averaged relative fraction corresponding to .25 diffusivity compartment.}
+        \label{fig:img1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.7\textwidth}
+        \includegraphics[width=\textwidth]{figs/250_diff_gs_strat.png}
+        \caption{Gleason Score Stratified boxplot of averaged relative fraction corresponding to 2.5 diffusivity compartment.}
+        \label{fig:img2}
+    \end{subfigure}
+    \caption{The lower and higher diffusivity compartments show a significant correlation with Gleason Scores and may aid in distinguishing between $GS=3+4$ and $GS=4+3$ tumors—a task in which quantitative ADC has been notoriously challenging, as noted in \cite{Rozenberg2016}.}
+    \label{fig:gs_stratification}
+\end{figure}
+
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{|l|c|r|}
+    \hline
+    Left & Center & Right \\
+    \hline
+    A & B & C \\
+    1 & 2 & 3 \\
+    \hline
+  \end{tabular}
+  \caption{Example table with three columns.}
+  \label{tab:cancer_prediction}
+\end{table}
+
+\section{Simulations}
+\cite{prange2009quantifying}, \cite{berman2013laplace} have demonstrated the difficulty of solving the Inverse Laplace Transform (ILT) under the non-negativity constraint and low signal-to-noise ratios (SNRs), introduced by diffusion and relaxation data. 
+
+\subsection{Reconstruction error experiments}
+Reconstruction error formulated as optimization problem (not counting sampler parameters like burn in and number of iterations):
+\begin{equation}
+  E_{recon}= f(\mathbf{D},\mathbf{b},\mathbf{R}_{true},\mathbf{R}^*,\sigma_{real}, \sigma_{est})
+\end{equation}
+
+
+
+\subsection{Stability experiments}
+
+ %% OLD
+In Fig.\ref{fig:simulation_gibbs}, the influence of varying SNR on fixed sampler configurations is demonstrated.
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.5\textwidth}
+        \includegraphics[width=\textwidth]{figs/sim_dsnr_10k_gsnr_100.png}
+        \caption{}
+        \label{fig:img1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.5\textwidth}
+        \includegraphics[width=\textwidth]{figs/sim_dsnr_400_gsnr_400.png}
+        \caption{}
+        \label{fig:img2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.5\textwidth}
+        \includegraphics[width=\textwidth]{figs/sim_dsnr_500_gsnr_10k.png}
+        \caption{}
+        \label{fig:img2}
+    \end{subfigure}
+    \caption{The true spectrum (blue) is based on the estimated mean spectrum for the tumor transitional zone (TZ) Region of Interest (ROI) observed in our data. a) $SNR_{data} = 10000$, $SNR_{sampler}=100$, b) $SNR_{data} = 400$, $SNR_{sampler}=400$, c) $SNR_{data} = 500$, $SNR_{sampler}=10000$}
+    \label{fig:simulation_gibbs}
+\end{figure}
+[more simulations varying number of iterations, l2 regularization, ]
+
+The Gibbs sampler is evaluated with Autocorrelation Function, using equations from ... (see refs and equations in code) and visualized in figure TBD (include autocorrelation plots for all dimensions).
+
+\section{Discussion}
+
+Important point of mode vs mean (see ChatGPT chat history):
+Think of it like this:
+NNLS gives you “the best” single answer, but might vary from one noisy dataset to the next.
+Bayesian posterior mean gives you the “average plausible answer,” which tends to be more stable and robust.
+
+
+\textbf{Constructing a biomarker from diffusivity spectra.} While the per-component (vertical) distributions in Fig. \ref{fig:avg_boxplots} show substantial spread due to limited SNR, there are clear trends. A prominent peak is seen at high diffusivity, corresponding to free water diffusion at body temperature, for both tissue types, but more prominent in normal tissue. The tumor result shows a distinct peak at about 2.5~\(\mu\)m\textsuperscript{2} which agrees very well with dense tissue replacing the lacunar spaces. In normal tissue there is a hint of two moderate peaks for lower diffusivities, which can be interpreted as the glandular and stromal/nuclear compartments \cite{bourne2012microscopic}. 
+
+This may also reveal if detected peaks of the diffusivity spectra can aid in the diagnosis of disease. An advantage of this Bayesian approach, over methods such as non-negative least squares, is that, in addition to showing the trends in the data, the Bayes' approach also shows the uncertainty in the result, which can be substantial and important in the interpretation of the data.
+
+\section{Appendix}
+
+\bibliographystyle{alpha}
+\bibliography{references}
+
+\end{document}

@@ -6,3 +6,19 @@ outputs/
 multirun/
 results/
 wandb/
+
+# Binary imaging data (too large for git)
+8640-sl6-bin/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.pdf
+paper/sections/*.aux
+paper/*.wc*

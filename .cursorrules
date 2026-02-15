@@ -1,31 +1,57 @@
 # Cursor Rules for spectra-estimation-dMRI Project
+# Branch: paper/mrm-manuscript
+# Mode: Human-AI Collaborative Paper Writing (Agentic System)
+
+## Agentic System
+- This project uses Agent Skills in `.cursor/skills/` for specialized capabilities
+- See `.cursor/skills/ARCHITECTURE.md` for the full system design and data flow
+- Skills: mrm-paper-writing, general-coding, spectrum-estimation, biomarker-creation, benchmarking-visualization, image-processing
+- Activate the relevant skill(s) based on the task at hand
+- For complex multi-skill workflows, follow the patterns in ARCHITECTURE.md
 
 ## Package Management
 - ALWAYS use `uv` as the package manager for all Python-related commands
 - Use `uv run python` instead of `python` for executing Python scripts
 - Use `uv add` instead of `pip install` for adding dependencies
 - Use `uv sync` for installing dependencies from lock file
-- This prevents "python command not found" errors and ensures consistent environment management
 
-## File Creation Policy
-- DO NOT create new files unless explicitly requested by the user
-- ALWAYS prefer editing existing files over creating new ones
-- When making changes, modify existing files in the codebase rather than creating new ones
-- Only create new files when the user specifically asks for them
+## Collaboration Protocol (MRM Paper)
+- The HUMAN provides high-level direction, feedback, and scientific judgment
+- The AGENT handles ALL implementation: code, LaTeX, figures, analysis, literature
+- Before drafting any major section, show the HUMAN a brief outline/plan and ask for alignment
+- Flag assumptions explicitly with [ASSUMPTION: ...] so the human can confirm or correct
+- Flag items requiring external data/people with [BLOCKED: ...]
+- When uncertain between two approaches, present both briefly and ask for direction
+- Iterate fast: draft -> feedback -> revise. Multiple quick passes beat one slow pass
+- Track all work items using TODOs; mark items needing Stephan/Sandy input clearly
+- Always state which skill(s) you are activating for transparency
 
-## Documentation Files
-- DO NOT create documentation files (.md, .txt, README files, etc.) unless explicitly requested
-- Do not generate documentation files proactively
-- Only create documentation when the user specifically asks for it
+## Paper Structure
+- LaTeX manuscript lives in `paper/` directory
+- Sections are in `paper/sections/` (one file per section)
+- Figures go in `paper/figures/` (PDF or PNG, publication quality)
+- Build with `make` in paper/ directory
+- References in `paper/references.bib`
+- Paper plan and status tracked in `paper/PAPER_PLAN.md`
 
-## General Principles
-- Prioritize simplicity by working with existing codebase structure
-- Edit existing files to implement changes rather than creating new ones
-- Use the existing project structure and patterns
-- Follow the established code organization in the project
+## Code & Analysis
+- New analysis code goes in `src/spectra_estimation_dmri/` following existing patterns
+- New scripts go in `scripts/`
+- Use Hydra configs in `configs/` for parameterization
+- All results should be reproducible from code
+- Save intermediate results to `results/`
+
+## Figure Generation
+- MRM allows max 10 figures
+- Generate publication-quality figures (300 DPI minimum, PDF preferred)
+- Use consistent styling across all figures
+- Figure generation scripts in `scripts/` with clear naming
+
+## File Creation Policy (Relaxed for Paper Branch)
+- Creating new files IS allowed on this branch (paper sections, analysis scripts, figures)
+- Still prefer editing existing files when modifying analysis code
+- Keep paper/ directory organized
 
 ## Terminal Commands
 - Always prefix Python commands with `uv run`
 - Use `uv` for all package management operations
-- Example: `uv run python script.py` instead of `python script.py`
-- Example: `uv add package-name` instead of `pip install package-name`
