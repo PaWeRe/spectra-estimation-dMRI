@@ -7,6 +7,10 @@ multirun/
 results/
 wandb/
 
+# Secrets and credentials (NEVER commit)
+secrets/
+.cursor/mcp.json
+
 # Binary imaging data (too large for git)
 8640-sl6-bin/
 

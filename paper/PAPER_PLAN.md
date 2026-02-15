@@ -79,36 +79,32 @@
 
 ## New Analyses Required (Stephan's Feedback)
 
-### A. Direction Independence Analysis [BLOCKED: Dropbox data]
-- **What**: Compare spectra across 3 gradient directions for same ROIs
-- **Goal**: Show spectra are consistent within uncertainty bounds (PZ focus)
-- **Hypothesis**: PZ should be isotropic, TZ may show some anisotropy
-- **Data needed**: All-directions data from Stephan's Dropbox
-- **Code needed**: New analysis script to load multi-direction data, run NUTS per direction, compare
+### A. Direction Independence Analysis [DONE - Session 1]
+- **What**: Compare spectra across 3 gradient directions for same pixels
+- **Result**: D=0.25 (tumor marker) has best direction consistency; CV<5% at high SNR
+- **Data**: Used 8640-sl6-bin/ data (confirmed 3 directions × 15 b-values + 1 b=0)
+- **Code**: `scripts/direction_comparison.py`
+- **Output**: `results/direction_comparison/`
 
-### B. Sampling Diagnostics & Robustness [CAN START NOW]
-- **What**: Trace plots, R-hat, ESS across SNR scenarios
-- **Goal**: Define clear convergence boundaries
-- **Approach**: 
-  1. Construct various synthetic spectra (including "inverse" of current)
-  2. Run NUTS at SNR = {50, 100, 200, 500, 1000}
-  3. Report R-hat, ESS, RMSE, bias
-- **Code**: Extend simulation module, new analysis script
+### B. Sampling Diagnostics & Robustness [DONE (fast) - Session 1]
+- **What**: NUTS recovery of 6 synthetic spectral shapes at multiple SNR
+- **Result**: All shapes converge (R̂<1.05); RMSE decreases with SNR; inverse tumor recovered well
+- **Fast pass done**: 2 SNR × 2 realizations × 2 chains. Full run pending (~30 min).
+- **Code**: `scripts/robustness_test.py` (use `--fast` for quick test, no flag for paper quality)
+- **Output**: `results/robustness_test/`
 
-### C. Pixel-wise Prostate Mapping [PARTIALLY READY]
-- **What**: Apply NUTS to every pixel in prostate region
-- **Data**: 8640-sl6-bin/ folder already in repo (46 binary images, 256x256)
-- **Key insights from Stephan**:
-  - Native resolution is 64x64, read every 4th pixel (16x faster)
-  - ~10k pixels for prostate, need <1 sec/pixel
-  - Each spectral component → separate image
-  - Apply logistic regression → probability heatmap
-- **Steps**:
-  1. Benchmark NUTS speed on single pixel
-  2. Run pixel-wise on native 64x64 grid (prostate mask)
-  3. Generate spectral component maps
-  4. Apply trained LR discriminator → heatmap
-- **Code**: explore_pixel_data.py exists, need pixel_wise_heatmap.py
+### C. Pixel-wise Prostate Mapping [MAP DONE, NUTS PENDING - Session 1]
+- **What**: Per-pixel spectral decomposition + biomarker heatmap
+- **Result (MAP)**: 1719 pixels processed in <1 sec, 8 component maps + biomarker heatmap
+- **Pending**: 
+  - Laplace approximation for per-pixel uncertainty (fast, ~0.01ms/pixel)
+  - NUTS for select ROI pixels (gold standard uncertainty, ~8 sec/pixel)
+  - LR probability map using trained classifier weights
+  - ADC comparison map
+  - Prostate segmentation overlay
+- **Data**: 8640-sl6-bin/ (46 files = 1 b=0 + 15 b-vals × 3 dirs, native 64×64)
+- **Code**: `scripts/pixel_wise_heatmap.py`
+- **Output**: `results/pixel_heatmaps/`
 
 ### D. Patient Demographics Table [BLOCKED: Stephan]
 - Need complete patient demographics
@@ -142,14 +138,38 @@
 |---|---------|--------|--------|
 | 1 | Signal decay + synthetic validation | ISMRM Fig 1 | [x] Regenerate |
 | 2 | Sampling diagnostics (trace, convergence vs SNR) | NEW | [ ] Build |
-| 3 | Robustness: inverse spectra at various SNR | NEW | [ ] Build |
+| 3 | Robustness: inverse spectra at various SNR | NEW | [~] Fast pass done |
 | 4 | Averaged spectra by tissue type | ISMRM Fig 2 | [x] Regenerate |
-| 5 | Direction independence (spectra across directions) | NEW | [BLOCKED] |
+| 5 | Direction independence (spectra across directions) | NEW | [x] Done |
 | 6 | ROC curves (PZ, TZ, GGG) | ISMRM Fig 3 | [x] Regenerate |
 | 7 | Uncertainty propagation | ISMRM Fig 4 | [x] Regenerate |
 | 8 | Feature importance / LR coefficients | ISMRM Fig 5 | [x] Regenerate |
-| 9 | Pixel-wise spectral maps + heatmap | NEW | [~] Pipeline exists |
-| 10 | Compartment heatmaps on anatomy | NEW | [ ] Build |
+| 9 | Pixel-wise spectral maps + heatmap | NEW | [x] MAP done |
+| 10 | ADC vs LR probability vs uncertainty (flagship) | NEW | [ ] Build next |
+
+---
+
+## Paper Storyline (Agreed Session 1)
+
+**Working title:** "Bayesian Spectral Decomposition of Multi-b Diffusion MRI: Pixel-wise Tissue Characterization with Intrinsic Uncertainty Quantification"
+
+**Narrative arc:**
+1. **Problem:** ADC collapses rich multi-b signal into one number, losing microstructural detail
+2. **Method:** Bayesian inverse problem (NUTS) → full diffusivity spectrum + calibrated uncertainty per pixel
+3. **Validation:** Direction independence, robustness across spectral shapes, convergence diagnostics
+4. **Clinical utility:**
+   - (a) Per-pixel tumor probability maps that outperform ADC
+   - (b) Uncertainty maps as a NOVEL biomarker correlating with Gleason grade
+   - (c) Multi-parametric tissue characterization from a single dMRI acquisition
+5. **Headline:** "Bayesian posterior uncertainty in restricted diffusion correlates with tumor aggressiveness"
+
+**Key differentiation from bitter lesson concern:**
+- NOT competing with neural nets on classification AUC
+- Providing interpretable, physics-grounded, uncertainty-aware characterization
+- Works with small sample sizes (~25 patients) where neural nets cannot
+- Uncertainty itself is a biomarker, not noise
+
+**Flagship figure:** Side-by-side: Anatomy | ADC map | LR probability map | Uncertainty map
 
 ---
 

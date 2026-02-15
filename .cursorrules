@@ -2,6 +2,13 @@
 # Branch: paper/mrm-manuscript
 # Mode: Human-AI Collaborative Paper Writing (Agentic System)
 
+## Session Continuity
+- **ALWAYS read `.cursor/SESSION.md` at the start of a new conversation**
+- This file contains the handoff state from the previous session
+- Start by greeting the user with a brief summary and asking for today's priorities
+- At the END of each session, update SESSION.md with what was done and what's next
+- Commit SESSION.md updates to git as session checkpoints
+
 ## Agentic System
 - This project uses Agent Skills in `.cursor/skills/` for specialized capabilities
 - See `.cursor/skills/ARCHITECTURE.md` for the full system design and data flow
