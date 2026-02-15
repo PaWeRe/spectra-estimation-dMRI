@@ -97,6 +97,57 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 
 ---
 
+---
+
+## Session 2 Design Thought: "Co-Researcher" Agent Extension
+
+Patrick wants to extend the agentic framework beyond paper WRITING to paper REVIEWING and general scientific co-research. Key ideas:
+
+### Vision
+A generalized "co-researcher" agent that can:
+- **Review papers** (ours and others) with structured feedback
+- **Follow conference-specific guidelines** (MRM formatting, NeurIPS criteria, etc.)
+- **Use local models for privacy** (paper reviews must not leak to cloud APIs)
+- **Integrate with the writing pipeline** (review → revise → re-review loop)
+
+### Architecture considerations:
+1. **Privacy layer**: Paper reviews should use LOCAL LLMs only (e.g., Ollama/llama.cpp with Mistral/Llama). Cloud APIs (Claude, GPT) get the final, submission-ready version only.
+2. **Conference profiles**: Parameterized review criteria per venue (MRM: clinical relevance, reproducibility; NeurIPS: novelty, significance, clarity). Could be skill configs.
+3. **Review workflow**: structured ScholarEval-style scoring (methodology, novelty, clarity, significance, etc.)
+
+### Reference repositories to study:
+1. **K-Dense-AI/claude-scientific-writer** (https://github.com/K-Dense-AI/claude-scientific-writer)
+   - 796 stars, very mature
+   - Has 20 skills including: `peer-review`, `research-lookup`, `venue-templates`, `citation-management`, `scholar-evaluation`, `hypothesis-generation`
+   - Their `peer-review` skill does systematic manuscript evaluation with quantitative ScholarEval framework (8-dimension scoring)
+   - Their `venue-templates` skill has conference-specific formatting
+   - Could cook/flavor their skills into our system using skillchef
+   - Python package with CLI and API: `pip install scientific-writer`
+
+2. **gtarpenning/skillchef** (https://github.com/gtarpenning/skillchef)
+   - Tool to sync remote skills with local customizations ("flavoring")
+   - `uvx skillchef cook <github-url>` fetches a skill
+   - `uvx skillchef flavor` adds local customizations that persist across syncs
+   - Stores in `~/.skillchef/store/` with base/flavor/live layers
+   - Symlinks into platform dirs (`~/.cursor/skills/`, `~/.codex/skills/`)
+   - Perfect for importing K-Dense skills and customizing for our domain
+
+### Proposed implementation for Session 2:
+1. Install skillchef: `uvx skillchef init`
+2. Cook relevant K-Dense skills: peer-review, research-lookup, venue-templates, citation-management
+3. Flavor them with our MRM-specific context and local-model requirements
+4. Create a new `co-researcher` skill that orchestrates: review → feedback → revision
+5. Add Ollama/local model integration for privacy-sensitive operations
+6. Define MRM conference profile with specific review criteria
+
+### Questions to resolve:
+- Which local model? (Mistral-7B, Llama-3.1-8B, DeepSeek-Coder?)
+- How to handle the local model integration in Cursor? (MCP server? direct API?)
+- Should the reviewer agent be adversarial (find weaknesses) or constructive (suggest improvements)?
+- How to structure the review → revise loop to be efficient?
+
+---
+
 ## How to Start a New Session
 
 1. Read this file first
