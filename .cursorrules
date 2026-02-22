@@ -6,8 +6,12 @@
 - **ALWAYS read `.cursor/SESSION.md` at the start of a new conversation**
 - This file contains the handoff state from the previous session
 - Start by greeting the user with a brief summary and asking for today's priorities
-- At the END of each session, update SESSION.md with what was done and what's next
-- Commit SESSION.md updates to git as session checkpoints
+- At the END of each session (or when context is running high):
+  1. Update `.cursor/SESSION.md` with what was done, decisions made, and next steps
+  2. **ALWAYS commit SESSION.md to git** with a descriptive message summarizing the session
+  3. Remind the user: "SESSION.md updated and committed — safe to start a new session"
+- If the user says "let's wrap up", "end session", "new session", or similar → trigger the above
+- If context usage is high, proactively suggest wrapping up and committing SESSION.md
 
 ## Agentic System
 - This project uses Agent Skills in `.cursor/skills/` for specialized capabilities
