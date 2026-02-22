@@ -13,6 +13,7 @@ secrets/
 
 # Binary imaging data (too large for git)
 8640-sl6-bin/
+src/spectra_estimation_dmri/data/8640-sl6-bin/
 
 # LaTeX build artifacts
 paper/*.aux

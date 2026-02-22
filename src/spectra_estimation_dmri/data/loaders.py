@@ -1,10 +1,205 @@
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Tuple, Optional, List
 from .data_models import SignalDecayDataset, DiffusivitySpectraDataset
 import csv
 import numpy as np
 from .data_models import SignalDecay
+
+# Default data path relative to this module
+_DATA_DIR = Path(__file__).parent / "8640-sl6-bin"
+
+# Langkilde et al. 2018: 15 b-values, 250 s/mm² spacing, 3 orthogonal directions
+B_VALUES_S_MM2 = np.arange(0, 3501, 250, dtype=float)  # [0, 250, ..., 3500]
+B_VALUES_MS_UM2 = B_VALUES_S_MM2 / 1000.0  # [0, 0.25, ..., 3.5]
+N_BVALUES = 15
+N_DIRECTIONS = 3
+INTERPOLATED_SHAPE = (256, 256)
+NATIVE_SHAPE = (64, 64)
+SUBSAMPLE_FACTOR = 4
+
+
+@dataclass
+class ProstateDWI:
+    """Complete processed prostate DWI dataset for a single slice.
+
+    Attributes:
+        trace_images: Array of shape (n_bvalues, rows, cols) — direction-averaged images
+        b_values: Array of b-values in ms/um² (length n_bvalues)
+        b_values_s_mm2: Array of b-values in s/mm² (length n_bvalues)
+        groups: List of lists — file numbers grouped by b-value
+        dropped_reference: File number of the excluded scanner reference image
+        raw_images: All loaded images (including reference) keyed by file number
+        mean_intensities: Per-file mean intensities used for grouping
+    """
+
+    trace_images: np.ndarray
+    b_values: np.ndarray
+    b_values_s_mm2: np.ndarray
+    groups: List[List[int]]
+    dropped_reference: int
+    raw_images: Dict[int, np.ndarray] = field(repr=False)
+    mean_intensities: Dict[int, float] = field(repr=False)
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        return self.trace_images.shape[1:]
+
+    @property
+    def n_bvalues(self) -> int:
+        return self.trace_images.shape[0]
+
+    def prostate_mask(self, threshold_fraction: float = 0.05) -> np.ndarray:
+        """Create a simple prostate mask from the b=0 trace image.
+
+        Pixels above threshold_fraction * max(b=0 image) are included.
+        """
+        b0 = self.trace_images[0]
+        return b0 > (threshold_fraction * b0.max())
+
+    def pixel_signal_array(
+        self, mask: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Extract per-pixel signal decays as a 2D array.
+
+        Args:
+            mask: Boolean mask (rows, cols). If None, uses prostate_mask().
+
+        Returns:
+            (signals, coords): signals is (n_pixels, n_bvalues), coords is (n_pixels, 2)
+        """
+        if mask is None:
+            mask = self.prostate_mask()
+        coords = np.argwhere(mask)
+        signals = np.zeros((len(coords), self.n_bvalues), dtype=np.float64)
+        for b_idx in range(self.n_bvalues):
+            signals[:, b_idx] = self.trace_images[b_idx][coords[:, 0], coords[:, 1]]
+        return signals, coords
+
+
+def load_prostate_dwi(
+    folder_path: Optional[str] = None,
+    subsample: bool = True,
+) -> ProstateDWI:
+    """Load and process the BWH prostate DWI dataset from binary files.
+
+    This implements the correct data handling for patient 8640, slice 6:
+      - 46 binary files: 1 scanner reference + 15 b-values x 3 directions
+      - The scanner reference (brightest image, first in DICOM sequence) is
+        dropped per Wells et al. ISMRM 2022: "the first signal value was
+        not employed" (IVIM / different TE)
+      - Remaining 45 images are sorted by mean intensity, grouped into 15
+        triplets, and averaged to produce isotropic trace images
+      - b-values assigned: [0, 250, 500, ..., 3500] s/mm² (Langkilde 2018)
+
+    Args:
+        folder_path: Path to folder with .bin files. Defaults to package data dir.
+        subsample: If True, subsample from 256x256 to native 64x64 resolution.
+
+    Returns:
+        ProstateDWI with trace images, b-values, grouping info, and raw data.
+    """
+    folder = Path(folder_path) if folder_path else _DATA_DIR
+    images = _load_binary_images(folder)
+
+    if subsample:
+        images = {k: img[::SUBSAMPLE_FACTOR, ::SUBSAMPLE_FACTOR] for k, img in images.items()}
+
+    means = _compute_mean_intensities(images)
+    sorted_keys = sorted(means.keys(), key=lambda k: means[k], reverse=True)
+
+    # The brightest image is the scanner reference — verify it's an outlier
+    ref_key = sorted_keys[0]
+    protocol_keys = sorted_keys[1:]
+    ref_intensity = means[ref_key]
+    next_intensity = means[protocol_keys[0]]
+    gap_pct = (ref_intensity - next_intensity) / next_intensity * 100
+
+    if gap_pct < 10:
+        raise ValueError(
+            f"Expected scanner reference to be significantly brighter than "
+            f"protocol b=0. Got {ref_intensity:.1f} vs {next_intensity:.1f} "
+            f"({gap_pct:.1f}% gap). Check data integrity."
+        )
+
+    n_protocol = len(protocol_keys)
+    expected = N_BVALUES * N_DIRECTIONS
+    if n_protocol != expected:
+        raise ValueError(
+            f"After dropping reference, expected {expected} protocol images "
+            f"(15 b-values x 3 directions), got {n_protocol}."
+        )
+
+    # Group the 45 protocol images into 15 triplets by intensity ranking
+    groups = []
+    for i in range(0, n_protocol, N_DIRECTIONS):
+        groups.append(protocol_keys[i : i + N_DIRECTIONS])
+
+    # Average each triplet to produce trace images
+    shape = images[ref_key].shape
+    trace_images = np.zeros((N_BVALUES, *shape), dtype=np.float64)
+    for b_idx, group in enumerate(groups):
+        trace_images[b_idx] = np.mean(
+            [images[k].astype(np.float64) for k in group], axis=0
+        )
+
+    print(f"Loaded prostate DWI: {n_protocol + 1} files -> {N_BVALUES} trace images")
+    print(f"  Dropped scanner reference: file {ref_key:06d} (intensity {ref_intensity:.0f}, {gap_pct:.0f}% above protocol b=0)")
+    print(f"  Image shape: {shape}, b-values: {B_VALUES_S_MM2[0]:.0f}-{B_VALUES_S_MM2[-1]:.0f} s/mm²")
+
+    return ProstateDWI(
+        trace_images=trace_images,
+        b_values=B_VALUES_MS_UM2.copy(),
+        b_values_s_mm2=B_VALUES_S_MM2.copy(),
+        groups=groups,
+        dropped_reference=ref_key,
+        raw_images=images,
+        mean_intensities=means,
+    )
+
+
+def _load_binary_images(
+    folder: Path,
+    shape: Tuple[int, int] = INTERPOLATED_SHAPE,
+    dtype: np.dtype = np.int16,
+) -> Dict[int, np.ndarray]:
+    """Load all .bin files from a folder as 2D images."""
+    if not folder.exists():
+        raise FileNotFoundError(f"Folder not found: {folder}")
+
+    files = sorted(folder.glob("*.bin"), key=lambda f: int(f.stem))
+    if not files:
+        raise ValueError(f"No .bin files found in {folder}")
+
+    expected_bytes = shape[0] * shape[1] * np.dtype(dtype).itemsize
+    images = {}
+    for f in files:
+        if f.stat().st_size != expected_bytes:
+            raise ValueError(
+                f"File {f.name}: expected {expected_bytes} bytes, got {f.stat().st_size}. "
+                f"Check shape={shape} and dtype={dtype}."
+            )
+        images[int(f.stem)] = np.fromfile(f, dtype=dtype).reshape(shape)
+
+    return images
+
+
+def _compute_mean_intensities(
+    images: Dict[int, np.ndarray],
+    mask: Optional[np.ndarray] = None,
+) -> Dict[int, float]:
+    """Compute mean signal intensity for each image (excluding background zeros)."""
+    means = {}
+    for k, img in images.items():
+        if mask is not None:
+            means[k] = float(np.mean(img[mask]))
+        else:
+            means[k] = float(np.mean(img[img > 0]))
+    return means
+
+
+# --- Existing loaders for ROI-level data (BWH JSON + metadata CSV) ---
 
 
 def load_signal_decays(json_path: str) -> SignalDecayDataset:
@@ -20,10 +215,8 @@ def load_diffusivity_spectra(json_path: str) -> DiffusivitySpectraDataset:
 
 
 def load_bwh_signal_decays(json_path: str, metadata_path: str) -> SignalDecayDataset:
-    # Load JSON
     with open(json_path, "r") as f:
         signal_data = json.load(f)
-    # Load metadata
     metadata = {}
     with open(metadata_path, newline="") as csvfile:
         reader = csv.DictReader(csvfile)
@@ -43,30 +236,25 @@ def load_bwh_signal_decays(json_path: str, metadata_path: str) -> SignalDecayDat
         except Exception:
             ggg = None
         for roi_name, roi in rois.items():
-            # Parse anatomical_region
             anatomical_region = roi["anatomical_region"]
-            # Determine region and tumor status from anatomical_region
-            if "tumor" in anatomical_region:
-                is_tumor = True
-            else:
-                is_tumor = False
+            is_tumor = "tumor" in anatomical_region
             if "tz" in anatomical_region:
                 region = "tz"
             elif "pz" in anatomical_region:
                 region = "pz"
             else:
                 print(
-                    f"Omitting entry for patient {patient_id}, ROI {roi_name}: unknown region in anatomical_region: {anatomical_region}"
+                    f"Omitting entry for patient {patient_id}, ROI {roi_name}: "
+                    f"unknown region in anatomical_region: {anatomical_region}"
                 )
                 continue
-            # Cross-check with metadata: ensure the region/tumor flag is set for this patient
             meta_key = anatomical_region
             meta_flag = meta.get(meta_key, None)
-            if meta_flag not in ("1", ""):  # Only allow 1 or empty
+            if meta_flag not in ("1", ""):
                 raise ValueError(
-                    f"Mismatch between JSON anatomical_region '{anatomical_region}' and metadata for patient {patient_id}"
+                    f"Mismatch between JSON anatomical_region '{anatomical_region}' "
+                    f"and metadata for patient {patient_id}"
                 )
-            # Map v_count to voxel_count
             voxel_count = roi["v_count"]
             snr = float(np.sqrt(voxel_count / 16) * 150)
             sample = SignalDecay(
@@ -84,219 +272,16 @@ def load_bwh_signal_decays(json_path: str, metadata_path: str) -> SignalDecayDat
     return SignalDecayDataset(samples=samples)
 
 
-def load_binary_images(
-    folder_path: str,
-    shape: Tuple[int, int] = (256, 256),
-    dtype: np.dtype = np.int16,
-) -> Dict[int, np.ndarray]:
-    """
-    Load all .bin files from a folder as 2D images.
-
-    Each binary file is expected to contain raw pixel data stored as
-    contiguous 2-byte short integers (int16) in row-major order.
-
-    Args:
-        folder_path: Path to folder containing .bin files
-        shape: Image dimensions (rows, cols). Default (256, 256)
-        dtype: NumPy dtype for the binary data. Default np.int16
-
-    Returns:
-        Dictionary mapping file number (int) to 2D numpy array
-    """
-    folder = Path(folder_path)
-    if not folder.exists():
-        raise FileNotFoundError(f"Folder not found: {folder_path}")
-
-    files = sorted(folder.glob("*.bin"), key=lambda f: int(f.stem))
-    if len(files) == 0:
-        raise ValueError(f"No .bin files found in {folder_path}")
-
-    expected_bytes = shape[0] * shape[1] * np.dtype(dtype).itemsize
-    images = {}
-
-    for f in files:
-        file_size = f.stat().st_size
-        if file_size != expected_bytes:
-            raise ValueError(
-                f"File {f.name}: expected {expected_bytes} bytes, got {file_size}. "
-                f"Check shape={shape} and dtype={dtype}."
-            )
-        data = np.fromfile(f, dtype=dtype).reshape(shape)
-        images[int(f.stem)] = data
-
-    print(f"[INFO] Loaded {len(images)} binary images from {folder_path}")
-    print(f"  Shape: {shape}, dtype: {dtype}, files: {list(images.keys())[:5]}...")
-    return images
-
-
-def subsample_to_native(
-    images: Dict[int, np.ndarray],
-    factor: int = 4,
-) -> Dict[int, np.ndarray]:
-    """
-    Subsample images from interpolated resolution to native resolution.
-
-    Args:
-        images: Dictionary of file_number -> 2D array (e.g., 256x256)
-        factor: Subsampling factor (e.g., 4 means 256->64)
-
-    Returns:
-        Dictionary of file_number -> subsampled 2D array (e.g., 64x64)
-    """
-    return {k: img[::factor, ::factor] for k, img in images.items()}
-
-
-def compute_mean_intensities(
-    images: Dict[int, np.ndarray],
-    mask: Optional[np.ndarray] = None,
-) -> Dict[int, float]:
-    """
-    Compute mean signal intensity for each image (optionally within a mask).
-
-    Useful for sorting images by b-value (higher b -> lower mean signal).
-
-    Args:
-        images: Dictionary of file_number -> 2D array
-        mask: Optional boolean mask (True = include pixel)
-
-    Returns:
-        Dictionary of file_number -> mean intensity
-    """
-    means = {}
-    for k, img in images.items():
-        if mask is not None:
-            means[k] = float(np.mean(img[mask]))
-        else:
-            means[k] = float(np.mean(img[img > 0]))  # Exclude background zeros
-    return means
-
-
-def group_images_by_bvalue(
-    images: Dict[int, np.ndarray],
-    n_bvalues: int = 16,
-    mask: Optional[np.ndarray] = None,
-) -> Tuple[List[List[int]], Dict[int, np.ndarray]]:
-    """
-    Group images by b-value using mean intensity clustering.
-
-    Images at the same b-value (different gradient directions) should have
-    similar mean intensities. This function sorts by mean intensity and
-    groups into n_bvalues clusters.
-
-    Args:
-        images: Dictionary of file_number -> 2D array
-        n_bvalues: Expected number of distinct b-values
-        mask: Optional boolean mask for intensity calculation
-
-    Returns:
-        (groups, averaged_images):
-            - groups: List of lists, each containing file numbers in same b-value group
-            - averaged_images: Dictionary of group_index -> direction-averaged 2D array
-    """
-    means = compute_mean_intensities(images, mask)
-
-    # Sort file numbers by descending mean intensity (b=0 is brightest)
-    sorted_keys = sorted(means.keys(), key=lambda k: means[k], reverse=True)
-
-    n_files = len(sorted_keys)
-    n_per_group = n_files // n_bvalues
-    remainder = n_files % n_bvalues
-
-    # Split into groups (approximately equal size)
-    groups = []
-    idx = 0
-    for i in range(n_bvalues):
-        # Distribute remainder across first groups
-        size = n_per_group + (1 if i < remainder else 0)
-        group = sorted_keys[idx : idx + size]
-        groups.append(group)
-        idx += size
-
-    # Average images within each group
-    averaged_images = {}
-    for i, group in enumerate(groups):
-        avg = np.mean([images[k].astype(np.float64) for k in group], axis=0)
-        averaged_images[i] = avg
-
-    return groups, averaged_images
-
-
-def group_images_b0_plus_directions(
-    images: Dict[int, np.ndarray],
-    n_directions: int = 3,
-    mask: Optional[np.ndarray] = None,
-) -> Tuple[List[List[int]], Dict[int, np.ndarray], int]:
-    """
-    Group images assuming 1 b=0 image + N directions per non-zero b-value.
-
-    For diffusion MRI, b=0 has no gradient direction (1 image), while
-    each non-zero b-value has n_directions gradient directions that should
-    be averaged to produce isotropic "trace" images.
-
-    For 46 files with 3 directions: 1 b=0 + 15 non-zero b-values x 3 dirs = 46.
-
-    Args:
-        images: Dictionary of file_number -> 2D array
-        n_directions: Number of gradient directions per non-zero b-value (default: 3)
-        mask: Optional boolean mask for intensity calculation
-
-    Returns:
-        (groups, trace_images, n_bvalues):
-            - groups: List of lists, each containing file numbers in same b-value group
-            - trace_images: Dictionary of group_index -> direction-averaged 2D array
-            - n_bvalues: Number of unique b-values (including b=0)
-    """
-    means = compute_mean_intensities(images, mask)
-    sorted_keys = sorted(means.keys(), key=lambda k: means[k], reverse=True)
-
-    n_files = len(sorted_keys)
-    n_nonzero = (n_files - 1) // n_directions
-
-    if 1 + n_nonzero * n_directions != n_files:
-        print(
-            f"[WARNING] {n_files} files does not split cleanly into "
-            f"1 b=0 + N x {n_directions} directions. "
-            f"Remainder: {n_files - 1 - n_nonzero * n_directions}"
-        )
-
-    # Group 0: b=0 (brightest single image)
-    groups = [[sorted_keys[0]]]
-
-    # Remaining images grouped into sets of n_directions
-    remaining = sorted_keys[1:]
-    for i in range(0, len(remaining), n_directions):
-        group = remaining[i : i + n_directions]
-        groups.append(group)
-
-    # Average images within each group (trace computation)
-    trace_images = {}
-    for i, group in enumerate(groups):
-        avg = np.mean([images[k].astype(np.float64) for k in group], axis=0)
-        trace_images[i] = avg
-
-    n_bvalues = len(groups)
-    print(f"[INFO] Grouped {n_files} files into {n_bvalues} b-value levels:")
-    print(f"  b=0: 1 image (file {groups[0][0]:06d})")
-    print(f"  Non-zero: {n_bvalues - 1} levels x {n_directions} directions")
-
-    return groups, trace_images, n_bvalues
+# --- Legacy helpers (kept for backward compatibility) ---
 
 
 def build_pixel_signal_array(
     trace_images: Dict[int, np.ndarray],
     mask: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Build a (n_pixels, n_bvalues) signal array from trace images.
+    """Build a (n_pixels, n_bvalues) signal array from trace images.
 
-    Args:
-        trace_images: Dictionary of bvalue_index -> 2D array (ordered by b-value)
-        mask: Optional boolean mask. If None, uses all pixels
-
-    Returns:
-        (signal_array, pixel_coords):
-            - signal_array: Shape (n_pixels, n_bvalues) signal decay per pixel
-            - pixel_coords: Shape (n_pixels, 2) row, col coordinates
+    Prefer ProstateDWI.pixel_signal_array() for new code.
     """
     n_bvalues = len(trace_images)
     shape = trace_images[0].shape
@@ -304,7 +289,7 @@ def build_pixel_signal_array(
     if mask is None:
         mask = np.ones(shape, dtype=bool)
 
-    pixel_coords = np.argwhere(mask)  # (n_pixels, 2)
+    pixel_coords = np.argwhere(mask)
     n_pixels = len(pixel_coords)
 
     signal_array = np.zeros((n_pixels, n_bvalues), dtype=np.float64)
@@ -313,12 +298,3 @@ def build_pixel_signal_array(
         signal_array[:, b_idx] = img[pixel_coords[:, 0], pixel_coords[:, 1]]
 
     return signal_array, pixel_coords
-
-
-def create_simulated_signal_decays(
-    true_spectrum: list, b_values: list, snr: list
-) -> SignalDecayDataset:
-    # TODO: create noise signal with torch / pyro (normal)
-    # TODO: adapt the SignalDecay class and SignalDecay class to also include snr, true spectrum optionally
-    # TODO: construct form 1 to N if I want to vary in hydra configs
-    pass
