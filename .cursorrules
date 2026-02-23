@@ -13,13 +13,6 @@
 - If the user says "let's wrap up", "end session", "new session", or similar → trigger the above
 - If context usage is high, proactively suggest wrapping up and committing SESSION.md
 
-## Agentic System
-- This project uses Agent Skills in `.cursor/skills/` for specialized capabilities
-- See `.cursor/skills/ARCHITECTURE.md` for the full system design and data flow
-- Skills: mrm-paper-writing, general-coding, spectrum-estimation, biomarker-creation, benchmarking-visualization, image-processing
-- Activate the relevant skill(s) based on the task at hand
-- For complex multi-skill workflows, follow the patterns in ARCHITECTURE.md
-
 ## Package Management
 - ALWAYS use `uv` as the package manager for all Python-related commands
 - Use `uv run python` instead of `python` for executing Python scripts
@@ -35,7 +28,7 @@
 - When uncertain between two approaches, present both briefly and ask for direction
 - Iterate fast: draft -> feedback -> revise. Multiple quick passes beat one slow pass
 - Track all work items using TODOs; mark items needing Stephan/Sandy input clearly
-- Always state which skill(s) you are activating for transparency
+- Keep explanations grounded — don't rush ahead; walk through each step
 
 ## Paper Structure
 - LaTeX manuscript lives in `paper/` directory
