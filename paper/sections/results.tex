@@ -1,3 +1,88 @@
 \section{Results}
 
-\todo{Draft results section}
+\todo{Results subsections for ROI-level analyses (spectra, classification, uncertainty) go here first.}
+
+% ======================================================================
+\subsection{Pixel-wise Spectral Decomposition}
+
+Pixel-wise spectral estimation was performed on 146 manually segmented prostate voxels
+from patient 8640 (slice~6).
+Both MAP (Ridge NNLS, $\lambda=0.1$) and fully Bayesian (NUTS, 2000 draws, 4 chains)
+estimates were computed for all voxels.
+All 146 NUTS runs converged ($\hat{R} = 1.000$).
+Estimated signal-to-noise ratios ranged from 12 to 172 across voxels
+($\text{SNR} = 1/\hat{\sigma}$, where $\hat{\sigma}$ is the posterior mean of the
+noise parameter).
+
+\subsubsection{Spectral Fraction Maps}
+
+Figure~\ref{fig:pixelwise} shows pixel-wise maps of selected spectral fractions alongside
+the conventional ADC map.
+The restricted diffusion fraction ($D = 0.25\;\umsmm$) showed the strongest spatial
+contrast (spatial coefficient of variation $\text{CV} = 0.61$), exceeding that of ADC
+($\text{CV} = 0.26$) and providing a more specific marker of the restricted diffusion
+compartment.
+The free-water fraction ($D = 3.0\;\umsmm$) showed an approximately inverse spatial
+pattern, consistent with larger extracellular spaces in normal glandular tissue.
+
+\subsubsection{MAP and NUTS Estimates Compared}
+
+For the clinically relevant restricted diffusion component ($D = 0.25\;\umsmm$),
+MAP and NUTS posterior means were highly correlated ($r = 0.986$) with NUTS
+estimates running approximately 17\% higher on average.
+NUTS-based signal reconstruction was superior for 91\% of voxels overall and for
+100\% of high-SNR voxels ($\text{SNR} > 80$), consistent with the fully Bayesian
+model correctly marginalizing over the noise parameter.
+
+For intermediate diffusivity components ($D = 0.5$--$1.0\;\umsmm$), MAP and NUTS
+estimates diverged substantially ($r = 0.27$--$0.65$), reflecting poor identifiability
+of adjacent spectral bins from 15 b-value measurements.
+This was confirmed by the NUTS posterior: the coefficient of variation (CV = posterior
+standard deviation / posterior mean) for these components was 0.75--0.81, indicating
+that the uncertainty was comparable to the estimate itself.
+In contrast, $D = 0.25\;\umsmm$ had $\text{CV} = 0.17$, identifying it as the
+best-constrained spectral component.
+
+\subsubsection{Spectral Discriminant Score}
+
+To synthesize the multi-component spectral information into a single spatial biomarker,
+we computed a spectral discriminant score at each voxel.
+Logistic regression coefficients were trained on ROI-level spectral profiles
+(81 peripheral zone samples: 27 tumor, 54 normal; LOOCV AUC = 0.919) and applied
+unchanged to pixel-level normalized spectra:
+%
+\begin{equation}
+  \text{disc}(\mathbf{x}) = \sum_{j=1}^{8} w_j \, \hat{R}_j(\mathbf{x}),
+  \label{eq:discriminant}
+\end{equation}
+%
+where $w_j$ are the fixed logistic regression coefficients and $\hat{R}_j(\mathbf{x})$
+is the normalized spectral fraction at voxel~$\mathbf{x}$.
+Positive coefficients ($w_j > 0$ for $D \leq 1.0\;\umsmm$) indicate spectral
+components associated with tumor tissue (restricted diffusion), while negative
+coefficients ($w_j < 0$ for $D \geq 1.5\;\umsmm$) indicate components associated
+with normal tissue (free water and glandular diffusion).
+
+The resulting spectral discriminant map was near-perfectly anti-correlated with ADC
+($r = -0.971$), demonstrating that ADC can be understood as a special case of the
+spectral discriminant---a particular weighted sum of spectral fractions.
+However, the spectral decomposition additionally reveals \emph{which tissue compartments}
+drive the observed ADC value at each voxel, providing biological interpretability that
+ADC alone cannot offer.
+
+\subsubsection{Uncertainty-Aware Discriminant}
+
+The fully Bayesian approach enables propagation of posterior uncertainty through the
+discriminant score.
+For each voxel, 500 Monte Carlo samples were drawn from the approximate NUTS posterior
+(Gaussian with per-component mean and standard deviation), normalized, and passed through
+Eq.~\ref{eq:discriminant}.
+The resulting uncertainty in the discriminant score (standard deviation of MC samples)
+ranged from 0.060 to 0.140 across voxels (mean = 0.094), representing 13--19\% of the
+total discriminant range ($[-0.27, +0.48]$).
+This uncertainty map identifies voxels where the spectral tumor/normal classification is
+least reliable and provides an intrinsic quality metric that requires no external
+reference standard.
+
+\note{Consider: does discriminant uncertainty correlate with tissue boundary location?
+  This would strengthen the clinical utility argument.}

@@ -1,3 +1,82 @@
 \section{Methods}
 
-\todo{Draft methods - data, inference, classification pipeline}
+\todo{Methods subsections for data acquisition, ROI analysis, classification pipeline go here first.}
+
+% ======================================================================
+\subsection{Pixel-wise Spectral Estimation}
+
+Pixel-wise spectral decomposition was performed on a single axial slice
+(patient 8640, slice 6) from the BWH prostate DWI dataset.
+The prostate was manually segmented in 3D~Slicer, yielding 146 voxels at
+$64 \times 64$ native resolution.
+
+For each voxel, the multi-b signal decay $\svec = [s(b_1), \ldots, s(b_{15})]^T$ was
+normalized by the $b = 0$ signal to obtain fractional signals in $[0, 1]$.
+The spectral decomposition model is:
+%
+\begin{equation}
+  \svec / s_0 = \Umat \Rvec + \boldsymbol{\varepsilon},
+  \quad
+  \Umat_{ij} = \exp(-b_i D_j),
+  \label{eq:forward_model}
+\end{equation}
+%
+where $\Rvec \in \mathbb{R}^8_{\geq 0}$ are the non-negative spectral fractions
+corresponding to diffusivity bins
+$D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$,
+and $\boldsymbol{\varepsilon} \sim \mathcal{N}(0, \sigma^2 \mathbf{I})$.
+
+\subsubsection{MAP Estimation (Ridge NNLS)}
+
+The maximum \emph{a~posteriori} estimate under a Gaussian prior
+$R_j \sim \mathcal{N}(0, \lambda^{-1})$ is obtained in closed form:
+%
+\begin{equation}
+  \hat{\Rvec}_{\text{MAP}} = \max\!\Big(
+    (\Umat^T \Umat + \lambda \mathbf{I})^{-1} \Umat^T (\svec / s_0),\;
+    \mathbf{0}
+  \Big),
+  \label{eq:map}
+\end{equation}
+%
+with $\lambda = 0.1$.
+This is vectorized across all voxels and computed in under one second for the
+entire prostate.
+
+\subsubsection{Fully Bayesian Estimation (NUTS)}
+
+For the fully Bayesian approach, we place explicit priors on both the spectrum
+and the noise:
+%
+\begin{align}
+  R_j &\sim \text{HalfNormal}\!\left(\sigma_R = 1/\sqrt{\lambda}\right),
+  \quad j = 1, \ldots, 8 \label{eq:prior_R} \\
+  \sigma &\sim \text{HalfCauchy}(\beta = 0.01) \label{eq:prior_sigma} \\
+  \svec / s_0 &\sim \mathcal{N}(\Umat \Rvec, \sigma^2 \mathbf{I}).
+  \label{eq:likelihood}
+\end{align}
+%
+The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ was sampled using the
+No-U-Turn Sampler (NUTS) via PyMC, with 2000 draws, 200 tuning steps,
+4 chains, and target acceptance rate 0.95, independently for each of the
+146 voxels.
+Convergence was assessed using the $\hat{R}$ statistic.
+
+\subsubsection{ADC Baseline}
+
+Apparent diffusion coefficients were computed by monoexponential least-squares
+fitting to b-values $\leq 1250\;\text{s/mm}^2$:
+$\log(s) = \log(s_0) - b \cdot \text{ADC}$.
+
+\subsubsection{Spectral Discriminant Score}
+
+Logistic regression was trained on ROI-level MAP spectra from 81 peripheral zone
+samples (27 tumor, 54 normal) using leave-one-out cross-validation (LOOCV AUC = 0.919).
+The learned coefficients $\mathbf{w} \in \mathbb{R}^8$ were applied to pixel-level
+normalized spectra to compute a spectral discriminant score
+(Eq.~\ref{eq:discriminant}), with positive values indicating tumor-like and negative
+values indicating normal-like spectral profiles.
+
+For the fully Bayesian estimates, uncertainty in the discriminant was quantified by
+propagating 500 Monte Carlo samples from the per-voxel NUTS posterior through
+Eq.~\ref{eq:discriminant}.

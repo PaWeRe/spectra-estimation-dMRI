@@ -1,7 +1,7 @@
 # Session State — MRM Paper Collaboration
 
 > **READ THIS FIRST** when starting a new session.
-> Updated: 2026-02-22 (Session 4)
+> Updated: 2026-03-08 (Session 5)
 
 ---
 
@@ -15,109 +15,91 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 
 ---
 
-## Session 4 Summary (2026-02-22)
+## Session 5 Summary (2026-03-08)
 
 ### What we accomplished:
 
-1. **Cleaned up agent/skills architecture**: Deleted `.cursor/skills/` and `.cursor/agents/` directories — they were unused and overcomplicated. Removed references from `.cursorrules`. SESSION.md is the only shared memory needed.
+1. **Comprehensive diagnostic analysis of MAP vs NUTS vs ADC**: Generated 7 diagnostic figures comparing all estimation methods across 146 prostate voxels. Key quantitative results:
+   - D=0.25 (restricted diffusion): MAP and NUTS highly correlated (r=0.99), best-constrained component (CV=0.17)
+   - D=0.5–1.0 (intermediate): MAP and NUTS disagree substantially (r=0.27–0.65), poorly identifiable (CV=0.75–0.81)
+   - NUTS gives better signal reconstruction for 91% of pixels (100% of high-SNR)
 
-2. **Walked through existing pipeline end-to-end**: Documented the complete data flow:
-   - Step 1: `load_bwh_signal_decays()` → 149 ROI-averaged `SignalDecay` objects
-   - Step 2: `ProbabilisticModel` builds design matrix U (15×8)
-   - Step 3: Per-sample inference loop → `MAPInference` or `NUTSSampler` → `DiffusivitySpectrum`
-   - Step 4: Biomarker pipeline (LR, LOOCV, AUC)
-   
-   **Identified normalization bug**: NUTS normalizes signal by S0 before fitting (spectra in [0,1]). MAP does NOT (spectra in raw signal units). Inconsistent — fixed in pixelwise.py.
+2. **Resolved LR tumor probability saturation**: Root cause = StandardScaler domain shift (pixel D=0.25 mean=0.202 vs ROI tumor mean=0.119). Fix: removed StandardScaler, use raw discriminant score instead of P(tumor).
 
-3. **Researched prostate segmentation**: Neural nets (TotalSegmentator, Prostate158, nnU-Net) won't work for our data — they need T2w and/or 3D volumes. We have single 2D DWI slice at 64×64. Decision: **manual segmentation in 3D Slicer**.
+3. **Key discovery — ADC as special case of spectral discriminant**:
+   - Spectral discriminant (LR coef · normalized fractions) correlates r = −0.971 with ADC
+   - This means ADC is a particular weighted sum of spectral fractions
+   - The decomposition adds interpretability: which compartments drive ADC at each voxel
+   - MAP spectral components are highly correlated with ADC (D=0.5: r=-0.97), but NUTS decorrelates (r=-0.20) — NUTS provides genuinely different information for poorly-identified components
 
-4. **Created manual prostate mask**: Patrick drew it in 3D Slicer → `results/prostate_mask.nii` (146 pixels, binary, 64×64×1). Exported b=0 as NIfTI for Slicer: `results/b0_trace_64x64.nii.gz`.
+4. **LR coefficient importance analysis**: Coefficients tell a clean biological story:
+   - Tumor-associated (+): D=0.25 (+0.71), D=0.5 (+0.55), D=0.75 (+0.40)
+   - Normal-associated (−): D=20 (−0.76), D=3.0 (−0.55), D=2.0 (−0.44)
+   - Created per-component contribution heatmaps showing where each spectral fraction drives the classification
 
-5. **Built `pixelwise.py`** — new module at `src/spectra_estimation_dmri/pixelwise.py`:
-   - Pure functions, no config objects, no Pydantic wrappers
-   - `build_design_matrix()` — U matrix
-   - `compute_adc()` — vectorized ADC for all pixels (monoexponential fit)
-   - `compute_map_spectra()` — closed-form Ridge NNLS: `R = (U'U + λI)^{-1} U' S_norm`
-   - `run_nuts_pixel()` / `run_nuts_all()` — NUTS with checkpointing
-   - `train_tumor_lr()` — train LR on ROI data, apply to pixels
-   - `compute_tumor_probability()` / `compute_tumor_probability_with_uncertainty()`
-   - `assemble_map()` — scatter pixel values back into 2D image
-   - All functions normalize by S0 consistently
+5. **Discriminant uncertainty via MC propagation**: 
+   - Drew 500 MC samples from NUTS posterior per pixel, propagated through discriminant
+   - Uncertainty range: std = 0.06–0.14 (mean 0.094) on a discriminant range of [-0.27, +0.48]
+   - Provides intrinsic quality metric for the spectral classification
 
-6. **Computed all pixel-wise maps**:
-   - **ADC**: 0.47–1.49 ×10⁻³ mm²/s (correct physiological range)
-   - **MAP spectra**: all 8 diffusivity fractions, spectra sum ≈ 1.0 per pixel
-   - **NUTS**: completed on all 146 pixels, all converged (R-hat = 1.000)
-     - SNR range: 12–172 across pixels
-     - Checkpoint-based, resumable
-   - **Tumor probability**: trained LR on ROI data (PZ AUC=0.919, TZ AUC=0.945)
+6. **First-draft publication figure** (`paper/figures/fig_pixelwise_v2.pdf`):
+   - Clean 2×3 layout: ADC | D=0.25 | D=3.0 | LR coefficients | Discriminant | Uncertainty
+   - Zoomed to prostate region, consistent colorbars
 
-7. **Results files created**:
-   - `results/prostate_mask.nii` — manual mask from 3D Slicer
-   - `results/b0_trace_64x64.nii.gz` — b=0 NIfTI for Slicer
-   - `results/pixelwise_all_fast.npz` — ADC + MAP spectra + tumor prob (fast methods)
-   - `results/pixelwise/nuts_results.npz` — full NUTS results (spectrum mean/std, sigma, SNR)
-   - `results/pixelwise/nuts_checkpoint.npz` — checkpoint (146/146 done)
-   - `results/pixelwise_adc_map_preview.png` — ADC + MAP preview
-   - `results/pixelwise_all_fast_overview.png` — all fast maps overview
-   - `results/mask_comparison.png` — threshold mask comparison
+7. **Started LaTeX paper sections**:
+   - `paper/sections/results.tex`: Pixel-wise results with spectral maps, MAP vs NUTS comparison, discriminant, uncertainty
+   - `paper/sections/methods.tex`: Pixel-wise methods (MAP, NUTS, ADC, discriminant score, MC uncertainty)
+   - `paper/sections/figures.tex`: Figure environment with detailed caption for pixel-wise figure
+
+8. **Email draft for supervisor** in `results/email_draft_supervisor.md`
 
 ### Key findings and decisions:
 
-**LR coefficients tell the spectral story**:
-- Positive (tumor): D=0.25 (+0.71), D=0.5 (+0.55), D=0.75 (+0.40)
-- Near zero: D=1.0 (+0.07) — transition
-- Negative (normal): D=1.5 (−0.36), D=2.0 (−0.44), D=3.0 (−0.55), D=20 (−0.76)
-- This decomposition is what ADC cannot provide
+**Spectral decomposition value proposition (for the paper narrative):**
+1. **Interpretability**: Spectral fractions reveal which tissue compartments (restricted, glandular, free water) contribute to the observed diffusion signal — ADC collapses this into one number
+2. **Feature importance**: LR coefficients trained on ROIs give biological meaning to each spectral bin
+3. **Uncertainty**: NUTS posterior provides (a) per-component identifiability (CV), (b) per-voxel discriminant uncertainty, (c) joint noise estimation
+4. **ADC recovery**: The spectral discriminant recovers ADC (r=−0.97) as a special case, but additionally decomposes it
 
-**Tumor probability maps are saturated** — most pixels → P≈1.0. This is NOT a bug:
-- Domain shift: LR trained on ROI averages from 40 patients, applied to pixels from 1 patient
-- StandardScaler fitted on ROI feature distribution; pixel features land in a different range
-- The logit scores all push to extremes
-- **Fix options for next session**: (a) skip StandardScaler for pixel application, (b) recalibrate, (c) just show raw spectral fractions instead of P(tumor)
-- Patrick asked: "why PZ and TZ models?" — because normal tissue looks different in the two zones, so separate classifiers are standard. For pixel-wise, we'd need zone segmentation to apply the right model.
+**What NUTS adds beyond MAP:**
+- Better signal reconstruction (91% of voxels)
+- Honest uncertainty (poorly-identified components get high CV)
+- Joint noise estimation per voxel (SNR 12–172)
+- For the discriminant itself, MAP and NUTS agree (r=0.997) — the value is in the uncertainty, not the point estimate
 
-**For the journal figure**: Show raw spectral fractions (not saturated P(tumor)) + NUTS uncertainty + NUTS SNR. The spectral decomposition itself is the contribution, not a pixel-level classifier.
-
-### Correct parameters (confirmed, unchanged from Session 3):
+### Correct parameters (unchanged from Session 4):
 
 | Parameter | Value | Source |
 |-----------|-------|--------|
 | b-values | [0, 250, ..., 3500] s/mm² (15 values) | Langkilde 2018 |
 | Diffusivity bins | [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0] μm²/ms | ISMRM 2024 |
 | Ridge λ | 0.1 | ISMRM 2024 / configs/prior/ridge.yaml |
-| HalfCauchy β | 0.01 | pixelwise.py (generic, no SNR estimate for pixels) |
+| HalfCauchy β | 0.01 | pixelwise.py |
 | NUTS | 2000 draws, 200 tune, 4 chains, target_accept=0.95 | configs/inference/nuts.yaml |
 | ADC | monoexponential, b ≤ 1250 s/mm² | ISMRM 2024 |
 | Prostate mask | Manual, 146 pixels | 3D Slicer, Session 4 |
+| LR (PZ) | C=1.0, 81 samples (27 tumor, 54 normal), LOOCV AUC=0.919 | Session 4 |
 
 ### Key file map (updated):
 
 | File | Purpose |
 |------|---------|
-| `src/spectra_estimation_dmri/pixelwise.py` | **NEW**: Pixel-wise ADC, MAP, NUTS, tumor prob |
-| `src/spectra_estimation_dmri/main.py` | Main Hydra pipeline (ROI-level) |
-| `src/spectra_estimation_dmri/data/loaders.py` | Data loading (`load_prostate_dwi()` + `ProstateDWI`) |
-| `src/spectra_estimation_dmri/models/prob_model.py` | Probabilistic model (U matrix, MAP, posterior) |
-| `src/spectra_estimation_dmri/inference/nuts.py` | NUTS sampler (ROI-level, config-coupled) |
-| `src/spectra_estimation_dmri/inference/map.py` | MAP inference (ROI-level) |
-| `src/spectra_estimation_dmri/biomarkers/pipeline.py` | Full biomarker analysis |
-| `src/spectra_estimation_dmri/biomarkers/features.py` | Feature extraction |
-| `src/spectra_estimation_dmri/biomarkers/mc_classification.py` | LOOCV classification |
-| `src/spectra_estimation_dmri/biomarkers/adc_baseline.py` | ADC baseline |
-| `configs/dataset/bwh.yaml` | BWH dataset config |
-| `configs/prior/ridge.yaml` | Ridge prior (λ=0.1) |
-| `configs/inference/nuts.yaml` | NUTS config (2000 draws, 200 tune, 4 chains) |
-| `results/prostate_mask.nii` | Manual prostate mask (146 pixels) |
-| `results/pixelwise/nuts_results.npz` | NUTS pixel results (all 146 done) |
+| `src/spectra_estimation_dmri/pixelwise.py` | Pixel-wise ADC, MAP, NUTS, tumor prob |
+| `paper/sections/results.tex` | **UPDATED**: Pixel-wise results draft |
+| `paper/sections/methods.tex` | **UPDATED**: Pixel-wise methods draft |
+| `paper/sections/figures.tex` | **UPDATED**: Pixel-wise figure + caption |
+| `paper/figures/fig_pixelwise_v2.pdf` | **NEW**: Publication figure draft (2×3) |
+| `paper/figures/fig_pixelwise_v1.pdf` | **NEW**: Extended figure (10 panels, backup) |
+| `results/email_draft_supervisor.md` | **NEW**: Email draft for Stephan |
+| `results/diag_comprehensive.png` | **NEW**: All-in-one diagnostic |
+| `results/diag_map_vs_nuts.png` | **NEW**: MAP vs NUTS per component |
+| `results/diag_nuts_uncertainty.png` | **NEW**: NUTS mean/std/CV |
+| `results/diag_lr_importance_heatmap.png` | **NEW**: Per-component LR contribution |
+| `results/diag_classifier_story.png` | **NEW**: Fractions to composite biomarker |
+| `results/diag_lr_investigation.png` | **NEW**: LR scaler fix |
+| `results/diag_snr_sigma.png` | **NEW**: SNR and noise overview |
+| `results/pixelwise/nuts_results.npz` | NUTS pixel results (146 done) |
 | `results/pixelwise_all_fast.npz` | ADC + MAP + tumor prob results |
-| `results/inference_bwh_backup/` | 149 NUTS .nc files for ROI-level (keep!) |
-
-### Architecture note (from Session 4 cleanup):
-
-- Deleted `.cursor/skills/` (6 skill folders) and `.cursor/agents/` (4 agent configs)
-- SESSION.md is the only cross-session memory
-- Patrick expressed interest in specialized Cursor agents for plotting and pipeline running — tabled for now, wants to understand Cursor's actual capabilities first (docs needed)
 
 ### Patrick's preferences (carry across all sessions):
 
@@ -132,39 +114,38 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 - **Go step by step**: Don't rush ahead — walk through each decision
 - **Simplify**: If current code is overcomplicated, say so and propose simpler alternatives
 - **nibabel** is now installed (added in Session 4)
+- **Overleaf** for LaTeX compilation (no local LaTeX compiler)
+- **Build narrative alongside figures**: Write findings into LaTeX incrementally
 
 ---
 
-## Session 5 TODO (Priority Order)
+## Session 6 TODO (Priority Order)
 
-### Phase 1: Build the journal-ready comparison figure
-1. **Fix tumor probability saturation**: Either (a) drop StandardScaler for pixel application, (b) use Platt recalibration, or (c) just show raw spectral fractions. Discuss with Patrick.
-2. **Design figure layout**: Patrick approved working on layout. Proposed panels:
-   - Row 1: b=0 | ADC | NUTS D=0.25 mean | NUTS D=0.25 uncertainty
-   - Row 2: Selected spectral fractions (D=0.5, D=1.0, D=3.0, D=20) or all 8
-   - Row 3: NUTS SNR map | maybe tumor probability (if fixed) | LR coefficients bar chart
-3. **Generate publication-quality figure**: 300 DPI, PDF, consistent colormaps, proper labels
-4. **All data is ready**: ADC, MAP spectra, NUTS spectra+uncertainty+SNR all computed
+### Phase 1: Paper narrative and figure iteration
+1. **Review fig_pixelwise_v2 with Stephan** — get feedback on panel selection, need for annotations
+2. **Iterate on figure** based on feedback (add anatomy? PZ/TZ boundary? tumor annotation?)
+3. **Consider local LaTeX preview** — install tectonic or BasicTeX via homebrew for local builds
+4. **Continue Results/Methods writing** — add ROI-level results sections, complete Methods
 
-### Phase 2: Investigate Full LR < ADC anomaly
-5. **Debug why full LR (8 features) underperforms ADC**: Likely overfitting with 8 correlated features on small N. Check regularization, feature selection, try fewer features.
-6. **Consider**: D=0.25 alone (AUC=0.88 PZ) vs ADC (AUC=0.95 PZ) — why does ADC still win for tumor detection even though D=0.25 carries more specific information?
+### Phase 2: Strengthen the story
+5. **Test whether discriminant uncertainty correlates with tissue boundaries** — would strengthen clinical utility argument
+6. **Explore whether NUTS D=0.25 has additional value over MAP D=0.25** — the 17% higher mean could matter
+7. **Debug Full LR < ADC anomaly** (carried from Session 4) — overfitting with 8 features on small N
 
-### Phase 3: Refactor toward unified pipeline
-7. **Long-term**: Refactor `main.py` and inference classes to use `pixelwise.py` patterns (pure functions, consistent normalization, no config coupling). Patrick expressed interest in this.
+### Phase 3: Additional figures
+8. **Generate remaining ISMRM-quality figures**: tissue spectra boxplots, ROC curves, signal decay examples
+9. **Consider a second pixel-wise figure**: per-component LR importance heatmap (diag_lr_importance_heatmap.png was promising)
 
-### Phase 4: Paper writing
-8. **Draft methods section** describing pixel-wise extension
-9. **Draft results section** with figure
+### Phase 4: Logistics
+10. **Send email to Stephan** (draft in results/email_draft_supervisor.md)
+11. **Patient demographics table** — still BLOCKED on Stephan
 
 ---
 
-## How to Start Session 5
+## How to Start Session 6
 
 1. Read this file
 2. Run `git log --oneline -5` for latest commits
-3. All pixel-wise results are already computed — load from:
-   - `results/pixelwise_all_fast.npz` (ADC, MAP, tumor prob)
-   - `results/pixelwise/nuts_results.npz` (NUTS spectra, uncertainty, SNR)
-4. Start with figure layout design
-5. Ask Patrick: "Ready for Session 5? Starting with the comparison figure. Sound right?"
+3. Ask Patrick: "Did Stephan respond? Any feedback on the figure or narrative direction?"
+4. All data is computed — figure iteration is fast
+5. If writing: continue with Introduction or Theory sections

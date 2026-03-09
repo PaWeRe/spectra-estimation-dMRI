@@ -2,4 +2,29 @@
 % MRM allows up to 10 figures
 % Plan: 5 from ISMRM + 5 new (directions, diagnostics, pixel maps, patient table)
 
-\todo{Add figures after generation}
+\todo{Add earlier figures (signal decay, tissue spectra, ROC curves, feature importance)}
+
+% --- Pixel-wise spectral decomposition (flagship figure) ---
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_pixelwise_v2.pdf}
+\capt[Pixel-wise spectral decomposition of a prostate DWI slice.]{%
+(A)~Conventional ADC map for reference (146~manually segmented voxels).
+(B,C)~Individual spectral fractions from MAP estimation: restricted diffusion
+($D = 0.25\;\umsmm$, tumor-associated) and free water ($D = 3.0\;\umsmm$,
+normal tissue--associated) show complementary spatial patterns that decompose
+the information collapsed into a single ADC value.
+(D)~Logistic regression coefficients trained on 81~ROI-level peripheral zone
+spectra (LOOCV AUC = 0.919) reveal which spectral components drive tumor
+detection: slow diffusion ($D \leq 1.0\;\umsmm$, blue) is tumor-associated,
+fast diffusion ($D \geq 1.5\;\umsmm$, red) is normal tissue--associated.
+(E)~Spectral discriminant score (weighted sum of fractions using the
+coefficients in D), applied per voxel.  The discriminant is near-perfectly
+anti-correlated with ADC ($r = -0.97$), demonstrating that ADC can be
+understood as a special case of the spectral discriminant.
+(F)~Uncertainty in the discriminant propagated from the fully Bayesian (NUTS)
+posterior via 500~Monte Carlo samples per voxel, providing an intrinsic
+quality metric for the spectral classification at each location.
+}
+\label{fig:pixelwise}
+\end{figure}
