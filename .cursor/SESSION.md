@@ -137,8 +137,9 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 9. **Consider a second pixel-wise figure**: per-component LR importance heatmap (diag_lr_importance_heatmap.png was promising)
 
 ### Phase 4: Logistics
-10. **Send email to Stephan** (draft in results/email_draft_supervisor.md)
-11. **Patient demographics table** — still BLOCKED on Stephan
+10. **Install tectonic** (`brew install tectonic`) for local LaTeX preview — then `tectonic main.tex` in paper/ to build PDF locally
+11. **Send email to Stephan** (draft in results/email_draft_supervisor.md)
+12. **Patient demographics table** — still BLOCKED on Stephan
 
 ---
 
@@ -146,6 +147,7 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 
 1. Read this file
 2. Run `git log --oneline -5` for latest commits
-3. Ask Patrick: "Did Stephan respond? Any feedback on the figure or narrative direction?"
-4. All data is computed — figure iteration is fast
-5. If writing: continue with Introduction or Theory sections
+3. **Install tectonic**: `brew install tectonic` then test with `cd paper && tectonic main.tex`
+4. Ask Patrick: "Did Stephan respond? Any feedback on the figure or narrative direction?"
+5. All data is computed — figure iteration is fast
+6. If writing: continue with Introduction or Theory sections
