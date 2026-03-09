@@ -3,8 +3,9 @@
 # Mode: Human-AI Collaborative Paper Writing (Agentic System)
 
 ## Session Continuity
-- **ALWAYS read `.cursor/SESSION.md` at the start of a new conversation**
-- This file contains the handoff state from the previous session
+- **ALWAYS read `.cursor/SESSION.md` AND `.cursor/FINDINGS.md` at the start of a new conversation**
+- SESSION.md contains the handoff state (what was done, next steps)
+- FINDINGS.md contains cumulative learnings, quantitative findings, and open questions
 - Start by greeting the user with a brief summary and asking for today's priorities
 - At the END of each session (or when context is running high):
   1. Update `.cursor/SESSION.md` with what was done, decisions made, and next steps

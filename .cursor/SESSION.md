@@ -51,7 +51,7 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
    - `paper/sections/methods.tex`: Pixel-wise methods (MAP, NUTS, ADC, discriminant score, MC uncertainty)
    - `paper/sections/figures.tex`: Figure environment with detailed caption for pixel-wise figure
 
-8. **Email draft for supervisor** in `results/email_draft_supervisor.md`
+8. **Created `.cursor/FINDINGS.md`** — cumulative knowledge base of quantitative findings, learnings, and open questions (read at session start alongside SESSION.md)
 
 ### Key findings and decisions:
 
@@ -90,7 +90,7 @@ We are writing an MRM journal paper on **Bayesian spectral decomposition of mult
 | `paper/sections/figures.tex` | **UPDATED**: Pixel-wise figure + caption |
 | `paper/figures/fig_pixelwise_v2.pdf` | **NEW**: Publication figure draft (2×3) |
 | `paper/figures/fig_pixelwise_v1.pdf` | **NEW**: Extended figure (10 panels, backup) |
-| `results/email_draft_supervisor.md` | **NEW**: Email draft for Stephan |
+| `.cursor/FINDINGS.md` | **NEW**: Cumulative findings & open questions |
 | `results/diag_comprehensive.png` | **NEW**: All-in-one diagnostic |
 | `results/diag_map_vs_nuts.png` | **NEW**: MAP vs NUTS per component |
 | `results/diag_nuts_uncertainty.png` | **NEW**: NUTS mean/std/CV |

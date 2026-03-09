@@ -30,9 +30,15 @@ pattern, consistent with larger extracellular spaces in normal glandular tissue.
 For the clinically relevant restricted diffusion component ($D = 0.25\;\umsmm$),
 MAP and NUTS posterior means were highly correlated ($r = 0.986$) with NUTS
 estimates running approximately 17\% higher on average.
-NUTS-based signal reconstruction was superior for 91\% of voxels overall and for
-100\% of high-SNR voxels ($\text{SNR} > 80$), consistent with the fully Bayesian
-model correctly marginalizing over the noise parameter.
+In terms of in-sample signal reconstruction (RMSE between observed and predicted
+normalized signal), NUTS posterior means achieved lower residuals for 91\% of
+voxels overall and 100\% of high-SNR voxels ($\text{SNR} > 80$).
+This is expected in part because the MAP estimate trades data fidelity for
+regularization through the Ridge penalty, whereas NUTS marginalizes over the
+noise parameter and samples from the full posterior.
+Better data fit does not necessarily imply a more accurate spectrum in the
+absence of ground truth; the primary advantage of the fully Bayesian approach
+lies in the uncertainty estimates rather than the point estimates.
 
 For intermediate diffusivity components ($D = 0.5$--$1.0\;\umsmm$), MAP and NUTS
 estimates diverged substantially ($r = 0.27$--$0.65$), reflecting poor identifiability
