@@ -9,7 +9,7 @@
 
 We are writing an MRM journal paper on **spectral decomposition of multi-b diffusion MRI for prostate cancer characterization**. The human (Patrick) provides high-level direction; the AI handles implementation. See `paper/PAPER_PLAN.md` for full plan.
 
-**Branch:** `paper/mrm-manuscript`
+**Branch:** `main` (merged from `paper/mrm-manuscript`)
 **Key directories:** `paper/` (LaTeX), `src/spectra_estimation_dmri/` (Python package), `results/` (outputs)
 **Patient pixel data:** `src/spectra_estimation_dmri/data/8640-sl6-bin/` (46 .bin files, gitignored)
 
@@ -170,6 +170,19 @@ We are writing an MRM journal paper on **spectral decomposition of multi-b diffu
 ### Phase 4: Communication
 11. **Send email to Sandy** — draft ready at `results/email_draft_sandy.md`
 12. **Patient demographics table** — still needed from Stephan
+
+### Phase 5: Dataset limitations & GGG strategy
+13. **Dataset bias discussion**: Langkilde ROIs based on MRI (incl ADC) not histopath → tumor detection AUCs partially circular. Only GGG is independent. Discuss prominently in paper.
+14. **GGG sample size problem**: n=29 tumors with GGG, only 9 high-grade. Too small for NUTS uncertainty to show benefit. Options to explore:
+    - External validation dataset with more GGG cases?
+    - Bootstrap confidence intervals on current AUCs to show uncertainty in estimates themselves
+    - Power analysis: how many GGG samples would we need to detect a 0.05 AUC improvement?
+    - Reframe: report GGG as exploratory/hypothesis-generating rather than confirmatory
+15. **Can NUTS help GGG via alternative approaches?** (Patrick's hypothesis: intermediate diffusivities where ADC is insensitive)
+    - Uncertainty-weighted features → but collapses to D=0.25 dominance
+    - Posterior predictive checking / outlier detection
+    - Different classification model (not LR) that can exploit distributional information
+    - Discuss with Sandy
 
 ---
 
