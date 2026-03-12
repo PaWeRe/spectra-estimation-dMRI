@@ -1,7 +1,7 @@
 # Session State — MRM Paper Collaboration
 
 > **READ THIS FIRST** when starting a new session.
-> Updated: 2026-03-11 (Session 6)
+> Updated: 2026-03-11 (Session 6, continued)
 
 ---
 
@@ -57,7 +57,7 @@ We are writing an MRM journal paper on **spectral decomposition of multi-b diffu
 
 9. **Patient new39 fixed**: Added GS 2+3 → GGG 1 (per 2025 reclassification to 3+3). GGG dataset now n=29 (was 28 in ISMRM, with different GGG composition).
 
-10. **Sandy email drafted** (`results/email_draft_sandy.md`): 5 focused questions about NUTS justification, alternative inference, and whether spectral estimation is important to the community.
+10. **Sandy email drafted** (`results/email_draft_sandy.md`): 3 focused questions about NUTS justification, alternative inference, and whether spectral estimation is important to the community. Includes P.S. about circularity of tumor detection benchmark (Langkilde ROIs based on MRI/ADC, not histopath).
 
 ### Stephan meeting action items (verbatim parsed):
 
