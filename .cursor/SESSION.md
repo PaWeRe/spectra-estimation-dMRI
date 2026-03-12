@@ -48,6 +48,17 @@ We are writing an MRM journal paper on **spectral decomposition of multi-b diffu
 
 6. **ISMRM 2025 abstract** (rejected) reviewed — focused on NUTS methodology. Reviewer feedback: figures not well explained.
 
+7. **Full LR debugging — SOLVED**: C=1.0 was too strong regularization. With C=10:
+   - PZ: MAP 0.935, NUTS 0.933 (vs ADC 0.940) — essentially equivalent
+   - TZ: MAP 0.941, NUTS 0.925 (vs ADC 0.964) — ADC still wins
+   - GGG: MAP 0.722, NUTS 0.722 (vs ADC 0.778) — close, ADC slightly ahead
+
+8. **ADC b_max sensitivity**: ADC b≤1000 is BETTER than b≤1250 (PZ: 0.940 vs 0.928). Opposite of Stephan's expectation — lower b_max gives cleaner monoexponential fit.
+
+9. **Patient new39 fixed**: Added GS 2+3 → GGG 1 (per 2025 reclassification to 3+3). GGG dataset now n=29 (was 28 in ISMRM, with different GGG composition).
+
+10. **Sandy email drafted** (`results/email_draft_sandy.md`): 5 focused questions about NUTS justification, alternative inference, and whether spectral estimation is important to the community.
+
 ### Stephan meeting action items (verbatim parsed):
 
 | # | Item | Type | Status |
@@ -72,11 +83,14 @@ We are writing an MRM journal paper on **spectral decomposition of multi-b diffu
 - This explains WHY ADC works: it implicitly weights spectral components in a near-optimal way
 - Spectral decomposition adds: (a) interpretability (which compartments), (b) the sensitivity is nonlinear/spectrum-dependent for ADC but fixed for the discriminant
 
-**NUTS role in the paper (decision needed):**
-- Stephan leans toward NUTS as a separate paper
-- NUTS adds marginal classification improvement but real uncertainty (2.3x misclass ratio)
-- Patrick wants to keep uncertainty — discuss scope with Stephan at next meeting
-- Recommendation: include NUTS in supporting role (validates MAP, provides uncertainty), not as headline
+**Paper scope (Patrick's clarification, post-meeting):**
+- **Uncertainty remains a central contribution**, not secondary. Heatmap is supporting evidence only.
+- **ROI analysis (main.py) is the primary result**, not the pixel-wise maps.
+- **Comparison of both methods** (MAP vs NUTS) for estimating diffusivity spectra is a main thread.
+- **Identifiability** and **joint noise+spectra estimation** are central contributions.
+- **The inverse Laplace is ill-posed** — quantifying this via NUTS posterior is novel and relevant to increasing confidence in image-based biomarkers.
+- **Open question for Sandy**: Is the computational cost of NUTS justified given MAP gives similar classification? Is there a simpler way to get uncertainty? Email draft at `results/email_draft_sandy.md`.
+- Patrick's hypothesis: maybe NUTS can outperform ADC precisely for the intermediate diffusivities where ADC is insensitive — but ground truth is limited to Gleason scores (no pixel-level pathology).
 
 ### Correct parameters (unchanged):
 
@@ -139,22 +153,22 @@ We are writing an MRM journal paper on **spectral decomposition of multi-b diffu
 
 ### Phase 1: ADC sensitivity analysis (Stephan's top priority)
 1. **Closed-form derivation of dADC/dRⱼ** — derive analytically from the least-squares ADC fit + spectral model. Show that it depends on the operating point (spectrum) and b-value range.
-2. **ADC vs spectral components correlation plot** — scatter plot with 1000 points (bootstrap? all pixels?), showing the r = -0.97 relationship visually.
+2. **ADC vs spectral components correlation plot** — scatter plot with 1000 points (use b_max=1000 per Stephan; clarify what "1000" meant)
 3. **Compare ADC sensitivity vector vs LR feature vector** — side-by-side bar chart. Show they are mirror images.
-4. **Investigate sensitivity differences**: ADC sensitivity is spectrum-dependent (nonlinear); discriminant is fixed (linear). Quantify this difference.
+4. **Investigate sensitivity differences**: ADC sensitivity is spectrum-dependent (nonlinear); discriminant is fixed (linear). Quantify this.
 
 ### Phase 2: Figure fixes (Stephan feedback)
 5. **Invert colors** in feature importance map (swap blue/red)
-6. **Example spectra figure**: remove middle components, show only D=0.25, D=3.0, D=20.0 (or as Stephan directed)
-7. **Consider additional patient heatmap** (normal patient; current heatmap patient not in training set)
+6. **Example spectra figure**: remove middle components
+7. **Consider additional patient heatmap** (normal patient; heatmap patient NOT in training set — good for generalization)
 
 ### Phase 3: Data quality & validation
 8. **Encoding directions check**: verify 3 directions in image data, confirm geometric vs arithmetic mean
-9. **Sampling diagnostics**: generate synthetic signal from average tumor/normal spectra + Gaussian noise (SNR 100, 300, 500, 1000), test MAP and NUTS reconstruction
-10. **Patient new39**: update GS to 2+3, clarify GGG mapping
+9. **Sampling diagnostics**: synthetic signal (tumor/normal avg spectra) + Gaussian noise (SNR 100, 300, 500, 1000), test MAP and NUTS reconstruction quality
+10. **Rerun ISMRM biomarker pipeline** with updated features.csv (new39 GGG=1) and optimized C — regenerate ISMRM figures
 
-### Phase 4: Questions for collaborators
-11. **Ask Sandy**: are NUTS trace plots useful for the paper? Or overkill?
+### Phase 4: Communication
+11. **Send email to Sandy** — draft ready at `results/email_draft_sandy.md`
 12. **Patient demographics table** — still needed from Stephan
 
 ---
@@ -163,6 +177,7 @@ We are writing an MRM journal paper on **spectral decomposition of multi-b diffu
 
 1. Read this file + `.cursor/FINDINGS.md`
 2. Run `git log --oneline -5` for latest commits
-3. Start with Phase 1: the ADC sensitivity closed-form derivation is the paper's central analytical contribution
-4. All ROI data is computed. All pixel data is computed. Focus is on analysis and figures now.
-5. Key question to resolve: paper scope — ADC-focused (Stephan preference) vs ADC + uncertainty (Patrick preference)
+3. **Send Sandy email** (draft at `results/email_draft_sandy.md`) — get his input on NUTS justification before doing more work
+4. Start with Phase 1: the ADC sensitivity closed-form derivation is the paper's central analytical contribution
+5. All ROI data is computed. All pixel data is computed. Focus is on analysis and figures now.
+6. Paper scope: Patrick wants uncertainty as a central contribution alongside ADC insight. Heatmap is supporting evidence, not the main focus. ROI analysis (main.py) is the primary result.

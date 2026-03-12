@@ -35,23 +35,27 @@
 - **D=3.0**: r=0.82, NUTS/MAP ratio=1.64
 - Components redistribute dramatically but discriminant stays the same (r=0.997)
 
-### Classification Performance (ROI-level) — **NEW in Session 6**
+### Classification Performance (ROI-level) — **UPDATED Session 6**
 
-| Method | PZ AUC | TZ AUC |
-|--------|--------|--------|
-| ADC | 0.940 | 0.964 |
-| NUTS Full LR (8 feat) | 0.918 | 0.888 |
-| MAP Full LR (8 feat) | 0.911 | 0.853 |
-| NUTS Top-5 (feat sel) | 0.921 | — |
-| NUTS D=0.25 + D=3.0 | 0.920 | — |
-| NUTS D=0.25 only | 0.776 | 0.733 |
-| MAP D=0.25 only | 0.758 | 0.687 |
-| NUTS + uncertainty (16 feat) | 0.916 | — |
+Comprehensive table with optimized regularization (C=10) and ADC b-value sensitivity:
 
-- ADC wins on tumor detection (single feature, well-calibrated)
-- NUTS marginal over MAP (+0.7% PZ, +3.5% TZ)
+| Method | PZ (n=81) | TZ (n=68) | GGG (n=29) |
+|--------|:---------:|:---------:|:----------:|
+| ADC b≤1000 | **0.940** | **0.964** | **0.778** |
+| ADC b≤1250 | 0.928 | 0.946 | 0.778 |
+| MAP Full LR C=1 | 0.911 | 0.853 | 0.372 |
+| MAP Full LR C=10 | 0.935 | 0.941 | 0.722 |
+| NUTS Full LR C=1 | 0.918 | 0.888 | 0.411 |
+| NUTS Full LR C=10 | 0.933 | 0.925 | 0.722 |
+| NUTS Top-5 C=1 | 0.921 | 0.878 | 0.411 |
+
+**Key insights:**
+- **Full LR debugging SOLVED**: C=1.0 was too strong regularization. With C=10, Full LR nearly matches ADC (PZ: 0.935 vs 0.940)
+- ADC b≤1000 is BETTER than b≤1250 (opposite of Stephan's expectation!)
+- MAP and NUTS converge at higher C — the C=1 gap was a regularization artifact, not a NUTS benefit
+- GGG: all methods struggle (n=29, only 9 high-grade), ADC still best (0.778)
 - Adding uncertainty as features: no improvement (0.918 → 0.916)
-- GGG (Gleason grade): too few high-grade cases (n=4) for reliable analysis
+- **Patient new39** now included: GS 2+3 → GGG 1 (per 2025 reclassification to 3+3)
 
 ### NUTS-Specific Value — **Revised in Session 6**
 - **Prediction uncertainty identifies unreliable classifications**: misclassified ROIs have 2.34x (PZ), 1.96x (TZ), 1.45x (GGG) higher uncertainty
@@ -60,11 +64,11 @@
 - All 146 pixels converged: R-hat = 1.000
 - **Does NOT improve classification AUC** beyond MAP
 
-### Feature Collinearity — **NEW in Session 6**
+### Feature Collinearity — **UPDATED Session 6**
 - 8-feature correlation matrix is numerically singular (3 eigenvalues ≈ 0)
 - Worst pairs: D=0.5 vs D=2.0 (r=-0.975), D=0.25 vs D=1.5 (r=-0.959)
 - 81 samples / 7 effective features = 11.6 samples/feature (borderline)
-- Explains why Full LR (8 feat) underperforms ADC: overfitting on collinear features
+- **RESOLVED**: Full LR underperformance was due to C=1.0 being too strong. C=10 allows the model to exploit feature correlations → nearly matches ADC
 
 ### Boundary Uncertainty — **NEW in Session 6**
 - Discriminant uncertainty does NOT correlate with tissue boundaries (r=-0.18)
@@ -101,13 +105,15 @@
 - [ ] Frame spectral decomposition as adding interpretability ON TOP of ADC, not replacing it
 
 ### For Stephan/Sandy
-- [ ] Patient demographics table — still needed
-- [ ] Patient new39: GS 2+3 → what GGG? (Gleason 5 predates GGG system)
+- [ ] Patient demographics table — still needed from Stephan
+- [x] ~~Patient new39: GS 2+3 → what GGG?~~ → **GGG 1** (reclassified as 3+3 under current ISUP)
 - [ ] Are NUTS trace plots useful for paper? (ask Sandy)
 - [ ] Encoding directions in original Langkilde data — geometric mean confirmed?
+- [ ] **NEW**: Sandy email drafted (`results/email_draft_sandy.md`) — NUTS justification questions
 
 ### Dataset Notes
 - 56 patients, 149 ROIs (PZ: 27T/54N, TZ: 13T/55N)
-- GGG available for ~20 PZ tumors, only 4 high-grade → underpowered for GGG analysis
+- GGG now available for 29 tumors (including new39): 20 low-grade (GGG 1-2), 9 high-grade (GGG 3-5)
 - Pixel heatmap patient (8640) is NOT in the ROI training set — good for generalization argument
 - Langkilde et al. 2018: GE 3T Discovery MR750, endorectal coil, 15 b-values (0–3500 s/mm²)
+- ADC b≤1000 outperforms b≤1250 for tumor detection (less contamination from restricted diffusion at high b)
