@@ -111,9 +111,27 @@ Comprehensive table with optimized regularization (C=10) and ADC b-value sensiti
 - [ ] Encoding directions in original Langkilde data — geometric mean confirmed?
 - [ ] **NEW**: Sandy email drafted (`results/email_draft_sandy.md`) — NUTS justification questions
 
+### Circularity in Tumor Detection Benchmark — **NEW Session 6**
+- Langkilde et al. explicitly state: tumor ROIs placed based on multiparametric MRI (including DWI/ADC), NOT whole-mount histopathology
+- Paper quote: "there might be a bias in this study toward lesions that are well delineated on ADC maps"
+- Implication: ADC's 0.94 AUC for tumor detection is partially circular — ADC helped define the ground truth
+- Spectral methods matching ADC (0.935) is actually more impressive than it appears
+- **Only GGG classification (Gleason from pathology) is a truly independent benchmark**
+- This should be discussed prominently in the paper
+
+### Why NUTS Doesn't Improve GGG — **NEW Session 6**
+- NUTS and MAP agree on D=0.25 (r=0.99), the most discriminative component
+- Intermediate D=0.5-1.0 carry little GGG signal (individual AUCs 0.57-0.73) AND are poorly identified (CV>0.80)
+- ADC's implicit weighting already captures the aggregate intermediate-D effect
+- Uncertainty-weighted classification would collapse to D=0.25 dominance → same as ADC
+- Fundamental limitation: n=29 (9 high-grade) is too small for any AUC difference < 0.10 to be meaningful
+- Need n > 100 with balanced classes to properly evaluate NUTS vs MAP for GGG
+
 ### Dataset Notes
 - 56 patients, 149 ROIs (PZ: 27T/54N, TZ: 13T/55N)
 - GGG now available for 29 tumors (including new39): 20 low-grade (GGG 1-2), 9 high-grade (GGG 3-5)
 - Pixel heatmap patient (8640) is NOT in the ROI training set — good for generalization argument
 - Langkilde et al. 2018: GE 3T Discovery MR750, endorectal coil, 15 b-values (0–3500 s/mm²)
+- **Geometric mean** of 3 orthogonal diffusion encoding directions (confirmed from Langkilde paper)
 - ADC b≤1000 outperforms b≤1250 for tumor detection (less contamination from restricted diffusion at high b)
+- Patient demographics (from Langkilde): age 43-77 (mean 62), PSA 0.37-46 ng/mL (mean 8.8)
