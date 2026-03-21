@@ -942,6 +942,10 @@ name = "importlib-resources"
 version = "6.5.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
+    "python_full_version == '3.11.*' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and sys_platform != 'linux'",
+    "python_full_version == '3.10.*' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and sys_platform != 'linux'",
     "python_full_version == '3.9.*' and sys_platform == 'linux'",
     "python_full_version == '3.9.*' and sys_platform != 'linux'",
 ]
@@ -1451,6 +1455,50 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fe/3e/a62c3b824c7dec33c4a1578bcc842e6c30300051033a4e5975ed86cc2536/multipledispatch-1.0.0.tar.gz", hash = "sha256:5c839915465c68206c3e9c473357908216c28383b425361e5d144594bf85a7e0", size = 12385, upload-time = "2023-06-27T16:45:11.074Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl", hash = "sha256:0c53cd8b077546da4e48869f49b13164bebafd0c2a5afceb6bb6a316e7fb46e4", size = 12818, upload-time = "2023-06-27T16:45:09.418Z" },
+]
+
+[[package]]
+name = "nibabel"
+version = "5.2.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.9' and sys_platform == 'linux'",
+    "python_full_version < '3.9' and sys_platform != 'linux'",
+]
+dependencies = [
+    { name = "importlib-resources", version = "6.4.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "numpy", version = "1.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "packaging", marker = "python_full_version < '3.9'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9d/d2/da723207ba389c9d6b6d55f21dbbba8d24c08f846c42832a69d8fdbb97da/nibabel-5.2.1.tar.gz", hash = "sha256:b6c80b2e728e4bc2b65f1142d9b8d2287a9102a8bf8477e115ef0d8334559975", size = 4503320, upload-time = "2024-02-27T04:13:19.595Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/77/3f/ce43b8c2ccc4a7913a87c4d425aaf0080ea3abf947587e47dc2025981a17/nibabel-5.2.1-py3-none-any.whl", hash = "sha256:2cbbc22985f7f9d39d050df47249771dfb8d48447f5e7a993177e4cabfe047f0", size = 3296610, upload-time = "2024-02-27T04:13:17.097Z" },
+]
+
+[[package]]
+name = "nibabel"
+version = "5.3.3"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and sys_platform != 'linux'",
+    "python_full_version == '3.11.*' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and sys_platform != 'linux'",
+    "python_full_version == '3.10.*' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and sys_platform != 'linux'",
+    "python_full_version == '3.9.*' and sys_platform == 'linux'",
+    "python_full_version == '3.9.*' and sys_platform != 'linux'",
+]
+dependencies = [
+    { name = "importlib-resources", version = "6.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and python_full_version < '3.12'" },
+    { name = "numpy", version = "1.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "packaging", marker = "python_full_version >= '3.9'" },
+    { name = "typing-extensions", version = "4.14.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and python_full_version < '3.13'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b1/8b/98e35cd0f2a97c8c261cedf8cc155766a3c540cb248d449582bb9e99c719/nibabel-5.3.3.tar.gz", hash = "sha256:8d2006b70d727fd0a798a88ae5fd64339741f436fcfc83d6ea3256cdbc51c5b7", size = 4506925, upload-time = "2025-12-05T19:16:54.416Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/f5/7f6aa3bbff013c0bf993129cbb2b1505790091f812accbe85cf001514737/nibabel-5.3.3-py3-none-any.whl", hash = "sha256:e8b17423ee8464da3b69e6a15799eb19f2350a7d38377026d527b6b84938adac", size = 3293989, upload-time = "2025-12-05T19:16:51.941Z" },
 ]
 
 [[package]]
@@ -2936,6 +2984,8 @@ dependencies = [
     { name = "matplotlib", version = "3.7.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "matplotlib", version = "3.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "nibabel", version = "5.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "nibabel", version = "5.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "numpy", version = "1.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pandas", version = "2.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
@@ -2958,6 +3008,7 @@ requires-dist = [
     { name = "h5py" },
     { name = "hydra-core" },
     { name = "matplotlib" },
+    { name = "nibabel", specifier = ">=5.2.1" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pymc", specifier = ">=5.6.1" },

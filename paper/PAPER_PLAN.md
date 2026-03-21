@@ -1,4 +1,5 @@
-# MRM Paper Plan: Fully Bayesian Uncertainty-Aware Biomarkers for Prostate dMRI
+# MRM Paper Plan: Fully Bayesian Uncertainty-Aware Biomarkers for Image-Based Cancer Diagnosis: Application to
+Prostate Diffusion MRI
 
 ## Status Legend
 - [x] Done (code + results exist)

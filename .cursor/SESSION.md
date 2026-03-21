@@ -1,139 +1,137 @@
 # Session State — MRM Paper Collaboration
 
 > **READ THIS FIRST** when starting a new session.
-> Updated: 2026-03-11 (Session 6, continued)
+> Updated: 2026-03-21 (Session 7)
 
 ---
 
 ## Quick Context
 
-We are writing an MRM journal paper on **spectral decomposition of multi-b diffusion MRI for prostate cancer characterization**. The human (Patrick) provides high-level direction; the AI handles implementation. See `paper/PAPER_PLAN.md` for full plan.
+We are writing an MRM journal paper on **spectral decomposition of multi-b diffusion MRI for prostate cancer characterization**. The human (Patrick) provides high-level direction; the AI handles implementation.
 
-**Branch:** `main` (merged from `paper/mrm-manuscript`)
+**Branch:** `main`
 **Key directories:** `paper/` (LaTeX), `src/spectra_estimation_dmri/` (Python package), `results/` (outputs)
 **Patient pixel data:** `src/spectra_estimation_dmri/data/8640-sl6-bin/` (46 .bin files, gitignored)
 
 ---
 
-## Session 6 Summary (2026-03-11)
+## Session 7 Summary (2026-03-21)
 
 ### What we accomplished:
 
-1. **Meeting with Stephan** — major direction-setting. Stephan is excited about the "ADC as special case" finding. Wants a focused paper around this, submittable soon. Sees NUTS/uncertainty as potential second paper.
+1. **Sent email to Sandy/Stephan** with ADC sensitivity analysis and current numbers. Both replied positively.
+   - **Stephan**: Confirms ADC sensitivity result is "beautiful" and belongs in paper. Wants both MAP and NUTS shown with benefits/disadvantages. Notes it "kills the science around all derived measures."
+   - **Sandy**: Frames MCMC as an **exploratory tool** — "approaching the basic data and physics problem with MCMC got us to where we are now." Less general methods may work going forward. Interested in generalization to other tumors.
 
-2. **Critical assessment of NUTS vs MAP** (ROI-level, 149 ROIs, 56 patients):
-   - MAP vs NUTS classification: PZ AUC 0.911 vs 0.918 (+0.7%), TZ 0.853 vs 0.888 (+3.5%) — marginal
-   - Both below ADC (PZ: 0.940, TZ: 0.964)
-   - Discriminant MAP vs NUTS: r = 0.997 (identical for practical purposes)
-   - Adding NUTS uncertainty as features: AUC 0.918 → 0.916 (no improvement)
-   - NUTS value: misclassified ROIs have 2.34x higher prediction uncertainty (PZ)
-   - Only D=0.25 well-identified (CV=0.20 ROI, 0.25 pixel); all others CV > 0.32
+2. **Thorough verification of all key findings** — revealed critical discrepancies between what was reported in Session 6 notes and what can actually be reproduced from the data on disk.
 
-3. **Answered the 4 open methodological questions:**
-   - Q1 (In-sample RMSE): Not a fair comparison. MAP LOO-b CV shows 78% RMSE increase. NUTS lower in-sample RMSE expected (flexible noise model), not evidence of better spectra.
-   - Q2 (Uncertainty at boundaries): Null result. r = -0.18. Uncertainty is intrinsic to spectral inversion, not spatial.
-   - Q3 (Full LR < ADC): Extreme multicollinearity. Condition number ≈ ∞. 3 near-zero eigenvalues. D=0.5 vs D=2.0: r = -0.975.
-   - Q4 (NUTS 17% higher D=0.25): SNR-dependent bias (r=0.86). Difference is 0.89 posterior SDs — not per-pixel significant. MAP shrinkage + clipping artifact.
+### ⚠️ VERIFICATION RESULTS — CRITICAL
 
-4. **KEY DISCOVERY — ADC sensitivity vector ≈ LR feature vector (r = -0.97):**
-   - Computed dADC/dRⱼ numerically for each spectral component
-   - The ADC sensitivity vector (how much ADC changes per unit change in each Rⱼ) is essentially the mirror image of the learned LR discriminant
-   - This proves analytically WHY ADC works: its implicit weighting of spectral components aligns with the tumor-vs-normal spectral difference
-   - Stephan predicted this ("Es sollte ein geschlossene Lösung geben") — a closed-form derivation is the next step
-   - ADC sensitivity at tumor operating point: D=0.25 → -1.70, D=3.0 → +0.72
-   - ADC sensitivity at normal operating point: D=0.25 → -4.00, D=3.0 → +0.67
-   - Key insight: ADC sensitivity is spectrum-dependent (nonlinear); the LR discriminant is a fixed linear projection
+We ran `scripts/verify_findings.py` on the current `results/biomarkers/features.csv` (generated Oct 30, NUTS features only, C=1.0 defaults). Here is what we found:
 
-5. **Full dataset confirmed**: 56 patients, 149 ROIs (109 normal, 40 tumor), PZ + TZ. Langkilde et al. 2018 data. Not single-patient!
+#### CONFIRMED ✅
 
-6. **ISMRM 2025 abstract** (rejected) reviewed — focused on NUTS methodology. Reviewer feedback: figures not well explained.
+| Finding | Verified Value | Reported Value | Status |
+|---------|---------------|----------------|--------|
+| ADC vs discriminant correlation (PZ, across 81 ROIs) | r = −0.979 | r = −0.97 | ✅ Confirmed |
+| ADC vs discriminant correlation (TZ, across 68 ROIs) | r = −0.980 | r = −0.97 | ✅ Confirmed |
+| D_0.25 identifiability (posterior CV) | 0.20 | 0.20 | ✅ Confirmed |
+| D_0.50–1.00 poorly identified (CV) | 0.81, 0.82, 0.81 | >0.80 | ✅ Confirmed |
+| D_3.00 identifiability (CV) | 0.32 | 0.32 | ✅ Confirmed |
+| Dataset: 56 patients, 149 ROIs, 40 tumor, 109 normal | ✅ | ✅ | ✅ Confirmed |
+| ADC sensitivity magnitudes (tumor D=0.25) | −1.74 μm²/ms | −1.70 | ✅ ~Confirmed |
 
-7. **Full LR debugging — SOLVED**: C=1.0 was too strong regularization. With C=10:
-   - PZ: MAP 0.935, NUTS 0.933 (vs ADC 0.940) — essentially equivalent
-   - TZ: MAP 0.941, NUTS 0.925 (vs ADC 0.964) — ADC still wins
-   - GGG: MAP 0.722, NUTS 0.722 (vs ADC 0.778) — close, ADC slightly ahead
+#### NOT REPRODUCED / INCORRECT ❌
 
-8. **ADC b_max sensitivity**: ADC b≤1000 is BETTER than b≤1250 (PZ: 0.940 vs 0.928). Opposite of Stephan's expectation — lower b_max gives cleaner monoexponential fit.
+| Finding | Verified Value | Reported Value | Issue |
+|---------|---------------|----------------|-------|
+| **Sensitivity vector vs LR coef vector** | **r = −0.79** (PZ, 8 elements) | **r = −0.97** | ❌ The r=−0.97 is actually the ROI-level ADC-vs-discriminant correlation, NOT the vector-level sensitivity-vs-LR-coef correlation. These are different things. |
+| **PZ ADC AUC** | 0.940 (LR LOOCV C=1) or 0.951 (raw) | 0.940 | ⚠️ Verified, but method matters: 0.940 uses LR wrapper, 0.951 is raw rank AUC |
+| **PZ Full LR C=10 AUC (NUTS)** | **0.912** | **0.935 (MAP), 0.933 (NUTS)** | ❌ Cannot reproduce. Reported numbers from Session 6 interactive analysis, not persisted. |
+| **TZ Full LR C=10 AUC (NUTS)** | **0.911** | **0.941 (MAP), 0.925 (NUTS)** | ❌ Same issue. |
+| **GGG sample size** | **n=28** | **n=29** | ❌ new39 metadata.csv has GGG=1, but features.csv has empty ggg for new39. Pipeline was never rerun after metadata fix. |
+| **MAP vs NUTS AUCs (separate)** | Cannot verify | Various | ❌ features.csv contains only NUTS features. MAP features not on disk — must be recomputed. |
+| **MAP vs NUTS discriminant r=0.997** | Cannot verify | r=0.997 | ❌ Same: need MAP features to compare. |
 
-9. **Patient new39 fixed**: Added GS 2+3 → GGG 1 (per 2025 reclassification to 3+3). GGG dataset now n=29 (was 28 in ISMRM, with different GGG composition).
+#### ROOT CAUSES
 
-10. **Sandy email drafted** (`results/email_draft_sandy.md`): 3 focused questions about NUTS justification, alternative inference, and whether spectral estimation is important to the community. Includes P.S. about circularity of tumor detection benchmark (Langkilde ROIs based on MRI/ADC, not histopath).
+1. **Stale features.csv**: Generated Oct 30 with C=1.0 defaults and old metadata. The "C=10" numbers from Session 6 were computed interactively and never persisted to any file.
+2. **No MAP features on disk**: The .nc files only store NUTS posteriors. MAP estimates (`spectrum_init`) are computed at runtime but not saved. There is no MAP features.csv.
+3. **Conflated correlations**: Two different r=−0.97 claims (ROI-level and vector-level) were reported as the same number. The ROI-level one (ADC scores vs discriminant scores, N=81+) is real; the vector-level one (8-element sensitivity vs 8-element LR coefs) is r=−0.79.
+4. **new39 fix partial**: metadata.csv was updated (GGG=1) but pipeline was never rerun → features.csv still has empty ggg for new39.
 
-### Stephan meeting action items (verbatim parsed):
+### What needs to happen before we can write the paper:
 
-| # | Item | Type | Status |
-|---|------|------|--------|
-| 1 | ADC sensitivity analysis: derive dADC/dRⱼ closed-form, compare with LR feature vector | Analysis | **Started** — numerical result r=-0.97, need closed-form |
-| 2 | ADC vs spectral components correlation plot (use 1000 points) | Figure | TODO |
-| 3 | Invert colors (blue/red) in feature importance map | Figure fix | TODO |
-| 4 | Example spectra figure: remove middle components | Figure fix | TODO |
-| 5 | Encoding directions: check if 3 directions, geometric vs arithmetic mean | Data quality | TODO |
-| 6 | Sampling diagnostics: synthetic signal (tumor/normal spectra) + Gaussian noise (SNR 100,300,500,1000) | Validation | TODO |
-| 7 | Trace plots for NUTS convergence — ask Sandy if useful for paper | Question for Sandy | TODO |
-| 8 | Consider 1 more normal patient image for heatmap (current not in training set) | Figure | TODO |
-| 9 | Patient new39: update GS to 2+3, determine GGG | Data fix | TODO (GS 2+3 = Gleason 5, predates GGG system → GGG 0 equivalent) |
-| 10 | ADC vs feature map sensitivity investigation | Analysis | TODO (closely related to #1) |
-| 11 | ISMRM feedback: improve figure explanations in paper | Writing | TODO |
+**MUST DO (blocking paper draft):**
 
-### Key findings and decisions:
+1. **Compute MAP features** from raw signal data (Ridge NNLS on all 149 ROIs). Fast — seconds, not hours.
+2. **Rerun classification** with a single clean script that:
+   - Loads raw signal data + updated metadata
+   - Computes MAP features (Ridge NNLS)
+   - Loads NUTS posterior means from .nc files
+   - Computes ADC from raw signal (both b≤1000 and b≤1250)
+   - Runs LOOCV classification for PZ, TZ, GGG at C=1 and C=10
+   - Reports all AUCs in one clean table
+   - Saves everything to CSV
+3. **Fix new39 in features pipeline** — ensure metadata.csv GGG flows through to features.csv
+4. **Clarify the two r=−0.97 claims** — be precise in the paper:
+   - ROI-level: ADC anti-correlates with discriminant at r ≈ −0.98 ✅
+   - Vector-level: sensitivity vector vs LR coefs at r ≈ −0.80 (weaker but still significant, p<0.02)
 
-**Paper narrative (refined after Stephan meeting):**
-- Central claim: ADC is a special case of the spectral discriminant — now with ANALYTICAL proof (sensitivity vector)
-- The ADC sensitivity vector dADC/dRⱼ matches the learned LR feature vector (r = -0.97)
-- This explains WHY ADC works: it implicitly weights spectral components in a near-optimal way
-- Spectral decomposition adds: (a) interpretability (which compartments), (b) the sensitivity is nonlinear/spectrum-dependent for ADC but fixed for the discriminant
+**NICE TO HAVE (can draft around):**
+- Closed-form derivation of dADC/dRⱼ
+- Updated figures per Stephan's feedback
 
-**Paper scope (Patrick's clarification, post-meeting):**
-- **Uncertainty remains a central contribution**, not secondary. Heatmap is supporting evidence only.
-- **ROI analysis (main.py) is the primary result**, not the pixel-wise maps.
-- **Comparison of both methods** (MAP vs NUTS) for estimating diffusivity spectra is a main thread.
-- **Identifiability** and **joint noise+spectra estimation** are central contributions.
-- **The inverse Laplace is ill-posed** — quantifying this via NUTS posterior is novel and relevant to increasing confidence in image-based biomarkers.
-- **Open question for Sandy**: Is the computational cost of NUTS justified given MAP gives similar classification? Is there a simpler way to get uncertainty? Email draft at `results/email_draft_sandy.md`.
-- Patrick's hypothesis: maybe NUTS can outperform ADC precisely for the intermediate diffusivities where ADC is insensitive — but ground truth is limited to Gleason scores (no pixel-level pathology).
+---
 
-### Correct parameters (unchanged):
+## Correct parameters:
 
 | Parameter | Value | Source |
 |-----------|-------|--------|
-| b-values | [0, 250, ..., 3500] s/mm² (15 values) | Langkilde 2018 |
+| b-values (config units) | [0, 0.25, ..., 3.5] ms/μm² | Langkilde 2018 |
+| b-values (s/mm²) | [0, 250, ..., 3500] s/mm² (15 values) | Langkilde 2018 |
 | Diffusivity bins | [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0] μm²/ms | ISMRM 2024 |
-| Ridge λ | 0.1 | ISMRM 2024 / configs/prior/ridge.yaml |
-| HalfCauchy β | 0.01 | pixelwise.py |
+| Ridge λ (MAP) | 0.1 | configs/prior/ridge.yaml |
+| HalfCauchy β (NUTS noise) | 0.01 | pixelwise.py |
 | NUTS | 2000 draws, 200 tune, 4 chains, target_accept=0.95 | configs/inference/nuts.yaml |
-| ADC | monoexponential, b ≤ 1250 s/mm² | ISMRM 2024 |
-| Prostate mask | Manual, 146 pixels | 3D Slicer, Session 4 |
-| LR (PZ) | C=1.0, 81 samples (27 tumor, 54 normal), LOOCV AUC=0.919 | Session 4 |
+| ADC | monoexponential, b ≤ 1000 s/mm² (= 1.0 ms/μm²) | Best from Session 6 analysis |
 | Dataset | 56 patients, 149 ROIs (40 tumor, 109 normal) | Langkilde 2018 |
+| PZ | 81 ROIs (27 tumor, 54 normal) | |
+| TZ | 68 ROIs (13 tumor, 55 normal) | |
+| GGG | 28 ROIs (19 low-grade, 9 high-grade) — should be 29 after new39 fix | |
 
-### Key file map (updated):
+## Key file map:
 
-| File | Purpose |
-|------|---------|
-| `src/spectra_estimation_dmri/pixelwise.py` | Pixel-wise ADC, MAP, NUTS, tumor prob |
-| `src/spectra_estimation_dmri/main.py` | Full pipeline: data → inference → biomarkers |
-| `src/spectra_estimation_dmri/data/loaders.py` | Data loaders (ROI JSON + pixel binary) |
-| `src/spectra_estimation_dmri/biomarkers/pipeline.py` | ROI-level biomarker analysis |
-| `results/biomarkers/features.csv` | NUTS posterior means, all 149 ROIs |
-| `results/biomarkers/feature_uncertainty.csv` | NUTS posterior stds, all 149 ROIs |
-| `results/biomarkers/auc_table_*.csv` | Classification AUCs per task |
-| `results/biomarkers/predictions_*.csv` | Per-ROI predictions with uncertainty |
-| `results/biomarkers/ismrm/` | ISMRM-formatted figures |
-| `results/inference/` | 20 .nc inference files (current run) |
-| `results/inference_bwh_backup/` | 149 .nc inference files (NUTS, all ROIs) |
-| `results/pixelwise/nuts_results.npz` | NUTS pixel results (146 voxels) |
-| `results/pixelwise_all_fast.npz` | ADC + MAP pixel results |
-| `paper/sections/results.tex` | Pixel-wise results draft |
-| `paper/sections/methods.tex` | Pixel-wise methods draft |
-| `paper/sections/figures.tex` | Figure environments + captions |
-| `paper/figures/fig_pixelwise_v2.pdf` | Publication figure draft (2×3) |
-| `.cursor/FINDINGS.md` | Cumulative findings & open questions |
-| `assets/ismrm_2025_submission_rejected.pdf` | Rejected ISMRM abstract (for reference) |
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/spectra_estimation_dmri/main.py` | Full pipeline: data → inference → biomarkers | Working but uses Hydra, complex |
+| `src/spectra_estimation_dmri/data/loaders.py` | Data loaders (ROI JSON + pixel binary) | Working, reads metadata.csv correctly |
+| `src/spectra_estimation_dmri/data/bwh/metadata.csv` | Patient metadata with GGG | Updated (new39 = GGG 1) |
+| `src/spectra_estimation_dmri/data/bwh/signal_decays.json` | Raw ROI signal data (56 patients) | Unchanged |
+| `src/spectra_estimation_dmri/biomarkers/pipeline.py` | ROI-level biomarker analysis | Working but C=1 default |
+| `src/spectra_estimation_dmri/biomarkers/mc_classification.py` | LOOCV classification code | Working |
+| `src/spectra_estimation_dmri/biomarkers/features.py` | Feature extraction from spectra | Working |
+| `src/spectra_estimation_dmri/biomarkers/adc_baseline.py` | ADC computation | Working |
+| `results/biomarkers/features.csv` | ⚠️ STALE — NUTS features, old metadata, C=1 | Needs regeneration |
+| `results/biomarkers/feature_uncertainty.csv` | NUTS posterior stds, 149 ROIs | OK for identifiability |
+| `results/biomarkers/auc_table_*.csv` | ⚠️ STALE — C=1 only, NUTS only | Needs regeneration |
+| `results/inference_bwh_backup/` | 149 .nc files (NUTS posteriors) | OK — gold standard |
+| `results/inference/` | 20 .nc files (partial run) | Ignore |
+| `scripts/verify_findings.py` | Verification script (Session 7) | Current |
+| `configs/dataset/bwh.yaml` | Pipeline config | Default C=1, b_range=[0,1] |
 
-### Patrick's preferences (carry across all sessions):
+## Paper narrative (post Sandy/Stephan feedback):
+
+1. Spectral decomposition reveals what ADC captures and why it works
+2. ADC scores anti-correlate with spectral discriminant at r ≈ −0.98 — ADC is near-optimal
+3. MAP and NUTS as two complementary inference approaches, honestly compared
+4. NUTS adds uncertainty quantification; was the exploratory tool that led to these insights (Sandy's framing)
+5. Both methods shown with pros/cons (Stephan's request)
+6. The inverse Laplace is ill-posed — only D=0.25 is well-identified (CV=0.20)
+
+## Patrick's preferences (carry across all sessions):
 
 - **Methodology first**: Think about what to show before coding
-- **Unified pipeline**: Pixel-level = generalization of ROI-level, same code path
 - **Clinical utility focus**: Why is Bayesian better than ADC?
 - **Uncertainty is key**: This is our main differentiator
 - **uv only**: Never use pip, always `uv run python`, `uv add`, `uv sync`
@@ -141,56 +139,15 @@ We are writing an MRM journal paper on **spectral decomposition of multi-b diffu
 - **Max 10 figures**: Every MRM figure must earn its place
 - **No direct co-author contact**: All questions through Patrick
 - **Go step by step**: Don't rush ahead — walk through each decision
-- **Simplify**: If current code is overcomplicated, say so and propose simpler alternatives
-- **nibabel** is now installed (added in Session 4)
 - **Overleaf** for LaTeX compilation (no local LaTeX compiler)
-- **Build narrative alongside figures**: Write findings into LaTeX incrementally
 - **Better figure explanations**: ISMRM feedback was that figures were poorly explained
+- **Iterate fast**: Get to a full draft ASAP so Sandy/Stephan can comment on concrete text
 
 ---
 
-## Session 7 TODO (Priority Order)
-
-### Phase 1: ADC sensitivity analysis (Stephan's top priority)
-1. **Closed-form derivation of dADC/dRⱼ** — derive analytically from the least-squares ADC fit + spectral model. Show that it depends on the operating point (spectrum) and b-value range.
-2. **ADC vs spectral components correlation plot** — scatter plot with 1000 points (use b_max=1000 per Stephan; clarify what "1000" meant)
-3. **Compare ADC sensitivity vector vs LR feature vector** — side-by-side bar chart. Show they are mirror images.
-4. **Investigate sensitivity differences**: ADC sensitivity is spectrum-dependent (nonlinear); discriminant is fixed (linear). Quantify this.
-
-### Phase 2: Figure fixes (Stephan feedback)
-5. **Invert colors** in feature importance map (swap blue/red)
-6. **Example spectra figure**: remove middle components
-7. **Consider additional patient heatmap** (normal patient; heatmap patient NOT in training set — good for generalization)
-
-### Phase 3: Data quality & validation
-8. **Encoding directions check**: verify 3 directions in image data, confirm geometric vs arithmetic mean
-9. **Sampling diagnostics**: synthetic signal (tumor/normal avg spectra) + Gaussian noise (SNR 100, 300, 500, 1000), test MAP and NUTS reconstruction quality
-10. **Rerun ISMRM biomarker pipeline** with updated features.csv (new39 GGG=1) and optimized C — regenerate ISMRM figures
-
-### Phase 4: Communication
-11. **Send email to Sandy** — draft ready at `results/email_draft_sandy.md`
-12. **Patient demographics table** — still needed from Stephan
-
-### Phase 5: Dataset limitations & GGG strategy
-13. **Dataset bias discussion**: Langkilde ROIs based on MRI (incl ADC) not histopath → tumor detection AUCs partially circular. Only GGG is independent. Discuss prominently in paper.
-14. **GGG sample size problem**: n=29 tumors with GGG, only 9 high-grade. Too small for NUTS uncertainty to show benefit. Options to explore:
-    - External validation dataset with more GGG cases?
-    - Bootstrap confidence intervals on current AUCs to show uncertainty in estimates themselves
-    - Power analysis: how many GGG samples would we need to detect a 0.05 AUC improvement?
-    - Reframe: report GGG as exploratory/hypothesis-generating rather than confirmatory
-15. **Can NUTS help GGG via alternative approaches?** (Patrick's hypothesis: intermediate diffusivities where ADC is insensitive)
-    - Uncertainty-weighted features → but collapses to D=0.25 dominance
-    - Posterior predictive checking / outlier detection
-    - Different classification model (not LR) that can exploit distributional information
-    - Discuss with Sandy
-
----
-
-## How to Start Session 7
+## How to Start Next Session
 
 1. Read this file + `.cursor/FINDINGS.md`
-2. Run `git log --oneline -5` for latest commits
-3. **Send Sandy email** (draft at `results/email_draft_sandy.md`) — get his input on NUTS justification before doing more work
-4. Start with Phase 1: the ADC sensitivity closed-form derivation is the paper's central analytical contribution
-5. All ROI data is computed. All pixel data is computed. Focus is on analysis and figures now.
-6. Paper scope: Patrick wants uncertainty as a central contribution alongside ADC insight. Heatmap is supporting evidence, not the main focus. ROI analysis (main.py) is the primary result.
+2. **Priority 1**: Compute MAP features + rerun all classification in one clean script
+3. **Priority 2**: Once numbers are trustworthy, start drafting paper sections
+4. All NUTS inference is done (149 .nc files). Focus is on feature extraction, analysis, and writing.

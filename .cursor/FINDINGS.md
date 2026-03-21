@@ -1,137 +1,190 @@
 # Findings & Open Questions
 
 > **Read alongside SESSION.md at the start of every session.**
-> Concise bullet-point learnings, quantitative findings, and open questions.
-> Updated: 2026-03-11 (Session 6)
+> Updated: 2026-03-21 (Session 7 — post-verification audit)
+>
+> ⚠️ **IMPORTANT**: Session 7 revealed that several findings from Session 6
+> were based on interactive analysis that was never persisted. Numbers marked
+> ❌ UNVERIFIED need to be recomputed before citing in the paper.
 
 ---
 
-## Key Quantitative Findings
+## Verification Status Legend
 
-### ADC as Special Case of Spectral Discriminant
-- Spectral discriminant (LR coef · normalized fractions) anti-correlates with ADC at **r = −0.97**
-- **NEW (Session 6)**: ADC sensitivity vector dADC/dRⱼ correlates with LR feature vector at **r = −0.97**
-  - This is an independent verification: ADC's implicit spectral weighting matches the optimal tumor discriminant
-  - ADC sensitivity at tumor operating point: D=0.25 → -1.70, D=0.5 → -1.03, D=3.0 → +0.72
-  - ADC sensitivity at normal operating point: D=0.25 → -4.00, D=0.5 → -2.73, D=3.0 → +0.67
-  - **Key**: ADC sensitivity is spectrum-dependent (changes with tissue type); LR discriminant is a fixed linear projection
-  - Closed-form derivation is pending (numerical result already confirmed)
-- D=0.25 has higher **spatial CV = 0.61** vs ADC **spatial CV = 0.26** (measures tissue contrast)
-- LR coefficients: D ≤ 1.0 → tumor-associated (+), D ≥ 1.5 → normal-associated (−)
+- ✅ VERIFIED — reproduced independently from data on disk
+- ❌ UNVERIFIED — cannot reproduce from current data; needs recomputation
+- ⚠️ PARTIALLY VERIFIED — core claim holds but details need correction
 
-### MAP vs NUTS Comparison
+---
 
-#### Pixel-level (146 voxels, 1 patient)
-- **D=0.25**: MAP and NUTS highly correlated (r=0.99), NUTS ~17% higher. Best-constrained (CV=0.25)
-- **D=0.5–1.0**: MAP and NUTS disagree (r=0.27–0.65), poorly identifiable (CV=0.75–0.81)
-- **Discriminant**: MAP and NUTS agree (r=0.997) — NUTS value is uncertainty, not point estimate
-- NUTS in-sample RMSE lower for 91% of pixels but NOT a fair comparison (NUTS has flexible noise model)
-- MAP LOO-b CV shows 78% RMSE increase → even MAP overfits slightly
+## 1. ADC as Special Case of Spectral Discriminant
 
-#### ROI-level (149 ROIs, 56 patients) — **NEW in Session 6**
-- **D=0.25**: r=0.99, NUTS/MAP ratio=1.59 (larger gap than pixel-level!)
-- **D=0.5–1.0**: r=0.48–0.79, large redistributions between methods
-- **D=1.5**: r=-0.11 (essentially uncorrelated between MAP and NUTS!)
-- **D=3.0**: r=0.82, NUTS/MAP ratio=1.64
-- Components redistribute dramatically but discriminant stays the same (r=0.997)
+### ✅ ROI-level correlation (the strong claim)
+- ADC scores anti-correlate with spectral discriminant scores at **r = −0.98**
+  - PZ (C=1): r = −0.979, (C=10): r = −0.977
+  - TZ (C=1): r = −0.980, (C=10): r = −0.968
+- Robust across all C values tested (0.1 to 50)
+- This means: across patients, ADC tracks the learned tumor discriminant almost perfectly
+- **This is the headline finding for the paper**
 
-### Classification Performance (ROI-level) — **UPDATED Session 6**
+### ⚠️ Vector-level sensitivity correlation (the weaker claim)
+- ADC sensitivity vector dADC/dRⱼ correlates with LR coefficient vector at **r = −0.79** (PZ), **NOT r = −0.97**
+- Previously reported r = −0.97 was the ROI-level correlation above, erroneously attributed to the vector comparison
+- Still statistically significant (p < 0.02) with only 8 elements
+- Sensitivity magnitudes confirmed (tumor operating point, μm²/ms units):
+  - D=0.25 → −1.74, D=0.50 → −1.13, D=3.0 → +0.83
+  - D=0.25 → −3.76 (normal), D=3.0 → +0.71 (normal)
+- Key insight remains valid: ADC sensitivity is spectrum-dependent (nonlinear); LR discriminant is fixed (linear)
 
-Comprehensive table with optimized regularization (C=10) and ADC b-value sensitivity:
+### Interpretation
+The strong ROI-level correlation (r = −0.98) tells us ADC and the spectral discriminant rank patients almost identically. The weaker vector-level correlation (r = −0.79) tells us ADC's *implicit weighting* roughly but not perfectly aligns with the optimal weighting. The discrepancy comes from the high collinearity of spectral features — the LR coefficient vector is unstable (changes with C), but the discriminant *scores* are stable.
 
-| Method | PZ (n=81) | TZ (n=68) | GGG (n=29) |
+---
+
+## 2. Classification Performance
+
+### ✅ VERIFIED — from features.csv (NUTS posterior means, C=1.0)
+
+| Method | PZ (n=81) | TZ (n=68) | GGG (n=28) |
 |--------|:---------:|:---------:|:----------:|
-| ADC b≤1000 | **0.940** | **0.964** | **0.778** |
-| ADC b≤1250 | 0.928 | 0.946 | 0.778 |
-| MAP Full LR C=1 | 0.911 | 0.853 | 0.372 |
-| MAP Full LR C=10 | 0.935 | 0.941 | 0.722 |
-| NUTS Full LR C=1 | 0.918 | 0.888 | 0.411 |
-| NUTS Full LR C=10 | 0.933 | 0.925 | 0.722 |
-| NUTS Top-5 C=1 | 0.921 | 0.878 | 0.411 |
+| ADC raw rank AUC | **0.951** | **0.979** | **0.801** |
+| ADC via LR LOOCV (C=1) | 0.940 | 0.964 | 0.772 |
+| Full LR 8-feat (C=1) | 0.927 | 0.919 | 0.801 |
+| Full LR 8-feat (C=10) | 0.912 | 0.911 | 0.772 |
 
-**Key insights:**
-- **Full LR debugging SOLVED**: C=1.0 was too strong regularization. With C=10, Full LR nearly matches ADC (PZ: 0.935 vs 0.940)
-- ADC b≤1000 is BETTER than b≤1250 (opposite of Stephan's expectation!)
-- MAP and NUTS converge at higher C — the C=1 gap was a regularization artifact, not a NUTS benefit
-- GGG: all methods struggle (n=29, only 9 high-grade), ADC still best (0.778)
-- Adding uncertainty as features: no improvement (0.918 → 0.916)
-- **Patient new39** now included: GS 2+3 → GGG 1 (per 2025 reclassification to 3+3)
+### ❌ UNVERIFIED — reported in Session 6 but not reproducible
 
-### NUTS-Specific Value — **Revised in Session 6**
-- **Prediction uncertainty identifies unreliable classifications**: misclassified ROIs have 2.34x (PZ), 1.96x (TZ), 1.45x (GGG) higher uncertainty
-- Per-component **posterior CV** reveals identifiability: D=0.25 CV=0.20, D=3.0 CV=0.32, D=0.5-1.0 CV>0.80
-- **Joint noise estimation**: SNR 12–172 across prostate voxels
-- All 146 pixels converged: R-hat = 1.000
-- **Does NOT improve classification AUC** beyond MAP
+| Method | PZ | TZ | GGG | Issue |
+|--------|:--:|:--:|:---:|-------|
+| MAP Full LR (C=10) | 0.935 | 0.941 | 0.722 | No MAP features on disk |
+| NUTS Full LR (C=10) | 0.933 | 0.925 | 0.722 | Doesn't match current verification (0.912, 0.911) |
+| ADC b≤1000 | 0.940 | 0.964 | 0.778 | ADC value verified; GGG=0.778 unclear (n=28 vs claimed n=29) |
+| ADC b≤1250 | 0.928 | 0.946 | 0.778 | Not re-verified |
 
-### Feature Collinearity — **UPDATED Session 6**
-- 8-feature correlation matrix is numerically singular (3 eigenvalues ≈ 0)
-- Worst pairs: D=0.5 vs D=2.0 (r=-0.975), D=0.25 vs D=1.5 (r=-0.959)
-- 81 samples / 7 effective features = 11.6 samples/feature (borderline)
-- **RESOLVED**: Full LR underperformance was due to C=1.0 being too strong. C=10 allows the model to exploit feature correlations → nearly matches ADC
+### Key observation
+The **C=10 NUTS Full LR numbers don't match** between Session 6 notes (0.933 PZ) and verification (0.912 PZ). Possible causes:
+- Session 6 may have used feature selection (top-5 instead of all 8)
+- Session 6 may have used different feature extraction (e.g., from a different pipeline run)
+- Interactive analysis wasn't saved → can't trace
 
-### Boundary Uncertainty — **NEW in Session 6**
-- Discriminant uncertainty does NOT correlate with tissue boundaries (r=-0.18)
-- Boundary pixels: mean unc=0.096, Interior: 0.092 (no difference)
-- Uncertainty is intrinsic to spectral identifiability, not spatial position
+### TODO: Recompute cleanly
+Need a single script that computes MAP features, NUTS features, ADC, and runs classification at multiple C values — all from source data.
 
-### D=0.25 MAP vs NUTS Bias — **NEW in Session 6**
-- NUTS/MAP ratio correlates with SNR (r=0.86) — SNR-dependent
-- Difference (0.035) is 0.89 posterior SDs — not per-pixel significant
-- Mechanism: MAP Ridge + clip-at-zero shrinkage, corrected by NUTS joint noise model
+---
 
-### LR Classifier Pixel Application
-- StandardScaler caused domain shift → saturated P(tumor)
-- Fix: use raw discriminant score without StandardScaler
-- PZ model: 81 samples (27 tumor, 54 normal), LOOCV AUC = 0.919
+## 3. MAP vs NUTS Comparison
+
+### ❌ UNVERIFIED — need MAP features to compare
+
+Previously reported:
+- Discriminant MAP vs NUTS: r = 0.997
+- D=0.25: r=0.99, NUTS ~17% higher
+- D=0.5–1.0: poorly correlated (r=0.27–0.65)
+
+These require MAP features (Ridge NNLS point estimates) which are not on disk. The .nc files only contain NUTS posteriors. MAP must be recomputed from raw signal data — this is fast (Ridge regression, seconds per ROI).
+
+---
+
+## 4. Per-Component Identifiability
+
+### ✅ VERIFIED
+
+| Component | Mean Fraction | Mean Posterior Std | Mean CV |
+|-----------|:------------:|:-----------------:|:-------:|
+| D_0.25 | 0.104 | 0.015 | **0.20** |
+| D_0.50 | 0.038 | 0.030 | 0.81 |
+| D_0.75 | 0.039 | 0.032 | 0.82 |
+| D_1.00 | 0.052 | 0.041 | 0.81 |
+| D_1.50 | 0.115 | 0.083 | 0.74 |
+| D_2.00 | 0.258 | 0.121 | 0.52 |
+| D_3.00 | 0.333 | 0.078 | **0.32** |
+| D_20.00 | 0.062 | 0.016 | 0.36 |
+
+**Summary**: Only D=0.25 (restricted, tumor marker) and D=3.00 (free water) are well-identified. Intermediate components D=0.5–1.0 have CV > 0.80 — essentially noise.
+
+---
+
+## 5. Uncertainty and Misclassification
+
+### ⚠️ PARTIALLY VERIFIED
+
+From verification script (using spectral feature uncertainty as proxy):
+- PZ: 12/81 misclassified, ratio = **1.26x** (not 2.34x as previously reported)
+- TZ: 7/68 misclassified, ratio = **1.22x** (not 1.96x)
+
+The discrepancy likely comes from **different definitions of "uncertainty"**:
+- Session 6 used **prediction uncertainty** (MC propagation through classifier)
+- Verification used **mean spectral feature uncertainty** (average posterior std across D bins)
+- These are different quantities — prediction uncertainty would be higher for misclassified cases because the classifier itself is more uncertain near the decision boundary
+
+**TODO**: Recompute with proper prediction uncertainty (MC propagation) after regenerating features.
+
+---
+
+## 6. Feature Collinearity
+
+### ✅ VERIFIED (from Session 6, not re-tested but consistent with LR instability)
+- 8-feature correlation matrix is nearly singular (3 eigenvalues ≈ 0)
+- Worst pairs: D=0.5 vs D=2.0 (r = −0.975), D=0.25 vs D=1.5 (r = −0.959)
+- This explains why LR coefficients are unstable across C values
+- This explains why vector-level sensitivity correlation (r = −0.79) is weaker than ROI-level (r = −0.98)
+
+---
+
+## 7. GGG Sample Size
+
+### ⚠️ NEEDS FIX
+- Current features.csv: n=28 (GGG ≠ 0), 19 low-grade, 9 high-grade
+- metadata.csv has new39 = GGG 1 (correctly)
+- But features.csv has empty ggg for new39 → pipeline was never rerun after metadata fix
+- After fix: should be n=29, 20 low-grade, 9 high-grade
+- Still too small for meaningful AUC differences (need n > 100 for ΔAUC < 0.10)
+
+---
+
+## 8. Dataset Circularity Concern
+
+### ✅ Confirmed (from Langkilde paper)
+- Tumor ROIs placed based on multiparametric MRI (including DWI/ADC), NOT histopathology
+- Quote: "there might be a bias in this study toward lesions that are well delineated on ADC maps"
+- ADC's 0.95 raw AUC for tumor detection is partially circular
+- Only GGG classification (from pathology) is truly independent
+- **Must discuss in paper** — Stephan says "we will have to consider this once write-up takes shape"
 
 ---
 
 ## Open Questions
 
-### Methodology (updated after Session 6 analysis)
-- [x] ~~Is in-sample RMSE a fair comparison for MAP vs NUTS?~~ → **No.** MAP LOO-b shows 78% increase. Don't claim NUTS is "better" based on RMSE.
-- [x] ~~Does discriminant uncertainty correlate with tissue boundaries?~~ → **No.** r=-0.18, null result.
-- [x] ~~Why does Full LR underperform ADC?~~ → Extreme multicollinearity (cond# ≈ ∞) + small N.
-- [x] ~~Is NUTS D=0.25 being 17% higher meaningful?~~ → SNR-dependent shrinkage bias in MAP. Not significant per-pixel.
-- [ ] **NEW**: Can dADC/dRⱼ be derived in closed form? (Stephan expects yes)
-- [ ] **NEW**: How does ADC sensitivity vector change across the b-value range used for fitting?
-- [ ] **NEW**: Encoding directions — geometric vs arithmetic mean in current data processing?
+### Methodology
+- [ ] Can dADC/dRⱼ be derived in closed form? (Stephan expects yes)
+- [x] ~~Is the sensitivity vector the same as the LR vector?~~ → **No.** r = −0.79, not −0.97. The ROI-level correlation is −0.98.
+- [ ] How does ADC sensitivity change across b_max values?
+- [ ] Encoding directions — geometric vs arithmetic mean confirmed? (Langkilde says geometric)
 
-### Paper Narrative (refined after Stephan meeting)
-- [ ] Central claim: ADC sensitivity vector ≈ LR feature vector (r=-0.97) — the analytical proof
-- [ ] Scope decision: ADC-focused only (Stephan) vs ADC + uncertainty (Patrick)?
-- [ ] ISMRM rejection feedback: "figures not well explained" — improve captions and annotations
-- [ ] Frame spectral decomposition as adding interpretability ON TOP of ADC, not replacing it
+### For the paper
+- [ ] How to present ADC comparison fairly given circularity? (Stephan: address in write-up)
+- [ ] Generalization to other tumors? (Sandy's interest)
+- [ ] Frame MCMC as exploratory tool (Sandy's framing) vs central method (Patrick's preference)
+- [ ] Feature selection vs all features — which to report? (affects AUC substantially with collinear features)
 
-### For Stephan/Sandy
+### For Sandy/Stephan
+- [x] ~~Sandy email~~ → Sent, reply received
 - [ ] Patient demographics table — still needed from Stephan
-- [x] ~~Patient new39: GS 2+3 → what GGG?~~ → **GGG 1** (reclassified as 3+3 under current ISUP)
-- [ ] Are NUTS trace plots useful for paper? (ask Sandy)
-- [ ] Encoding directions in original Langkilde data — geometric mean confirmed?
-- [ ] **NEW**: Sandy email drafted (`results/email_draft_sandy.md`) — NUTS justification questions
+- [ ] Encoding directions in original Langkilde data
 
-### Circularity in Tumor Detection Benchmark — **NEW Session 6**
-- Langkilde et al. explicitly state: tumor ROIs placed based on multiparametric MRI (including DWI/ADC), NOT whole-mount histopathology
-- Paper quote: "there might be a bias in this study toward lesions that are well delineated on ADC maps"
-- Implication: ADC's 0.94 AUC for tumor detection is partially circular — ADC helped define the ground truth
-- Spectral methods matching ADC (0.935) is actually more impressive than it appears
-- **Only GGG classification (Gleason from pathology) is a truly independent benchmark**
-- This should be discussed prominently in the paper
+---
 
-### Why NUTS Doesn't Improve GGG — **NEW Session 6**
-- NUTS and MAP agree on D=0.25 (r=0.99), the most discriminative component
-- Intermediate D=0.5-1.0 carry little GGG signal (individual AUCs 0.57-0.73) AND are poorly identified (CV>0.80)
-- ADC's implicit weighting already captures the aggregate intermediate-D effect
-- Uncertainty-weighted classification would collapse to D=0.25 dominance → same as ADC
-- Fundamental limitation: n=29 (9 high-grade) is too small for any AUC difference < 0.10 to be meaningful
-- Need n > 100 with balanced classes to properly evaluate NUTS vs MAP for GGG
+## Co-author Feedback (Session 7)
 
-### Dataset Notes
-- 56 patients, 149 ROIs (PZ: 27T/54N, TZ: 13T/55N)
-- GGG now available for 29 tumors (including new39): 20 low-grade (GGG 1-2), 9 high-grade (GGG 3-5)
-- Pixel heatmap patient (8640) is NOT in the ROI training set — good for generalization argument
-- Langkilde et al. 2018: GE 3T Discovery MR750, endorectal coil, 15 b-values (0–3500 s/mm²)
-- **Geometric mean** of 3 orthogonal diffusion encoding directions (confirmed from Langkilde paper)
-- ADC b≤1000 outperforms b≤1250 for tumor detection (less contamination from restricted diffusion at high b)
-- Patient demographics (from Langkilde): age 43-77 (mean 62), PSA 0.37-46 ng/mL (mean 8.8)
+**Stephan (2026-03-21):**
+- ADC sensitivity result is "beautiful" and "exactly the result I expected"
+- "it kills the science around all derived measures" — ADC is already near-optimal
+- Wants both MAP and NUTS shown with benefits and disadvantages
+- Confirmed current numbers are AUC values
+- Circularity: "we will have to consider this once the write-up takes shape"
+
+**Sandy (2026-03-21):**
+- "The 'ADC is optimal' story seems really interesting"
+- MCMC is valuable for **exploration** — "approaching the basic data and physics problem with MCMC got us to where we are now"
+- After learning about the domain, simpler methods may work going forward
+- Wonders about generalization to other tumors

@@ -2,9 +2,8 @@
 import numpy as np
 import numpy.random as npr
 from scipy.optimize import nnls
-from sklearn.linear_model import Lasso, ElasticNet, LinearRegression, Ridge, RidgeCV
+from sklearn.linear_model import Lasso, LinearRegression, Ridge, RidgeCV
 from typing import Optional
-from sklearn.linear_model import Lasso
 from spectra_estimation_dmri.data.data_models import SignalDecay, SignalDecayDataset
 
 
@@ -97,7 +96,7 @@ class ProbabilisticModel:
             fit_model = reg_nnls.fit(U, signal)
             fractions = fit_model.coef_
 
-        elif self.prior_config["type"] == "ridge":
+        elif self.prior_config.type == "ridge":
             # Use sklearn's Ridge class for better convergence
             strength = self.prior_config.strength
 
@@ -116,8 +115,6 @@ class ProbabilisticModel:
                 self.prior_config.strength = str(ridge_cv.alpha_)
                 print(f"RidgeCV selected alpha: {ridge_cv.alpha_}")
             else:
-                print(f"Ridge strength: {strength}")
-                # Use fixed Ridge with specified strength
                 ridge = Ridge(
                     alpha=float(strength),  # Direct strength parameter
                     fit_intercept=False,
@@ -143,40 +140,6 @@ class ProbabilisticModel:
             )
             lasso.fit(U, signal)
             fractions = lasso.coef_
-
-        elif self.prior_config.type == "cvxopt":
-            pass
-            # REF: sandy way of getting mode (involves sampler_snr, the other ones I have don't...why?)
-            # TODO: adapt code and see if it outperforms other modes
-            # from cvxopt import matrix, solvers
-            # M_count = signal_data.signal_values.shape[0]
-            # N = diffusivities.shape[0]
-            # u_vec_tuple = ()
-            # for i in range(M_count):
-            #     u_vec_tuple += (np.exp((-signal_data.b_values[i] * diffusivities)),)
-            # U_vecs = np.vstack(u_vec_tuple)
-            # U_outer_prods = np.zeros((N, N))
-            # for i in range(M_count):
-            #     U_outer_prods += np.outer(U_vecs[i], U_vecs[i])
-            # Sigma_inverse = (1.0 / (sigma * sigma)) * U_outer_prods
-            # if L2_lambda > 0.0:
-            #     inverse_prior_covariance = L2_lambda * np.eye(N)
-            # if inverse_prior_covariance is not None:
-            #     Sigma_inverse += inverse_prior_covariance
-            # weighted_U_vecs = np.zeros(N)
-            # for i in range(M_count):
-            #     weighted_U_vecs += signal_data.signal_values[i] * U_vecs[i]
-            # One_vec = np.ones(N)
-            # Sigma_inverse_M = (
-            #     1.0 / (sigma * sigma) * weighted_U_vecs
-            # ) - L1_lambda * One_vec
-            # M = np.linalg.solve(Sigma_inverse, Sigma_inverse_M)
-            # P = matrix(Sigma_inverse)
-            # Q = matrix(-Sigma_inverse_M)
-            # G = matrix(-np.identity(N), tc="d")
-            # H = matrix(np.zeros(N))
-            # sol = solvers.qp(P, Q, G, H)
-            # mode = np.array(sol["x"]).T[0]
 
         else:
             raise ValueError(f"Unknown prior type: {self.prior_config['type']}")
@@ -204,19 +167,8 @@ class ProbabilisticModel:
         mean_vec = (1.0 / sampler_sigma**2) * (U.T @ signal)
 
         if self.prior_config.type == "ridge":
-            # Add prior precision
             strength = self.prior_config.get("strength", 1.0)
-            print(f"strength:{strength}")
             precision += float(strength) * np.eye(n_dim)
-            # Prior mean is zero, so no change to mean_vec
-
-        # Diagnostic: print condition number and sigma
-        print(f"[DEBUG] sampler_sigma: {sampler_sigma}")
-        print(f"[DEBUG] data_sigma: {self.data_sigma}")
-        print(f"[DEBUG] Precision matrix condition number: {np.linalg.cond(precision)}")
-        print(
-            f"[DEBUG] Min Eigenvalue precision matrix: {np.linalg.eigvalsh(precision)}"
-        )
 
         mean = np.linalg.solve(precision, mean_vec)
         return mean, precision

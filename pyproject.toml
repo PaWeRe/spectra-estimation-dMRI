@@ -24,6 +24,7 @@ dependencies = [
     "wandb",
     "arviz",
     "pymc>=5.6.1",
+    "nibabel>=5.2.1",
 ]
 
 [tool.setuptools.packages.find]

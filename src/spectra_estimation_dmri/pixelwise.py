@@ -31,7 +31,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Design matrix
 # ---------------------------------------------------------------------------
-
+#TODO: make sure to compute the design matrix in the same way as the one used in the BWH dataset, to ensure that the results are comparable.
 def build_design_matrix(b_values: np.ndarray, diffusivities: np.ndarray) -> np.ndarray:
     """U[i,j] = exp(-b_i * d_j).  Shape: (n_b, n_d)."""
     return np.exp(-np.outer(b_values, diffusivities))
