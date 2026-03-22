@@ -3,9 +3,20 @@
 % Current inventory: 7 generated + 1 existing pixel-wise + 2 TODO (spectra, simulation)
 
 % --- Fig 1: Mean spectra by tissue type ---
-% TODO: Regenerate from final NUTS posterior means (current ISMRM version uses old data)
-\todo{Figure 1: Mean spectral fractions by tissue type and zone. Generate from features.csv using NUTS posterior means. Box plots for PZ and TZ, tumor vs normal.}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_spectra.pdf}
+\capt[Diffusivity spectra by tissue type and anatomical zone.]{%
+Box plots of the eight NUTS posterior mean spectral fractions for normal (blue)
+and tumor (red) ROIs in the peripheral zone (top) and transition zone (bottom).
+Tumor tissue shows elevated restricted diffusion ($D = 0.25\;\umsmm$) and
+reduced free water ($D = 3.0\;\umsmm$) compared to normal tissue.
+The $D = 2.0$--$3.0\;\umsmm$ components carry most of the spectral mass in
+normal tissue, while tumor spectra are more uniformly distributed across
+lower diffusivities.
+}
 \label{fig:spectra}
+\end{figure}
 
 % --- Fig 2: ROC curves (final, verified) ---
 \begin{figure}[p]
@@ -120,8 +131,23 @@ are well constrained; broad posteriors for $D = 0.50$--$1.50$ confirm ill-posedn
 \label{fig:robustness}
 
 % --- Fig 9: Direction comparison ---
-\todo{Figure 9: Direction independence — spectra from 3 encoding directions for selected pixels (patient 8640). Fix scripts/direction\_comparison.py imports and run.}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_directions.png}
+\capt[Direction independence of spectral estimates.]{%
+Per-direction MAP spectra (colored bars: direction 1 red, 2 green, 3 blue) versus
+the trace-averaged spectrum (black line) for 8 representative prostate voxels
+(patient 8640, sorted by descending b=0 signal).
+The three encoding directions yield qualitatively consistent spectral profiles,
+with the trace average tracking the individual directions.
+Direction variability was lowest for the clinically relevant restricted diffusion
+component ($D = 0.25\;\umsmm$, mean CV = 27\%) and highest for the vascular
+proxy ($D = 20.0\;\umsmm$, mean CV = 80\%).
+This validates the use of direction-averaged (trace) signals for spectral
+decomposition.
+}
 \label{fig:directions}
+\end{figure}
 
 % --- Fig 10: Pixel-wise spectral decomposition ---
 \begin{figure}[p]

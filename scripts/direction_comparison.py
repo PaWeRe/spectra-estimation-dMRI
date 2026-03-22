@@ -27,26 +27,27 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.spectra_estimation_dmri.data.loaders import (
-    load_binary_images,
-    subsample_to_native,
-    compute_mean_intensities,
+    _load_binary_images as load_binary_images,
+    _compute_mean_intensities as compute_mean_intensities,
+    INTERPOLATED_SHAPE, SUBSAMPLE_FACTOR,
 )
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-DATA_FOLDER = os.path.join(os.path.dirname(__file__), "..", "8640-sl6-bin")
+DATA_FOLDER = os.path.join(os.path.dirname(__file__), "..",
+                           "src", "spectra_estimation_dmri", "data", "8640-sl6-bin")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "results", "direction_comparison")
-SHAPE = (256, 256)
-NATIVE_FACTOR = 4
+SHAPE = INTERPOLATED_SHAPE
+NATIVE_FACTOR = SUBSAMPLE_FACTOR
 
 # BWH parameters
 DIFF_VALUES = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
-# 16 b-values for 16 trace groups (b=0 + 15 non-zero)
-B_VALUES_16 = np.linspace(0, 3.5, 16)
+B_VALUES_MS = np.array([0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75,
+                         2., 2.25, 2.5, 2.75, 3., 3.25, 3.5])
 
-# Ridge regularization
-RIDGE_STRENGTH = 0.5
+# Ridge regularization (must match paper: 0.1)
+RIDGE_STRENGTH = 0.1
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -68,75 +69,70 @@ def separate_directions(images_64, n_directions=3):
     """
     Separate the 46 images into per-direction signal sets.
 
+    The brightest image is a scanner reference (not protocol b=0) and is dropped.
+    The remaining 45 images form 15 groups of 3 directions, where group 0 is
+    the protocol b=0 and groups 1-14 are non-zero b-values.
+
     Returns:
-        b0_image: The b=0 image (brightest)
+        b0_image: The direction-averaged b=0 image (for masking/display)
         dir_signals: dict with keys 0,1,2 mapping to
-                     dict[bvalue_group_idx] -> 2D image
+                     dict[bvalue_group_idx] -> 2D image (15 groups: 0..14)
         trace_signals: dict[bvalue_group_idx] -> direction-averaged 2D image
+        n_groups: number of b-value groups (15)
     """
     means = compute_mean_intensities(images_64)
     sorted_keys = sorted(means.keys(), key=lambda k: means[k], reverse=True)
 
-    # First image is b=0
-    b0_key = sorted_keys[0]
-    b0_image = images_64[b0_key]
-
-    # Remaining 45 images split into 15 groups of 3
-    remaining = sorted_keys[1:]
-    n_nonzero = len(remaining) // n_directions
+    # Drop scanner reference (brightest image, ~54% brighter than protocol b=0)
+    protocol_keys = sorted_keys[1:]
+    n_groups = len(protocol_keys) // n_directions  # 15
 
     dir_signals = {d: {} for d in range(n_directions)}
     trace_signals = {}
 
-    for g in range(n_nonzero):
+    for g in range(n_groups):
         start = g * n_directions
-        group_keys = remaining[start:start + n_directions]
+        group_keys = protocol_keys[start:start + n_directions]
 
-        # Each key in the group is a different direction for the same b-value
         for d, key in enumerate(group_keys):
             dir_signals[d][g] = images_64[key]
 
-        # Trace = average of all directions
         trace_signals[g] = np.mean(
             [images_64[k].astype(np.float64) for k in group_keys], axis=0
         )
 
-    return b0_image, dir_signals, trace_signals, n_nonzero
+    # b=0 is the trace of group 0
+    b0_image = trace_signals[0].astype(images_64[sorted_keys[0]].dtype)
+
+    return b0_image, dir_signals, trace_signals, n_groups
 
 
 def extract_pixel_signal_per_direction(
-    b0_image, dir_signals, trace_signals, n_nonzero, pixel_rc
+    b0_image, dir_signals, trace_signals, n_groups, pixel_rc
 ):
     """
     Extract signal decays at a specific pixel for each direction.
 
+    Groups 0..14 correspond to b-values 0..3500 s/mm² (15 values).
+    Each group has 3 direction images.
+
     Returns:
-        dir_decays: (n_directions, n_bvalues) signal decay per direction
-        trace_decay: (n_bvalues,) direction-averaged decay
-        S_0: b=0 signal value
+        dir_decays: (n_directions, n_groups) signal per direction
+        trace_decay: (n_groups,) direction-averaged signal
+        S_0: b=0 signal value (trace of group 0)
     """
     r, c = pixel_rc
-    S_0 = float(b0_image[r, c])
-
     n_directions = len(dir_signals)
 
-    # b=0 + n_nonzero b-values = n_bvalues
-    n_bvalues = 1 + n_nonzero
+    dir_decays = np.zeros((n_directions, n_groups))
+    trace_decay = np.zeros(n_groups)
 
-    dir_decays = np.zeros((n_directions, n_bvalues))
-    trace_decay = np.zeros(n_bvalues)
-
-    # b=0 is same for all directions
-    for d in range(n_directions):
-        dir_decays[d, 0] = S_0
-
-    trace_decay[0] = S_0
-
-    for g in range(n_nonzero):
+    for g in range(n_groups):
         for d in range(n_directions):
-            dir_decays[d, g + 1] = float(dir_signals[d][g][r, c])
-        trace_decay[g + 1] = float(trace_signals[g][r, c])
+            dir_decays[d, g] = float(dir_signals[d][g][r, c])
+        trace_decay[g] = float(trace_signals[g][r, c])
 
+    S_0 = trace_decay[0]
     return dir_decays, trace_decay, S_0
 
 
@@ -434,23 +430,25 @@ if __name__ == "__main__":
 
     # Step 1: Load images
     print("\n[Step 1] Loading binary images...")
-    images_256 = load_binary_images(DATA_FOLDER, shape=SHAPE, dtype=np.int16)
-    images_64 = subsample_to_native(images_256, factor=NATIVE_FACTOR)
+    from pathlib import Path
+    images_256 = load_binary_images(Path(DATA_FOLDER), shape=SHAPE, dtype=np.int16)
+    # Subsample to native 64x64
+    images_64 = {k: img[::NATIVE_FACTOR, ::NATIVE_FACTOR] for k, img in images_256.items()}
 
     # Step 2: Separate directions
     print("\n[Step 2] Separating gradient directions...")
-    b0_image, dir_signals, trace_signals, n_nonzero = separate_directions(images_64)
-    n_bvalues = 1 + n_nonzero
-    print(f"  b=0 image extracted")
-    print(f"  {n_nonzero} non-zero b-value levels x 3 directions")
+    b0_image, dir_signals, trace_signals, n_groups = separate_directions(images_64)
+    print(f"  b=0 image extracted (trace of direction group 0)")
+    print(f"  {n_groups} b-value groups x 3 directions (including b=0)")
 
-    # Build b-values for our design matrix
-    b_values = np.linspace(0, 3.5, n_bvalues)
+    # b-values for design matrix (15 values: 0 to 3.5 ms/um²)
+    b_values = B_VALUES_MS[:n_groups]
+    n_nonzero = n_groups  # for compatibility with downstream functions
 
     # Step 3: Create mask and select pixels
     print("\n[Step 3] Selecting analysis pixels...")
-    from scripts.pixel_wise_heatmap import create_prostate_mask
-    mask = create_prostate_mask(b0_image, threshold_percentile=25)
+    # Simple threshold mask on b=0 image
+    mask = b0_image > (0.05 * b0_image.max())
 
     # Select 12 pixels spanning different SNR levels
     analysis_pixels = select_analysis_pixels(b0_image, mask, n_pixels=12)
@@ -513,6 +511,14 @@ if __name__ == "__main__":
     # Save metrics
     metrics_df.to_csv(os.path.join(OUTPUT_DIR, "direction_metrics.csv"), index=False)
     print(f"\n  Saved metrics to: {os.path.join(OUTPUT_DIR, 'direction_metrics.csv')}")
+
+    # Copy main figure to paper/figures/
+    import shutil
+    paper_fig = os.path.join(os.path.dirname(__file__), "..", "paper", "figures", "fig_directions.png")
+    src_fig = os.path.join(OUTPUT_DIR, "direction_spectra_comparison.png")
+    if os.path.exists(src_fig):
+        shutil.copy(src_fig, paper_fig)
+        print(f"\n  Copied to {paper_fig}")
 
     print("\n" + "=" * 70)
     print("DIRECTION ANALYSIS COMPLETE")

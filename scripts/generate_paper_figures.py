@@ -337,6 +337,46 @@ def fig_roc(df):
     _save(fig, "fig_roc")
 
 
+# =========================================================================
+# Figure: Mean Spectra by Tissue Type (boxplot)
+# =========================================================================
+def fig_spectra(df):
+    nuts_cols = [f"nuts_{c}" for c in D_COLS]
+
+    fig, axes = plt.subplots(2, 2, figsize=(11, 8))
+    panels = [
+        (axes[0, 0], "pz", False, "Normal PZ"),
+        (axes[0, 1], "tz", False, "Normal TZ"),
+        (axes[1, 0], "pz", True, "Tumor PZ"),
+        (axes[1, 1], "tz", True, "Tumor TZ"),
+    ]
+
+    for ax, zone, is_tumor, title in panels:
+        mask = (df["zone"] == zone) & (df["is_tumor"] == is_tumor)
+        sub = df[mask]
+        n = len(sub)
+
+        data = [sub[c].values for c in nuts_cols]
+
+        bp = ax.boxplot(data, positions=range(len(DIFFUSIVITIES)), widths=0.5,
+                        patch_artist=True, medianprops=dict(color="black", linewidth=1.5))
+
+        color = RED if is_tumor else BLUE
+        for patch in bp["boxes"]:
+            patch.set_facecolor(color)
+            patch.set_alpha(0.6)
+
+        ax.set_xticks(range(len(DIFFUSIVITIES)))
+        ax.set_xticklabels(D_LABELS, fontsize=8)
+        ax.set_xlabel("Diffusivity D (\u03bcm\u00b2/ms)")
+        ax.set_ylabel("Spectral fraction")
+        ax.set_title(f"{title} (n={n})")
+        ax.set_ylim(-0.02, 0.55)
+
+    plt.tight_layout()
+    _save(fig, "fig_spectra")
+
+
 def _save(fig, name):
     for ext in [".pdf", ".png"]:
         fig.savefig(OUTPUT_DIR / f"{name}{ext}")
@@ -349,6 +389,7 @@ if __name__ == "__main__":
     print("Generating paper figures...")
     df = load_data()
 
+    fig_spectra(df)
     fig_adc_discriminant(df)
     fig_sensitivity(df)
     fig_identifiability(df)

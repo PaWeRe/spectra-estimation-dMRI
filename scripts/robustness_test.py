@@ -39,7 +39,7 @@ B_VALUES = np.array([0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75,
                       2., 2.25, 2.5, 2.75, 3., 3.25, 3.5])
 
 # Ridge regularization
-RIDGE_STRENGTH = 0.5
+RIDGE_STRENGTH = 0.1
 
 # NUTS parameters (reduced for speed; increase for paper-quality results)
 NUTS_CONFIG = {
