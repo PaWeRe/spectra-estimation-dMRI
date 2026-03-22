@@ -1,82 +1,57 @@
 \section{Methods}
 
-\todo{Methods subsections for data acquisition, ROI analysis, classification pipeline go here first.}
+\subsection{Patient Data}
+
+Retrospective multi-b DWI data from 56 patients with biopsy-confirmed prostate cancer were acquired at Brigham and Women's Hospital using the extended b-value protocol described by \citet{langkilde2018evaluation}.
+Fifteen b-values were acquired at $b = 0, 250, 500, \ldots, 3500\;\text{s/mm}^2$ along three orthogonal gradient directions, with direction-averaged (trace) images used for analysis.
+A total of 149 regions of interest (ROIs) were annotated: 40 tumor and 109 normal tissue, spanning peripheral zone (PZ; 81 ROIs: 27 tumor, 54 normal) and transition zone (TZ; 68 ROIs: 13 tumor, 55 normal).
+Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5).
+\stephan{Patient demographics table pending.}
+
+\subsection{Spectral Estimation}
+
+For each ROI, the direction-averaged signal decay was decomposed into eight diffusivity components using both MAP and fully Bayesian estimation as described in Theory.
+
+\subsubsection{MAP Estimation}
+
+MAP spectra were computed via Eq.~\ref{eq:map} with ridge strength $\lambda = 0.1$.
+The resulting eight-component spectra were normalized to sum to one (fractional representation).
+Computation was instantaneous ($< 1\;\text{s}$ for all 149 ROIs).
+
+\subsubsection{Bayesian Estimation (NUTS)}
+
+The posterior (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) was sampled independently for each of the 149 ROIs using NUTS via PyMC, with 2000 post-tuning draws, 200 tuning steps, 4 independent chains, and target acceptance rate 0.95.
+Convergence was assessed using the split-$\hat{R}$ statistic \citep{vehtari2021rank}; all 149 ROIs converged ($\hat{R} < 1.05$).
+Posterior means of the spectral fractions (normalized to sum to one) were used as NUTS point estimates; posterior standard deviations quantify per-component uncertainty.
+
+\subsection{ADC Computation}
+
+Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log s(b) = \log s_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
+This cutoff was chosen to minimize contamination from non-Gaussian diffusion contributions at high b-values while retaining sensitivity to restricted diffusion.
+
+\subsection{Classification}
+
+Tumor detection and Gleason grade classification were evaluated using $L_2$-regularized logistic regression with leave-one-out cross-validation (LOOCV).
+Three classification tasks were defined: (1)~tumor versus normal in PZ ($n = 81$), (2)~tumor versus normal in TZ ($n = 68$), and (3)~high-grade (GGG~$\geq 3$) versus low-grade (GGG~1--2) among tumor ROIs with available GGG labels ($n = 29$).
+
+For each task, three feature representations were compared: (a)~ADC alone (single feature), (b)~all eight MAP spectral fractions, and (c)~all eight NUTS posterior mean fractions.
+For single-feature models (ADC, individual components), the raw feature value was used directly as the classification score without training a classifier.
+For multi-feature models, standardized features were passed through logistic regression with regularization $C = 1.0$ (inverse regularization strength), with separate standardization and model fitting in each LOOCV fold to prevent data leakage.
+Performance was measured by the area under the receiver operating characteristic curve (AUC).
+Sensitivity analyses at $C = 0.1$ and $C = 10.0$ confirmed that results were robust to regularization strength.
+
+\subsection{ADC Sensitivity Analysis}
+
+The ADC sensitivity vector (Eq.~\ref{eq:sensitivity}) was computed numerically at the average tumor and average normal spectra for each zone, using finite differences with step size $\epsilon = 10^{-4}$.
+Logistic regression coefficients were obtained by fitting the full model (all eight features) to the entire dataset.
+The Pearson and Spearman rank correlations between the sensitivity vector and the LR coefficient vector (both eight-dimensional) were computed to quantify alignment.
 
 % ======================================================================
 \subsection{Pixel-wise Spectral Estimation}
 
-Pixel-wise spectral decomposition was performed on a single axial slice
-(patient 8640, slice 6) from the BWH prostate DWI dataset.
-The prostate was manually segmented in 3D~Slicer, yielding 146 voxels at
-$64 \times 64$ native resolution.
+To demonstrate the framework at the voxel level, pixel-wise spectral decomposition was performed on a single axial slice (patient 8640, slice~6) from the BWH prostate DWI dataset.
+The prostate was manually segmented in 3D~Slicer, yielding 146 voxels at $64 \times 64$ native resolution.
 
-For each voxel, the multi-b signal decay $\svec = [s(b_1), \ldots, s(b_{15})]^T$ was
-normalized by the $b = 0$ signal to obtain fractional signals in $[0, 1]$.
-The spectral decomposition model is:
-%
-\begin{equation}
-  \svec / s_0 = \Umat \Rvec + \boldsymbol{\varepsilon},
-  \quad
-  \Umat_{ij} = \exp(-b_i D_j),
-  \label{eq:forward_model}
-\end{equation}
-%
-where $\Rvec \in \mathbb{R}^8_{\geq 0}$ are the non-negative spectral fractions
-corresponding to diffusivity bins
-$D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$,
-and $\boldsymbol{\varepsilon} \sim \mathcal{N}(0, \sigma^2 \mathbf{I})$.
-
-\subsubsection{MAP Estimation (Ridge NNLS)}
-
-The maximum \emph{a~posteriori} estimate under a Gaussian prior
-$R_j \sim \mathcal{N}(0, \lambda^{-1})$ is obtained in closed form:
-%
-\begin{equation}
-  \hat{\Rvec}_{\text{MAP}} = \max\!\Big(
-    (\Umat^T \Umat + \lambda \mathbf{I})^{-1} \Umat^T (\svec / s_0),\;
-    \mathbf{0}
-  \Big),
-  \label{eq:map}
-\end{equation}
-%
-with $\lambda = 0.1$.
-This is vectorized across all voxels and computed in under one second for the
-entire prostate.
-
-\subsubsection{Fully Bayesian Estimation (NUTS)}
-
-For the fully Bayesian approach, we place explicit priors on both the spectrum
-and the noise:
-%
-\begin{align}
-  R_j &\sim \text{HalfNormal}\!\left(\sigma_R = 1/\sqrt{\lambda}\right),
-  \quad j = 1, \ldots, 8 \label{eq:prior_R} \\
-  \sigma &\sim \text{HalfCauchy}(\beta = 0.01) \label{eq:prior_sigma} \\
-  \svec / s_0 &\sim \mathcal{N}(\Umat \Rvec, \sigma^2 \mathbf{I}).
-  \label{eq:likelihood}
-\end{align}
-%
-The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ was sampled using the
-No-U-Turn Sampler (NUTS) via PyMC, with 2000 draws, 200 tuning steps,
-4 chains, and target acceptance rate 0.95, independently for each of the
-146 voxels.
-Convergence was assessed using the $\hat{R}$ statistic.
-
-\subsubsection{ADC Baseline}
-
-Apparent diffusion coefficients were computed by monoexponential least-squares
-fitting to b-values $\leq 1250\;\text{s/mm}^2$:
-$\log(s) = \log(s_0) - b \cdot \text{ADC}$.
-
-\subsubsection{Spectral Discriminant Score}
-
-Logistic regression was trained on ROI-level MAP spectra from 81 peripheral zone
-samples (27 tumor, 54 normal) using leave-one-out cross-validation (LOOCV AUC = 0.919).
-The learned coefficients $\mathbf{w} \in \mathbb{R}^8$ were applied to pixel-level
-normalized spectra to compute a spectral discriminant score
-(Eq.~\ref{eq:discriminant}), with positive values indicating tumor-like and negative
-values indicating normal-like spectral profiles.
-
-For the fully Bayesian estimates, uncertainty in the discriminant was quantified by
-propagating 500 Monte Carlo samples from the per-voxel NUTS posterior through
-Eq.~\ref{eq:discriminant}.
+For each voxel, the multi-b signal decay $\svec = [s(b_1), \ldots, s(b_{15})]^T$ was normalized by the $b = 0$ signal and decomposed using both MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the same parameters as the ROI-level analysis.
+A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra (Eq.~\ref{eq:discriminant}).
+For the Bayesian estimates, uncertainty in the discriminant was propagated by drawing 500 Monte Carlo samples from the per-voxel posterior and passing each through the discriminant function.

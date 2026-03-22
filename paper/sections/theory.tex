@@ -1,3 +1,74 @@
 \section{Theory}
 
-\todo{Draft theory section - probabilistic model, priors, posterior}
+\subsection{Signal Model}
+
+In multi-b diffusion MRI, the signal decay at each voxel or region of interest is modeled as a superposition of exponential decays arising from distinct diffusion compartments.
+Normalizing by the $b = 0$ signal, the discrete spectral model is:
+%
+\begin{equation}
+  \frac{s(b_i)}{s_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
+  \quad i = 1, \ldots, M,
+  \label{eq:signal_model}
+\end{equation}
+%
+where $R_j \geq 0$ are the spectral fractions (volume fractions of each diffusion compartment), $D_j$ are the diffusivity bin centers, and $\varepsilon_i \sim \mathcal{N}(0, \sigma^2)$ is additive Gaussian noise.
+In matrix notation, $\svec / s_0 = \Umat \Rvec + \boldsymbol{\varepsilon}$, where the design matrix $\Umat \in \mathbb{R}^{M \times K}$ has entries $U_{ij} = \exp(-b_i D_j)$.
+
+For this study, $M = 15$ b-values spanning $0$--$3500\;\text{s/mm}^2$ in steps of $250\;\text{s/mm}^2$ and $K = 8$ diffusivity bins at $D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$.
+The design matrix $\Umat$ has condition number $\kappa \approx 2.8 \times 10^5$, reflecting the inherent ill-posedness of the inverse problem.
+
+\subsection{MAP Estimation}
+
+The maximum \emph{a~posteriori} estimate under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ is obtained in closed form:
+%
+\begin{equation}
+  \hat{\Rvec}_{\text{MAP}} = \max\!\Big(
+    (\Umat^T \Umat + \lambda \mathbf{I})^{-1} \Umat^T (\svec / s_0),\;
+    \mathbf{0}
+  \Big),
+  \label{eq:map}
+\end{equation}
+%
+where $\lambda > 0$ controls the regularization strength and the $\max(\cdot, \mathbf{0})$ operator enforces non-negativity by projection.
+This is equivalent to ridge regression with a non-negativity constraint (Ridge NNLS).
+The MAP estimate is a point estimate and does not quantify how reliably each component $R_j$ is determined by the data.
+
+\subsection{Bayesian Formulation}
+
+To obtain per-component uncertainty estimates, we specify a fully Bayesian model with explicit priors on both the spectrum and the noise level:
+%
+\begin{align}
+  R_j &\sim \text{HalfNormal}\!\left(\sigma_R = 1/\sqrt{\lambda}\right),
+  \quad j = 1, \ldots, K \label{eq:prior_R} \\
+  \sigma &\sim \text{HalfCauchy}(\beta = 0.01) \label{eq:prior_sigma} \\
+  \svec / s_0 \mid \Rvec, \sigma &\sim \mathcal{N}(\Umat \Rvec,\; \sigma^2 \mathbf{I}).
+  \label{eq:likelihood}
+\end{align}
+%
+The HalfNormal prior on $\Rvec$ naturally enforces non-negativity while providing smooth gradients for Hamiltonian Monte Carlo, and its variance $1/\lambda$ corresponds to the ridge penalty strength.
+The HalfCauchy prior on the noise level $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that allows the noise to be inferred jointly with the spectrum, rather than fixed \emph{a priori}.
+
+The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}, which adapts the trajectory length of Hamiltonian Monte Carlo to efficiently explore the constrained, correlated posterior geometry.
+Posterior summaries (mean, standard deviation) for each $R_j$ provide both a point estimate and a measure of identifiability: components with posterior coefficient of variation (CV = posterior std / posterior mean) much less than one are well constrained, while those with CV near or above one are effectively undetermined.
+
+\subsection{ADC as a Spectral Functional}
+
+The apparent diffusion coefficient can be viewed as a functional of the spectral fractions.
+Given a spectrum $\Rvec$, the synthesized signal at each b-value is $\hat{s}(b) = \sum_j R_j \exp(-b D_j)$.
+Fitting a monoexponential $\log \hat{s}(b) = \log \hat{s}_0 - b \cdot \text{ADC}$ to b-values below a cutoff $b_{\max}$ yields the apparent diffusion coefficient $\text{ADC}(\Rvec)$.
+This is a nonlinear, spectrum-dependent mapping: the same diffusivity component $R_j$ contributes differently to ADC depending on the operating point (i.e., the overall spectral composition).
+
+\subsection{ADC Sensitivity Analysis}
+
+To understand which spectral components ADC is most sensitive to, we define the sensitivity vector:
+%
+\begin{equation}
+  \frac{\partial \,\text{ADC}}{\partial R_j}\bigg|_{\Rvec = \bar{\Rvec}}
+  \approx \frac{\text{ADC}(\bar{\Rvec} + \epsilon \, \mathbf{e}_j) - \text{ADC}(\bar{\Rvec})}{\epsilon},
+  \label{eq:sensitivity}
+\end{equation}
+%
+evaluated at a reference spectrum $\bar{\Rvec}$ (e.g., the average tumor or normal spectrum).
+This sensitivity vector quantifies how a unit increase in each spectral fraction perturbs the ADC value.
+If the sensitivity vector aligns with the optimal classification direction (the logistic regression coefficient vector), then ADC implicitly performs near-optimal spectral discrimination---it weights each compartment in proportion to its discriminative value.
+We quantify this alignment using the Pearson correlation between the sensitivity vector $\partial \text{ADC}/\partial \Rvec$ and the standardized logistic regression coefficients $\mathbf{w}$.

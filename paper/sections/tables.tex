@@ -1,4 +1,53 @@
 % === TABLES ===
 
-\todo{Add patient demographics table}
-\todo{Add classification performance table}
+% --- Table 1: Patient Demographics (BLOCKED) ---
+\stephan{Patient demographics table pending from Stephan.}
+
+% --- Table 2: Classification AUCs ---
+\begin{table}[p]
+\centering
+\caption{Classification performance (AUC) by leave-one-out cross-validation. ADC (raw rank) uses the raw feature value without classifier training. Multi-feature models use $L_2$-regularized logistic regression at three regularization strengths. All spectral models use eight diffusivity components without feature selection.}
+\label{tab:auc}
+\smallskip
+\begin{tabular}{llccc}
+\toprule
+Method & $C$ & PZ ($n=81$) & TZ ($n=68$) & GGG ($n=29$) \\
+\midrule
+ADC (raw rank)  & ---  & \textbf{0.951} & \textbf{0.979} & \textbf{0.811} \\
+\addlinespace
+ADC (LR)        & 0.1  & 0.940 & 0.959 & 0.706 \\
+                & 1.0  & 0.940 & 0.964 & 0.778 \\
+                & 10.0 & 0.937 & 0.962 & 0.772 \\
+\addlinespace
+MAP Full LR     & 0.1  & 0.938 & 0.950 & 0.722 \\
+                & 1.0  & 0.919 & 0.945 & 0.733 \\
+                & 10.0 & 0.902 & 0.940 & 0.733 \\
+\addlinespace
+NUTS Full LR    & 0.1  & 0.921 & 0.922 & 0.739 \\
+                & 1.0  & 0.926 & 0.923 & 0.772 \\
+                & 10.0 & 0.914 & 0.909 & 0.789 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --- Table 3: Per-component Identifiability ---
+\begin{table}[p]
+\centering
+\caption{Per-component identifiability from NUTS posterior across 149 ROIs. Coefficient of variation (CV) = posterior std / posterior mean, averaged across ROIs. Components with CV $< 0.40$ (bold) are considered well identified.}
+\label{tab:identifiability}
+\smallskip
+\begin{tabular}{lccc}
+\toprule
+Component ($D$, \umsmm) & Mean fraction & Mean posterior std & Mean CV \\
+\midrule
+0.25  & 0.104 & 0.015 & \textbf{0.20} \\
+0.50  & 0.038 & 0.031 & 0.81 \\
+0.75  & 0.039 & 0.032 & 0.83 \\
+1.00  & 0.052 & 0.041 & 0.81 \\
+1.50  & 0.116 & 0.083 & 0.74 \\
+2.00  & 0.256 & 0.121 & 0.52 \\
+3.00  & 0.333 & 0.078 & \textbf{0.32} \\
+20.00 & 0.062 & 0.016 & \textbf{0.36} \\
+\bottomrule
+\end{tabular}
+\end{table}

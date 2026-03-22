@@ -1,3 +1,35 @@
 \section{Discussion}
 
-\todo{Draft discussion section}
+The central finding of this study is that ADC, despite reducing multi-component diffusion information to a single scalar, achieves near-optimal spectral discrimination for prostate tumor detection.
+The anti-correlation between ADC scores and the optimal spectral discriminant ($r \approx -0.98$ across zones and inference methods) is not coincidental---the sensitivity analysis shows that ADC's implicit weighting of spectral compartments closely matches the learned classification direction ($r = -0.98$ for MAP features).
+This provides a formal, quantitative answer to the question of what ADC measures in the context of spectral tissue characterization: it is a near-optimal linear combination of the diffusivity spectrum for the purpose of distinguishing tumor from normal prostate tissue.
+
+This result has important implications for the clinical interpretation of ADC.
+Rather than viewing ADC as an impoverished summary of a richer signal, our analysis suggests that it effectively captures the dominant axis of spectral variation relevant to tumor detection.
+The spectral decomposition does not obsolete ADC---it explains it.
+The added value of multi-component analysis lies in three areas: (1)~biological interpretability, revealing which tissue compartments (restricted diffusion, free water) drive the observed ADC contrast; (2)~uncertainty quantification, identifying which components are reliably estimated from the available data; and (3)~potential for detecting spectral signatures that are orthogonal to the dominant tumor--normal axis, such as differences in glandular water content between Gleason grades.
+
+The comparison between MAP and NUTS estimation revealed a complementary relationship.
+MAP and NUTS agreed closely for well-identified components ($D = 0.25\;\umsmm$: $r = 0.99$; $D = 3.0\;\umsmm$: $r = 0.82$) and their discriminant scores were nearly interchangeable ($r > 0.98$), confirming that closed-form MAP estimation is sufficient for classification.
+The divergence on intermediate components ($D = 0.5$--$1.0\;\umsmm$: $r < 0.50$) was not a deficiency of either method but a faithful reflection of the ill-posedness: these components are genuinely undetermined by 15 b-value measurements at typical clinical noise levels.
+NUTS makes this ill-posedness explicit through wide posterior intervals (CV $> 0.80$), while MAP silently returns a point estimate that may be misleadingly precise.
+The Bayesian approach thus serves as an exploratory tool that identifies what can and cannot be learned from a given acquisition protocol---a perspective endorsed by the information-theoretic view of inverse problems \citep{prange2009quantifying}.
+
+The per-component identifiability results (Table~\ref{tab:identifiability}) have direct implications for protocol design.
+Only $D = 0.25$ and $D = 3.0\;\umsmm$ are well constrained (CV $< 0.4$), suggesting that a simplified two-compartment model (restricted + free water) may capture most of the extractable information from extended b-value protocols.
+More b-values at intermediate values ($b = 500$--$2000\;\text{s/mm}^2$) or higher SNR would be needed to reliably resolve the intermediate components.
+
+\paragraph{Limitations.}
+This study has several limitations.
+First, the tumor ROIs were placed based on multiparametric MRI (including DWI/ADC maps), introducing a potential circularity: lesions that are well delineated on ADC maps may be overrepresented \citep{langkilde2018evaluation}.
+This bias could inflate ADC's apparent discriminative performance relative to spectral features.
+Only the Gleason grade classification, derived from biopsy pathology, is free from this circularity.
+Second, the GGG sample size ($n = 29$) is insufficient for reliable AUC comparison between methods; differences below $\Delta\text{AUC} \approx 0.10$ cannot be meaningfully distinguished.
+Third, the spectral model assumes a fixed set of diffusivity bins; a continuous spectral approach \citep{prange2009quantifying} might reveal additional structure but at the cost of increased ill-posedness.
+Finally, the pixel-wise demonstration was limited to a single patient; generalization requires larger studies with histopathological correlation.
+
+\paragraph{Future Directions.}
+The framework presented here is directly applicable to other organs and tumor types where multi-b DWI is acquired, including breast, liver, and brain tumors.
+Amortized inference approaches---training a neural network to approximate the posterior distribution---could reduce computation time from minutes per ROI (NUTS) to milliseconds, enabling real-time clinical deployment.
+Integration with T2-weighted imaging and PI-RADS scoring could yield multi-parametric spectral biomarkers.
+The sensitivity analysis framework could be extended to design optimal b-value protocols that maximize identifiability for specific clinical questions.
