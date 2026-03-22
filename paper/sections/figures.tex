@@ -127,8 +127,25 @@ are well constrained; broad posteriors for $D = 0.50$--$1.50$ confirm ill-posedn
 \end{figure}
 
 % --- Fig 8: Robustness across spectral shapes ---
-\todo{Figure 8: NUTS recovery of 6 synthetic spectral shapes (tumor, normal, inverse, uniform, bimodal, single-peak) at multiple SNR levels. Show true vs recovered spectrum with posterior credible intervals. Run scripts/robustness\_test.py with ridge\_strength=0.1.}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_robustness.png}
+\capt[NUTS spectrum recovery across diverse spectral shapes and SNR levels.]{%
+True (blue) versus NUTS-recovered (red, with posterior credible intervals)
+spectral fractions for six synthetic spectra at the lowest (SNR = 50, left)
+and highest (SNR = 1000, right) tested noise levels.
+The sampler recovers the dominant spectral features across all shapes,
+including clinically relevant tumor and normal tissue profiles.
+Recovery error (RMSE) decreases monotonically with SNR for all shapes.
+Intermediate-diffusivity components ($D = 0.50$--$1.00\;\umsmm$) show the
+widest credible intervals, consistent with the identifiability analysis
+on patient data (Figure~\ref{fig:identifiability}).
+Convergence ($\hat{R} < 1.05$) was achieved for most conditions; residual
+non-convergence at high SNR reflects the fast-mode sampler settings
+(2 chains, 500 draws) and resolves with production settings (4 chains, 2000 draws).
+}
 \label{fig:robustness}
+\end{figure}
 
 % --- Fig 9: Direction comparison ---
 \begin{figure}[p]
