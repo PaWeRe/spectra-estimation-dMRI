@@ -1,6 +1,6 @@
 % === FIGURES ===
 % MRM: max 10 items (figures + tables combined)
-% Budget: 8 figures + 1 table = 9 items (1 slot reserve)
+% Budget: 9 figures + 1 table = 10 items (FULL)
 % Supplementary: trace, robustness
 
 % --- Fig 1: Spectra + Identifiability Combined ---
@@ -124,7 +124,30 @@ Direction variability is lowest for restricted diffusion
 \label{fig:directions}
 \end{figure}
 
-% --- Fig 8: Pixel-wise Spectral Decomposition ---
+% --- Fig 8: Fisher Information Analysis ---
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_fisher.pdf}
+\capt[Fisher Information Analysis Of The Spectral Discretization.]{%
+(a)~Fisher information correlation matrix: adjacent diffusivity components
+($D = 0.50$--$1.00\;\umsmm$) have mutual correlation $> 0.99$, making them
+fundamentally indistinguishable from 15 b-value measurements.
+$D = 0.25$ and $D = 20.0$ are the most separable components.
+(b)~Unconstrained Cram\'er-Rao lower bound (blue) versus observed NUTS posterior
+standard deviation (orange) at SNR = 150.
+Labels show the improvement factor.
+Non-negativity constraints and Bayesian priors reduce estimation error by
+100--8000$\times$, demonstrating their essential role.
+(c)~Individual component decay curves $R_j \exp(-b D_j) / K$ at equal fractions,
+with horizontal noise floors at SNR = 50--300.
+Slow-diffusing components (e.g., $D = 0.25$) contribute signal across all b-values;
+fast components ($D \geq 3.0$) decay below the noise floor within the first few
+b-value steps, motivating the sparser discretization at high diffusivities.
+}
+\label{fig:fisher}
+\end{figure}
+
+% --- Fig 9: Pixel-wise Spectral Decomposition ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_pixelwise_v2.pdf}

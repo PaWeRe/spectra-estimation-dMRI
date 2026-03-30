@@ -15,7 +15,32 @@ where $R_j \geq 0$ are the spectral fractions (volume fractions of each diffusio
 In matrix notation, $\svec / s_0 = \Umat \Rvec + \boldsymbol{\varepsilon}$, where the design matrix $\Umat \in \mathbb{R}^{M \times K}$ has entries $U_{ij} = \exp(-b_i D_j)$.
 
 For this study, $M = 15$ b-values spanning $0$--$3500\;\text{s/mm}^2$ in steps of $250\;\text{s/mm}^2$ and $K = 8$ diffusivity bins at $D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$.
-The design matrix $\Umat$ has condition number $\kappa \approx 2.8 \times 10^5$, reflecting the inherent ill-posedness of the inverse problem.
+The design matrix $\Umat$ has condition number $\kappa(\Umat) \approx 2.8 \times 10^5$, reflecting the inherent ill-posedness of the inverse problem.
+
+\subsection{Identifiability and Discretization}
+
+The choice of diffusivity bins $D_j$ determines which spectral components can be resolved from the data.
+The Fisher information matrix for the spectral fractions $\Rvec$ (assuming known noise $\sigma$) is:
+%
+\begin{equation}
+  \mathbf{F} = \frac{1}{\sigma^2} \Umat^T \Umat,
+  \quad F_{jk} = \frac{1}{\sigma^2} \sum_{i=1}^{M} \exp\!\big(-b_i(D_j + D_k)\big).
+  \label{eq:fisher}
+\end{equation}
+%
+The Cram\'er-Rao lower bound (CRLB) provides the minimum achievable variance for any unbiased estimator: $\text{Var}(\hat{R}_j) \geq [\mathbf{F}^{-1}]_{jj}$.
+For our measurement configuration, the Fisher matrix has condition number $\kappa(\mathbf{F}) \approx 7.7 \times 10^{10}$, indicating that the unconstrained estimation problem is severely ill-conditioned.
+
+The off-diagonal structure of $\mathbf{F}$ reveals why: adjacent diffusivity components produce nearly identical signal contributions.
+The Fisher correlation matrix $C_{jk} = F_{jk} / \sqrt{F_{jj} F_{kk}}$ shows that components at $D = 0.50$, $0.75$, and $1.00\;\umsmm$ are correlated above $r = 0.99$ (Figure~\ref{fig:fisher}a), making them fundamentally indistinguishable at clinical noise levels.
+In contrast, $D = 0.25\;\umsmm$ (restricted diffusion) contributes detectable signal across all 15 b-values, while fast-diffusing components ($D \geq 3.0$) decay below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
+
+The discretization grid was chosen to place denser bins where the Fisher information provides more resolution---four bins in the slow-diffusion range ($D = 0.25$--$1.0\;\umsmm$) where all or most b-values contribute signal, and sparser bins at higher diffusivities where fewer measurements are informative.
+This is consistent with the principle that the density of spectral bins should not exceed the resolving capacity of the measurement at a given SNR.
+
+Crucially, the unconstrained CRLB vastly overestimates the actual estimation error: for intermediate components, the CRLB predicts standard deviations exceeding the physical range of the fractions (Figure~\ref{fig:fisher}b).
+The non-negativity constraint and Bayesian priors reduce the effective estimation error by two to three orders of magnitude, making the problem tractable.
+This improvement is greatest for the most ill-conditioned components and demonstrates the essential role of prior information in spectral decomposition.
 
 \subsection{MAP Estimation}
 
