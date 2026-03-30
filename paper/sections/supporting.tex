@@ -1,0 +1,35 @@
+% === SUPPORTING INFORMATION ===
+
+\section*{Supporting Information}
+
+% --- Fig S1: NUTS Convergence (Simulation) ---
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_trace_simulation.pdf}
+\capt[NUTS Convergence On Simulated Data.]{%
+Posterior densities (left) and trace plots (right) for all eight spectral
+components and the noise parameter $\sigma$ from a synthetic signal
+(uniform spectrum, SNR = 500, $\lambda = 0.1$, 4 chains, 2000 draws).
+Max $\hat{R} = 1.003$, confirming convergence.
+Tight posteriors for $D = 0.25$ and $D = 3.0$--$20.0$ confirm identifiability;
+broad posteriors for $D = 0.50$--$1.50$ confirm ill-posedness.
+}
+\label{fig:trace_supp}
+\end{figure}
+
+% --- Fig S2: Robustness Across Spectral Shapes ---
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_robustness.png}
+\capt[NUTS Spectrum Recovery Across Diverse Spectral Shapes And SNR Levels.]{%
+True (blue) versus NUTS-recovered (red, with credible intervals) spectra for
+six synthetic shapes at the lowest (SNR = 50, left) and highest
+(SNR = 1000, right) tested noise levels.
+Recovery error (RMSE) decreases with SNR for all shapes.
+Intermediate components ($D = 0.50$--$1.00\;\umsmm$) consistently show the
+widest credible intervals, consistent with the identifiability analysis on
+patient data.
+Fast-mode sampler settings shown (2 chains, 500 draws).
+}
+\label{fig:robustness_supp}
+\end{figure}

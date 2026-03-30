@@ -1,54 +1,59 @@
 % === FIGURES ===
-% MRM allows up to 10 figures
-% Current inventory: 7 generated + 1 existing pixel-wise + 2 TODO (spectra, simulation)
+% MRM: max 10 items (figures + tables combined)
+% Budget: 8 figures + 1 table = 9 items (1 slot reserve)
+% Supplementary: trace, robustness
 
-% --- Fig 1: Mean spectra by tissue type ---
+% --- Fig 1: Spectra + Identifiability Combined ---
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_spectra.pdf}
-\capt[Diffusivity spectra by tissue type and anatomical zone.]{%
-Box plots of the eight NUTS posterior mean spectral fractions for normal (blue)
-and tumor (red) ROIs in the peripheral zone (top) and transition zone (bottom).
-Tumor tissue shows elevated restricted diffusion ($D = 0.25\;\umsmm$) and
-reduced free water ($D = 3.0\;\umsmm$) compared to normal tissue.
-The $D = 2.0$--$3.0\;\umsmm$ components carry most of the spectral mass in
-normal tissue, while tumor spectra are more uniformly distributed across
-lower diffusivities.
+\includegraphics[width=\textwidth]{figures/fig_spectra_combined.pdf}
+\capt[Diffusivity Spectra By Tissue Type With MAP And NUTS Comparison.]{%
+Box plots of spectral fractions for normal (top) and tumor (bottom) ROIs in
+peripheral zone (left) and transition zone (right), comparing MAP (green) and
+NUTS (orange) estimates.
+NUTS concentrates mass at the dominant component ($D = 3.0\;\umsmm$ in normal
+tissue) whereas MAP (ridge regression) smooths across adjacent bins due to the
+$L_2$ penalty.
+Posterior coefficient of variation (CV) from NUTS is annotated above the
+Normal PZ panel: only $D = 0.25$ (CV = 0.20) and $D = 3.0$ (CV = 0.32) are
+well identified; intermediate components have CV $> 0.74$.
 }
 \label{fig:spectra}
 \end{figure}
 
-% --- Fig 2: ROC curves (final, verified) ---
+% --- Fig 2: ROC Curves With Individual Components ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_roc.pdf}
-\capt[Classification performance for tumor detection and Gleason grading.]{%
-ROC curves from leave-one-out cross-validation at $C = 1.0$.
-(Left)~PZ tumor detection ($n = 81$): ADC raw rank AUC = 0.951, MAP 8-feature
-LR = 0.919, NUTS 8-feature LR = 0.926.
-(Center)~TZ tumor detection ($n = 68$): ADC = 0.979, MAP = 0.945, NUTS = 0.923.
-(Right)~Gleason grade classification ($n = 29$): ADC = 0.811, MAP = 0.733, NUTS = 0.772.
-ADC consistently matches or exceeds multi-component classifiers for tumor detection,
-consistent with its near-optimal alignment with the spectral discriminant.
-ADC (raw) uses the feature value directly without classifier training;
-ADC (LR) wraps ADC in logistic regression for the LR-comparable score.
+\capt[Classification Performance For Tumor Detection And Gleason Grading.]{%
+ROC curves from leave-one-out cross-validation ($C = 1.0$).
+Thin colored lines: individual spectral components used as single-feature
+classifiers.
+Thick lines: ADC (blue, raw rank), MAP 8-feature LR (green), NUTS 8-feature
+LR (orange dashed).
+Bootstrap 95\% confidence intervals shown in brackets.
+(Left)~PZ tumor detection: ADC 0.951 [0.90--0.99].
+(Center)~TZ tumor detection: ADC 0.979 [0.94--1.00].
+(Right)~GGG classification ($n = 29$): all methods limited by sample size.
+$D = 0.25$ (restricted diffusion) is the strongest individual component across
+all tasks.
 }
 \label{fig:roc}
 \end{figure}
 
-% --- Fig 3: ADC vs Spectral Discriminant (HEADLINE) ---
+% --- Fig 3: ADC vs Spectral Discriminant ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_adc_discriminant.pdf}
-\capt[ADC is a near-optimal spectral discriminant.]{%
-ADC versus the spectral discriminant score (linear predictor from logistic regression
-on eight MAP spectral fractions) across ROIs.
+\capt[ADC Is A Near-Optimal Spectral Discriminant.]{%
+ADC versus the spectral discriminant score (logistic regression linear predictor
+from eight MAP spectral fractions) across ROIs.
 (Left)~Peripheral zone ($n = 81$, $r = -0.975$).
 (Right)~Transition zone ($n = 68$, $r = -0.982$).
-The near-perfect anti-correlation demonstrates that ADC rank-orders patients nearly
-identically to the optimal eight-component spectral classifier.
 Tumor ROIs (red) cluster at low ADC / high discriminant; normal ROIs (blue) at
 high ADC / low discriminant.
+The near-perfect anti-correlation demonstrates that ADC rank-orders patients
+nearly identically to the optimal spectral classifier.
 }
 \label{fig:adc_discriminant}
 \end{figure}
@@ -57,120 +62,73 @@ high ADC / low discriminant.
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_sensitivity.pdf}
-\capt[ADC sensitivity aligns with the optimal classification direction.]{%
-Normalized ADC sensitivity vector ($-\partial\text{ADC}/\partial R_j$, blue) and
-logistic regression coefficients (red) for each diffusivity component.
-(Left)~PZ: $r = -0.979$ across all 8 components; $r = -0.982$ excluding
-$D = 20.0\;\umsmm$.
-(Right)~TZ: $r = -0.931$ (all 8); $r = -0.941$ (excluding $D = 20.0$).
-Sensitivity evaluated at the average tumor spectrum using MAP features.
-The D = 20.0 component shows a discrepancy because ADC (fit to $b \leq 1000\;\text{s/mm}^2$)
-is insensitive to the vascular/CSF compartment, which decays completely below the
+\capt[ADC Sensitivity Aligns With The Optimal Classification Direction.]{%
+Normalized ADC sensitivity vector ($-\partial\text{ADC}/\partial R_j$, blue)
+and logistic regression coefficients (red) for each diffusivity component.
+(Left)~PZ: $r = -0.979$ (all 8), $r = -0.982$ (excluding $D = 20$).
+(Right)~TZ: $r = -0.931$ (all 8), $r = -0.941$ (excluding $D = 20$).
+Sensitivity evaluated at the average tumor spectrum (MAP features, $C = 1.0$).
+The $D = 20$ discrepancy arises because ADC (fit to $b \leq 1000\;\text{s/mm}^2$)
+is insensitive to the vascular compartment, which has fully decayed below the
 fitting range.
-Excluding this component, the alignment improves further, confirming that ADC weights
-the resolvable spectral compartments in near-optimal proportion.
 }
 \label{fig:sensitivity}
 \end{figure}
 
-% --- Fig 5: Per-Component Identifiability ---
-\begin{figure}[p]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_identifiability.pdf}
-\capt[Per-component identifiability from the NUTS posterior.]{%
-(Left)~Posterior coefficient of variation (CV = std~/~mean) averaged across 149~ROIs.
-Green indicates well-constrained components, red indicates poorly constrained.
-Only restricted diffusion ($D = 0.25\;\umsmm$, CV = 0.20) and free water
-($D = 3.0$ and $20.0\;\umsmm$, CV = 0.32--0.36) are reliably estimated.
-Intermediate components ($D = 0.50$--$1.00\;\umsmm$, CV $> 0.80$) are effectively
-undetermined by the 15 b-value measurements.
-(Right)~Fraction--uncertainty plane: each point is one component.
-The diagonal (CV = 1.0) separates components where the mean exceeds the uncertainty
-from those where it does not.
-$D = 0.25$ stands out as the most identifiable component relative to its magnitude.
-}
-\label{fig:identifiability}
-\end{figure}
-
-% --- Fig 6: MAP vs NUTS per-component scatter ---
+% --- Fig 5: MAP vs NUTS Per-Component Scatter ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_map_nuts.pdf}
-\capt[MAP and NUTS agree for well-identified components.]{%
+\capt[MAP And NUTS Estimates Agree For Well-Identified Components.]{%
 MAP versus NUTS posterior mean fractions across 149~ROIs.
-(Left)~$D = 0.25\;\umsmm$ ($r = 0.990$): near-perfect agreement, confirming both
-methods robustly estimate the restricted diffusion fraction.
-(Center)~$D = 1.0\;\umsmm$ ($r = 0.483$): substantial divergence, reflecting
-the ill-posedness of intermediate components.
-(Right)~$D = 3.0\;\umsmm$ ($r = 0.825$): moderate agreement with NUTS showing
-more dynamic range.
-Dashed line: identity.
-Tumor (red) and normal (blue) ROIs separate along the restricted diffusion axis.
+(Left)~$D = 0.25\;\umsmm$ ($r = 0.990$): near-perfect agreement.
+(Center)~$D = 1.0\;\umsmm$ ($r = 0.483$): divergence reflecting ill-posedness.
+(Right)~$D = 3.0\;\umsmm$ ($r = 0.825$): NUTS concentrates mass at the dominant
+component whereas MAP (ridge regression) distributes mass across adjacent bins
+due to the $L_2$ penalty, explaining the systematic offset from the identity line.
 }
 \label{fig:map_nuts}
 \end{figure}
 
-% --- Fig 7: NUTS convergence (simulation) ---
+% --- Fig 6: Uncertainty Propagation ---
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_trace_simulation.pdf}
-\capt[NUTS convergence on simulated data.]{%
-Posterior densities (left column) and trace plots (right column) for all eight
-spectral components and the noise parameter $\sigma$ from a synthetic signal
-(uniform spectrum, SNR = 500, $\lambda = 0.1$).
-Four chains of 2000~draws show excellent mixing (max $\hat{R} = 1.003$).
-Tight posteriors for $D = 0.25$ and $D = 3.0$--$20.0$ confirm these components
-are well constrained; broad posteriors for $D = 0.50$--$1.50$ confirm ill-posedness.
-\todo{Create cleaner 2--3 panel version for the main paper; move full trace to supplement.}
+\includegraphics[width=\textwidth]{figures/fig_uncertainty.pdf}
+\capt[Posterior Uncertainty Correlates With Misclassification.]{%
+NUTS-based LOOCV predictions (sorted by predicted probability) with error bars
+representing spectral feature uncertainty (mean posterior standard deviation
+across components).
+Circles: normal (blue); squares: tumor (red); crosses: misclassified.
+Misclassified samples show 1.2--1.3$\times$ higher spectral uncertainty
+than correctly classified samples, suggesting that posterior uncertainty
+provides an intrinsic quality metric for classification confidence.
+(Left)~PZ, (Center)~TZ, (Right)~GGG.
 }
-\label{fig:trace}
+\label{fig:uncertainty}
 \end{figure}
 
-% --- Fig 8: Robustness across spectral shapes ---
-\begin{figure}[p]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_robustness.png}
-\capt[NUTS spectrum recovery across diverse spectral shapes and SNR levels.]{%
-True (blue) versus NUTS-recovered (red, with posterior credible intervals)
-spectral fractions for six synthetic spectra at the lowest (SNR = 50, left)
-and highest (SNR = 1000, right) tested noise levels.
-The sampler recovers the dominant spectral features across all shapes,
-including clinically relevant tumor and normal tissue profiles.
-Recovery error (RMSE) decreases monotonically with SNR for all shapes.
-Intermediate-diffusivity components ($D = 0.50$--$1.00\;\umsmm$) show the
-widest credible intervals, consistent with the identifiability analysis
-on patient data (Figure~\ref{fig:identifiability}).
-Convergence ($\hat{R} < 1.05$) was achieved for most conditions; residual
-non-convergence at high SNR reflects the fast-mode sampler settings
-(2 chains, 500 draws) and resolves with production settings (4 chains, 2000 draws).
-}
-\label{fig:robustness}
-\end{figure}
-
-% --- Fig 9: Direction comparison ---
+% --- Fig 7: Direction Comparison ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_directions.png}
-\capt[Direction independence of spectral estimates.]{%
-Per-direction MAP spectra (colored bars: direction 1 red, 2 green, 3 blue) versus
-the trace-averaged spectrum (black line) for 8 representative prostate voxels
-(patient 8640, sorted by descending b=0 signal).
-The three encoding directions yield qualitatively consistent spectral profiles,
-with the trace average tracking the individual directions.
-Direction variability was lowest for the clinically relevant restricted diffusion
-component ($D = 0.25\;\umsmm$, mean CV = 27\%) and highest for the vascular
-proxy ($D = 20.0\;\umsmm$, mean CV = 80\%).
-This validates the use of direction-averaged (trace) signals for spectral
-decomposition.
+\capt[Direction Independence Of Spectral Estimates.]{%
+Per-direction MAP spectra (colored bars: 3 encoding directions) versus the
+trace-averaged spectrum (black line) for 8 representative prostate voxels
+(patient 8640, sorted by descending signal intensity).
+The three encoding directions yield consistent spectral profiles, validating
+trace averaging for spectral decomposition.
+Direction variability is lowest for restricted diffusion
+($D = 0.25\;\umsmm$, mean CV = 27\%) and highest for the vascular proxy
+($D = 20\;\umsmm$, mean CV = 80\%).
 }
 \label{fig:directions}
 \end{figure}
 
-% --- Fig 10: Pixel-wise spectral decomposition ---
+% --- Fig 8: Pixel-wise Spectral Decomposition ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_pixelwise_v2.pdf}
-\capt[Pixel-wise spectral decomposition of a prostate DWI slice.]{%
+\capt[Pixel-Wise Spectral Decomposition Of A Prostate DWI Slice.]{%
 (A)~Conventional ADC map (146~voxels, patient 8640).
 (B,C)~MAP spectral fractions: restricted diffusion ($D = 0.25\;\umsmm$) and
 free water ($D = 3.0\;\umsmm$) show complementary spatial patterns.
