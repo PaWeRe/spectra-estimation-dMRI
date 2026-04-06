@@ -2,6 +2,26 @@
 
 \section*{Supporting Information}
 
+% --- Appendix: CRLB Derivation ---
+\subsection*{Cramér-Rao Scaling of Bin Spacing}
+
+Consider a simplified two-component model $f(b) = p\,e^{-bD} + (1-p)\,e^{-b(D+\Delta D)}$.
+The Fisher information for the fraction parameter $p$ is:
+%
+\begin{equation*}
+  I(p) = \frac{1}{\sigma^2}\sum_{i=1}^{M}\left(e^{-b_i D} - e^{-b_i(D+\Delta D)}\right)^2.
+\end{equation*}
+%
+Approximating the sum by an integral over $[0,\,b_{\max}]$, expanding the square, and evaluating in the regime $b_{\max} D \gg 1$ (so that the exponential boundary terms vanish):
+%
+\begin{equation*}
+  I(p) \propto \frac{1}{2D} - \frac{2}{2D + \Delta D} + \frac{1}{2(D + \Delta D)}.
+\end{equation*}
+%
+For $\Delta D \ll D$, a Taylor expansion yields $I(p) \propto (\Delta D)^2 / (4D^3)$.
+Setting $I = \text{const}$ (equal estimation precision for all bin pairs) gives $\Delta D \propto D^{3/2}$, Equation~\ref{eq:spacing_scaling} in the main text.
+The same scaling is obtained from the full two-parameter model ($p$ and $q = 1-p$ independent) via inversion of the $2 \times 2$ Fisher matrix.
+
 % --- Fig S1: NUTS Convergence (Simulation) ---
 \begin{figure}[p]
 \centering

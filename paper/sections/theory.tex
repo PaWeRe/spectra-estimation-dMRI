@@ -35,10 +35,27 @@ The off-diagonal structure of $\mathbf{F}$ reveals why: adjacent diffusivity com
 The Fisher correlation matrix $C_{jk} = F_{jk} / \sqrt{F_{jj} F_{kk}}$ shows that components at $D = 0.50$, $0.75$, and $1.00\;\umsmm$ are correlated above $r = 0.99$ (Figure~\ref{fig:fisher}a), making them fundamentally indistinguishable at clinical noise levels.
 In contrast, $D = 0.25\;\umsmm$ (restricted diffusion) contributes detectable signal across all 15 b-values, while fast-diffusing components ($D \geq 3.0$) decay below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
 
-The discretization grid was chosen to place denser bins where the Fisher information provides more resolution---four bins in the slow-diffusion range ($D = 0.25$--$1.0\;\umsmm$) where all or most b-values contribute signal, and sparser bins at higher diffusivities where fewer measurements are informative.
-This is consistent with the principle that the density of spectral bins should not exceed the resolving capacity of the measurement at a given SNR.
+This resolving limitation can be quantified analytically.
+For a simplified two-component model with adjacent diffusivities $D$ and $D + \Delta D$, the Fisher information for the fraction parameter scales as
+%
+\begin{equation}
+  I \propto \frac{(\Delta D)^2}{D^3}
+  \label{eq:fisher_scaling}
+\end{equation}
+%
+in the regime $\Delta D \ll D$ and $b_{\max} D \gg 1$ (see Supporting Information for derivation).
+Requiring constant estimation precision across the spectrum therefore implies a minimum resolvable bin spacing that grows as
+%
+\begin{equation}
+  \Delta D \propto D^{3/2}.
+  \label{eq:spacing_scaling}
+\end{equation}
+%
+Our discretization grid approximately follows this scaling: the spacing increases from $\Delta D = 0.25\;\umsmm$ at the slow-diffusion end to $\Delta D = 1.0\;\umsmm$ at $D = 2.0$, placing denser bins where all or most b-values contribute informative signal.
+Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of the specific bin placement: redistributing bins according to the $D^{3/2}$ rule trades improved resolution at high diffusivities for degraded resolution at the slow-diffusion end, without reducing overall ill-conditioning.
+The ill-posedness is intrinsic to the Laplace inversion and cannot be eliminated by optimizing the discretization alone.
 
-Crucially, the unconstrained CRLB vastly overestimates the actual estimation error: for intermediate components, the CRLB predicts standard deviations exceeding the physical range of the fractions (Figure~\ref{fig:fisher}b).
+The unconstrained CRLB vastly overestimates the actual estimation error: for intermediate components, the CRLB predicts standard deviations exceeding the physical range of the fractions (Figure~\ref{fig:fisher}b).
 The non-negativity constraint and Bayesian priors reduce the effective estimation error by two to three orders of magnitude, making the problem tractable.
 This improvement is greatest for the most ill-conditioned components and demonstrates the essential role of prior information in spectral decomposition.
 
