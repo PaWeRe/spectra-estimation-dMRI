@@ -6,7 +6,7 @@ In multi-b diffusion MRI, the signal decay at each voxel or region of interest i
 Normalizing by the $b = 0$ signal, the discrete spectral model is:
 %
 \begin{equation}
-  \frac{s(b_i)}{s_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
+  \frac{S(b_i)}{S_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
   \quad i = 1, \ldots, M,
   \label{eq:signal_model}
 \end{equation}
@@ -52,7 +52,7 @@ Requiring constant estimation precision across the spectrum therefore implies a 
 \end{equation}
 %
 Our discretization grid approximately follows this scaling: the spacing increases from $\Delta D = 0.25\;\umsmm$ at the slow-diffusion end to $\Delta D = 1.0\;\umsmm$ at $D = 2.0$, placing denser bins where all or most b-values contribute informative signal.
-Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of the specific bin placement: redistributing bins according to the $D^{3/2}$ rule trades improved resolution at high diffusivities for degraded resolution at the slow-diffusion end, without reducing overall ill-conditioning.
+Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of the specific bin placement: redistributing bins according to the $D^{3/2}$ rule trades reduced resolution at high diffusivities for improved resolution at the slow-diffusion end, without reducing overall ill-conditioning.
 The ill-posedness is intrinsic to the Laplace inversion and cannot be eliminated by optimizing the discretization alone.
 
 The unconstrained CRLB vastly overestimates the actual estimation error: for intermediate components, the CRLB predicts standard deviations exceeding the physical range of the fractions (Figure~\ref{fig:fisher}b).
