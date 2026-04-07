@@ -2,9 +2,11 @@
 
 \subsection{Patient Data}
 
-Retrospective multi-b DWI data from 56 patients with biopsy-confirmed prostate cancer were acquired at Brigham and Women's Hospital using the extended b-value protocol described by \citet{langkilde2018evaluation}.
+Retrospective multi-b DWI data from 56 men (age range 43--77 years, mean 62 years; mean serum PSA 8.8~ng/mL, range 0.37--46~ng/mL) were acquired at Brigham and Women's Hospital using the extended b-value protocol described by \citet{langkilde2018evaluation}.
+The cohort included patients with biopsy-confirmed prostate cancer as well as 10 patients with benign biopsies and 2 with high-grade prostatic intraepithelial neoplasia (HGPIN).
 Fifteen b-values were acquired at $b = 0, 250, 500, \ldots, 3500\;\text{s/mm}^2$ along three orthogonal gradient directions, with direction-averaged (trace) images used for analysis.
 A total of 149 regions of interest (ROIs) were annotated: 40 tumor and 109 normal tissue, spanning peripheral zone (PZ; 81 ROIs: 27 tumor, 54 normal) and transition zone (TZ; 68 ROIs: 13 tumor, 55 normal).
+The benign and HGPIN patients contributed normal-tissue ROIs, providing a test of specificity.
 Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5).
 
 \subsection{Spectral Estimation}
@@ -26,7 +28,7 @@ Posterior means of the spectral fractions (normalized to sum to one) were used a
 \subsection{ADC Computation}
 
 Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log S(b) = \log S_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
-This cutoff was chosen to minimize contamination from non-Gaussian diffusion contributions at high b-values while retaining sensitivity to restricted diffusion.
+This cutoff is consistent with PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate}.
 
 \subsection{Classification}
 
@@ -48,8 +50,8 @@ The Pearson and Spearman rank correlations between the sensitivity vector and th
 % ======================================================================
 \subsection{Pixel-wise Spectral Estimation}
 
-To demonstrate the framework at the voxel level, pixel-wise spectral decomposition was performed on a single axial slice (patient 8640, slice~6) from the BWH prostate DWI dataset.
-The prostate was manually segmented in 3D~Slicer, yielding 146 voxels at $64 \times 64$ native resolution.
+To demonstrate the framework at the voxel level, pixel-wise spectral decomposition was performed on a single axial slice from one patient dataset acquired separately from the ROI-level cohort, using a similar extended b-value protocol with directional encoding.
+The prostate was manually segmented, yielding 146 voxels at $64 \times 64$ native resolution.
 
 For each voxel, the multi-b signal decay $\svec = [S(b_1), \ldots, S(b_{15})]^T$ was normalized by the $b = 0$ signal and decomposed using both MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the same parameters as the ROI-level analysis.
 A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra (Eq.~\ref{eq:discriminant}).
