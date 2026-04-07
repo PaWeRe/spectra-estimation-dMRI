@@ -62,15 +62,16 @@ nearly identically to the optimal spectral classifier.
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_sensitivity.pdf}
-\capt[ADC Sensitivity Aligns With The Optimal Classification Direction.]{%
-Normalized ADC sensitivity vector ($-\partial\text{ADC}/\partial R_j$, blue)
-and logistic regression coefficients (red) for each diffusivity component.
+\capt[ADC sensitivity aligns with the optimal classification direction.]{%
+Normalized ADC sensitivity vector ($-\partial\text{ADC}/\partial R_j$, dark green)
+and logistic regression coefficients (purple) for each diffusivity component.
 (Left)~PZ: $r = -0.979$ (all 8), $r = -0.982$ (excluding $D = 20$).
 (Right)~TZ: $r = -0.931$ (all 8), $r = -0.941$ (excluding $D = 20$).
 Sensitivity evaluated at the average tumor spectrum (MAP features, $C = 1.0$).
-The $D = 20$ discrepancy arises because ADC (fit to $b \leq 1000\;\text{s/mm}^2$)
-is insensitive to the vascular compartment, which has fully decayed below the
-fitting range.
+The $D = 20$ discrepancy arises because ADC is less sensitive to the vascular
+compartment: although $b = 0$ is included in the fit, the $D = 20$ signal has
+decayed to near zero at all other b-values, leaving only the intercept to
+constrain this component \citep{aksitciris2019accelerated}.
 }
 \label{fig:sensitivity}
 \end{figure}

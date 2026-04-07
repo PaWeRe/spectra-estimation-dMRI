@@ -46,7 +46,7 @@ The mechanistic basis for ADC's near-optimality was revealed by the sensitivity 
 The ADC sensitivity vector $\partial\text{ADC}/\partial R_j$, evaluated at the average PZ tumor operating point, had large negative components for restricted diffusion ($D = 0.25$: $-1.59$) and positive components for free water ($D = 3.0$: $+0.85$), indicating that increasing restricted diffusion decreases ADC while increasing free water raises it.
 
 Using MAP features, this sensitivity vector correlated with the logistic regression coefficient vector at $r = -0.979$ (PZ, $C = 1.0$) and $r = -0.931$ (TZ).
-Excluding $D = 20.0\;\umsmm$---to which ADC is insensitive because this component decays completely below the fitting range ($b \leq 1000\;\text{s/mm}^2$)---the correlation improved to $r = -0.982$ (PZ) and $r = -0.941$ (TZ).
+Excluding $D = 20.0\;\umsmm$---to which ADC is less sensitive because the vascular signal has largely decayed by the second b-value step \citep{aksitciris2019accelerated}---the correlation improved to $r = -0.982$ (PZ) and $r = -0.941$ (TZ).
 The Spearman rank correlation at the PZ normal operating point was $r_s = -1.0$---a perfect rank match.
 This demonstrates that ADC implicitly weights each resolvable spectral compartment in almost exactly the same proportion as the optimal linear classifier.
 

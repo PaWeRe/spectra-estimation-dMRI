@@ -299,13 +299,13 @@ def fig_sensitivity(df):
         x = np.arange(len(DIFFUSIVITIES)); width = 0.35
         ax.bar(x - width/2, sens_norm, width,
                label=r"$-\partial$ADC/$\partial R_j$ (Normalized)",
-               color=ADC_COLOR, alpha=0.8, edgecolor="white")
+               color="#2ca02c", alpha=0.8, edgecolor="white")  # dark green
         ax.bar(x + width/2, coefs_norm, width,
                label="LR Coefficient (Normalized)",
-               color=TUMOR_COLOR, alpha=0.8, edgecolor="white")
+               color="#7b2d8e", alpha=0.8, edgecolor="white")  # purple
 
         # D=20 annotation
-        ax.annotate("ADC Insensitive\nTo D=20 At\nb \u2264 1000 s/mm\u00b2",
+        ax.annotate("ADC Less Sensitive\nTo D=20",
                      xy=(7, sens_norm[7]), xytext=(5.5, sens_norm[7] + 0.35),
                      fontsize=7, ha="center", color=GRAY,
                      arrowprops=dict(arrowstyle="->", color=GRAY, lw=0.8))
