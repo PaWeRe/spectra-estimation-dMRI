@@ -6,7 +6,6 @@ Retrospective multi-b DWI data from 56 patients with biopsy-confirmed prostate c
 Fifteen b-values were acquired at $b = 0, 250, 500, \ldots, 3500\;\text{s/mm}^2$ along three orthogonal gradient directions, with direction-averaged (trace) images used for analysis.
 A total of 149 regions of interest (ROIs) were annotated: 40 tumor and 109 normal tissue, spanning peripheral zone (PZ; 81 ROIs: 27 tumor, 54 normal) and transition zone (TZ; 68 ROIs: 13 tumor, 55 normal).
 Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5).
-\stephan{Patient demographics table pending.}
 
 \subsection{Spectral Estimation}
 
@@ -26,7 +25,7 @@ Posterior means of the spectral fractions (normalized to sum to one) were used a
 
 \subsection{ADC Computation}
 
-Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log s(b) = \log s_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
+Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log S(b) = \log S_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
 This cutoff was chosen to minimize contamination from non-Gaussian diffusion contributions at high b-values while retaining sensitivity to restricted diffusion.
 
 \subsection{Classification}
@@ -52,6 +51,6 @@ The Pearson and Spearman rank correlations between the sensitivity vector and th
 To demonstrate the framework at the voxel level, pixel-wise spectral decomposition was performed on a single axial slice (patient 8640, slice~6) from the BWH prostate DWI dataset.
 The prostate was manually segmented in 3D~Slicer, yielding 146 voxels at $64 \times 64$ native resolution.
 
-For each voxel, the multi-b signal decay $\svec = [s(b_1), \ldots, s(b_{15})]^T$ was normalized by the $b = 0$ signal and decomposed using both MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the same parameters as the ROI-level analysis.
+For each voxel, the multi-b signal decay $\svec = [S(b_1), \ldots, S(b_{15})]^T$ was normalized by the $b = 0$ signal and decomposed using both MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the same parameters as the ROI-level analysis.
 A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra (Eq.~\ref{eq:discriminant}).
 For the Bayesian estimates, uncertainty in the discriminant was propagated by drawing 500 Monte Carlo samples from the per-voxel posterior and passing each through the discriminant function.

@@ -3,7 +3,9 @@
 \subsection{Signal Model}
 
 In multi-b diffusion MRI, the signal decay at each voxel or region of interest is modeled as a superposition of exponential decays arising from distinct diffusion compartments.
-Normalizing by the $b = 0$ signal, the discrete spectral model is:
+Two fundamentally different estimation strategies exist: (1)~treat both the diffusivity values $D_j$ and their corresponding fractions as free parameters to be estimated jointly from the data, or (2)~fix the diffusivity values on a predefined grid and estimate only the fractions.
+The first approach is highly nonlinear and suffers from severe non-uniqueness, while the second reduces the problem to linear estimation at the cost of discretization.
+We adopt the second approach: normalizing by the $b = 0$ signal, the discrete spectral model is:
 %
 \begin{equation}
   \frac{S(b_i)}{S_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
@@ -12,7 +14,7 @@ Normalizing by the $b = 0$ signal, the discrete spectral model is:
 \end{equation}
 %
 where $R_j \geq 0$ are the spectral fractions (volume fractions of each diffusion compartment), $D_j$ are the diffusivity bin centers, and $\varepsilon_i \sim \mathcal{N}(0, \sigma^2)$ is additive Gaussian noise.
-In matrix notation, $\svec / s_0 = \Umat \Rvec + \boldsymbol{\varepsilon}$, where the design matrix $\Umat \in \mathbb{R}^{M \times K}$ has entries $U_{ij} = \exp(-b_i D_j)$.
+In matrix notation, $\svec / S_0 = \Umat \Rvec + \boldsymbol{\varepsilon}$, where the design matrix $\Umat \in \mathbb{R}^{M \times K}$ has entries $U_{ij} = \exp(-b_i D_j)$.
 
 For this study, $M = 15$ b-values spanning $0$--$3500\;\text{s/mm}^2$ in steps of $250\;\text{s/mm}^2$ and $K = 8$ diffusivity bins at $D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$.
 The design matrix $\Umat$ has condition number $\kappa(\Umat) \approx 2.8 \times 10^5$, reflecting the inherent ill-posedness of the inverse problem.
@@ -36,7 +38,7 @@ The Fisher correlation matrix $C_{jk} = F_{jk} / \sqrt{F_{jj} F_{kk}}$ shows tha
 In contrast, $D = 0.25\;\umsmm$ (restricted diffusion) contributes detectable signal across all 15 b-values, while fast-diffusing components ($D \geq 3.0$) decay below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
 
 This resolving limitation can be quantified analytically.
-For a simplified two-component model with adjacent diffusivities $D$ and $D + \Delta D$, the Fisher information for the fraction parameter scales as
+For a simplified two-component model with adjacent diffusivities $D$ and $D + \Delta D$, the Fisher information for the fraction parameter approximately scales as
 %
 \begin{equation}
   I \propto \frac{(\Delta D)^2}{D^3}
@@ -65,7 +67,7 @@ The maximum \emph{a~posteriori} estimate under a Gaussian (ridge) prior $R_j \si
 %
 \begin{equation}
   \hat{\Rvec}_{\text{MAP}} = \max\!\Big(
-    (\Umat^T \Umat + \lambda \mathbf{I})^{-1} \Umat^T (\svec / s_0),\;
+    (\Umat^T \Umat + \lambda \mathbf{I})^{-1} \Umat^T (\svec / S_0),\;
     \mathbf{0}
   \Big),
   \label{eq:map}
@@ -77,27 +79,35 @@ The MAP estimate is a point estimate and does not quantify how reliably each com
 
 \subsection{Bayesian Formulation}
 
-To obtain per-component uncertainty estimates, we specify a fully Bayesian model with explicit priors on both the spectrum and the noise level:
+The MAP estimate provides a single point in spectrum space but offers no information about the reliability of each component.
+Given the severe ill-conditioning documented above, this is a critical limitation: a point estimate at an intermediate component ($D = 0.75\;\umsmm$) may appear precise while in fact being largely determined by the regularization rather than the data.
+A fully Bayesian approach addresses this by characterizing the entire posterior distribution, making the ill-posedness explicit rather than hiding it behind a single number.
+
+We specify a hierarchical model with explicit priors on both the spectrum and the noise level:
 %
 \begin{align}
   R_j &\sim \text{HalfNormal}\!\left(\sigma_R = 1/\sqrt{\lambda}\right),
   \quad j = 1, \ldots, K \label{eq:prior_R} \\
   \sigma &\sim \text{HalfCauchy}(\beta = 0.01) \label{eq:prior_sigma} \\
-  \svec / s_0 \mid \Rvec, \sigma &\sim \mathcal{N}(\Umat \Rvec,\; \sigma^2 \mathbf{I}).
+  \svec / S_0 \mid \Rvec, \sigma &\sim \mathcal{N}(\Umat \Rvec,\; \sigma^2 \mathbf{I}).
   \label{eq:likelihood}
 \end{align}
 %
-The HalfNormal prior on $\Rvec$ naturally enforces non-negativity while providing smooth gradients for Hamiltonian Monte Carlo, and its variance $1/\lambda$ corresponds to the ridge penalty strength.
+The HalfNormal prior on $\Rvec$ naturally enforces non-negativity while providing smooth gradients for Hamiltonian Monte Carlo (HMC), and its variance $1/\lambda$ corresponds to the ridge penalty strength, establishing a direct link between the MAP and Bayesian formulations.
 The HalfCauchy prior on the noise level $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that allows the noise to be inferred jointly with the spectrum, rather than fixed \emph{a priori}.
 
-The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}, which adapts the trajectory length of Hamiltonian Monte Carlo to efficiently explore the constrained, correlated posterior geometry.
-Posterior summaries (mean, standard deviation) for each $R_j$ provide both a point estimate and a measure of identifiability: components with posterior coefficient of variation (CV = posterior std / posterior mean) much less than one are well constrained, while those with CV near or above one are effectively undetermined.
+The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
+Standard Gibbs sampling is ineffective for this model because the HalfNormal priors are not conjugate to the Gaussian likelihood and, more fundamentally, the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry where coordinate-wise updates mix extremely slowly.
+NUTS, as an adaptive variant of HMC \citep{neal2011mcmc}, exploits gradient information to propose joint moves across all components simultaneously, and automatically adapts the trajectory length to the local curvature of the posterior, making it well suited to the correlated, constrained geometry of this problem.
+
+Posterior summaries (mean, standard deviation) for each $R_j$ provide both a point estimate and a measure of identifiability: components with posterior coefficient of variation (CV = posterior std / posterior mean) much less than one are well constrained, while those with CV near or above one are effectively undetermined by the data.
 
 \subsection{ADC as a Spectral Functional}
 
 The apparent diffusion coefficient can be viewed as a functional of the spectral fractions.
-Given a spectrum $\Rvec$, the synthesized signal at each b-value is $\hat{s}(b) = \sum_j R_j \exp(-b D_j)$.
-Fitting a monoexponential $\log \hat{s}(b) = \log \hat{s}_0 - b \cdot \text{ADC}$ to b-values below a cutoff $b_{\max}$ yields the apparent diffusion coefficient $\text{ADC}(\Rvec)$.
+Given a spectrum $\Rvec$, the synthesized signal at each b-value is $\hat{S}(b) = \sum_j R_j \exp(-b D_j)$.
+Fitting a monoexponential $\log \hat{S}(b) = \log \hat{S}_0 - b \cdot \text{ADC}$ to b-values below a cutoff $b_{\max}$ yields the apparent diffusion coefficient $\text{ADC}(\Rvec)$.
+Note that least-squares fitting in the log domain introduces a systematic bias because the log transform distorts the noise distribution, particularly at low signal-to-noise ratios \citep{kuczera2023truly}; nevertheless, this is the standard approach used in commercial MR systems and is adopted here for comparability.
 This is a nonlinear, spectrum-dependent mapping: the same diffusivity component $R_j$ contributes differently to ADC depending on the operating point (i.e., the overall spectral composition).
 
 \subsection{ADC Sensitivity Analysis}
