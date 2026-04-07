@@ -56,7 +56,7 @@ NATIVE_FACTOR = 4
 DIFF_VALUES = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
 B_VALUES_CONFIG = np.array([0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75,
                              2., 2.25, 2.5, 2.75, 3., 3.25, 3.5])
-RIDGE_STRENGTH = 0.5
+RIDGE_STRENGTH = 0.1  # Must match paper: configs/prior/ridge.yaml
 
 # ADC: fit mono-exponential to b-values in range [0, 1.0] ms/um²
 ADC_B_MAX = 1.0  # Use b-values up to 1000 s/mm²

@@ -275,6 +275,59 @@ def load_bwh_signal_decays(json_path: str, metadata_path: str) -> SignalDecayDat
 # --- Legacy helpers (kept for backward compatibility) ---
 
 
+def load_binary_images(
+    folder_path: str,
+    shape: Tuple[int, int] = (256, 256),
+    dtype: np.dtype = np.int16,
+) -> Dict[int, np.ndarray]:
+    """Load all .bin files from a folder as 2D images."""
+    folder = Path(folder_path)
+    if not folder.exists():
+        raise FileNotFoundError(f"Folder not found: {folder_path}")
+    files = sorted(folder.glob("*.bin"), key=lambda f: int(f.stem))
+    if len(files) == 0:
+        raise ValueError(f"No .bin files found in {folder_path}")
+    expected_bytes = shape[0] * shape[1] * np.dtype(dtype).itemsize
+    images = {}
+    for f in files:
+        if f.stat().st_size != expected_bytes:
+            raise ValueError(f"File {f.name}: expected {expected_bytes} bytes, got {f.stat().st_size}")
+        images[int(f.stem)] = np.fromfile(f, dtype=dtype).reshape(shape)
+    return images
+
+
+def subsample_to_native(
+    images: Dict[int, np.ndarray],
+    factor: int = 4,
+) -> Dict[int, np.ndarray]:
+    """Subsample images from interpolated to native resolution."""
+    return {k: img[::factor, ::factor] for k, img in images.items()}
+
+
+def group_images_b0_plus_directions(
+    images: Dict[int, np.ndarray],
+    n_directions: int = 3,
+    mask: Optional[np.ndarray] = None,
+) -> Tuple[List[List[int]], Dict[int, np.ndarray], int]:
+    """Group images: 1 b=0 + N directions per non-zero b-value, return trace images."""
+    # Sort by descending mean intensity (b=0 is brightest)
+    means = {}
+    for k, img in images.items():
+        means[k] = float(np.mean(img[img > 0])) if mask is None else float(np.mean(img[mask]))
+    sorted_keys = sorted(means.keys(), key=lambda k: means[k], reverse=True)
+
+    groups = [[sorted_keys[0]]]  # b=0
+    remaining = sorted_keys[1:]
+    for i in range(0, len(remaining), n_directions):
+        groups.append(remaining[i : i + n_directions])
+
+    trace_images = {}
+    for i, group in enumerate(groups):
+        trace_images[i] = np.mean([images[k].astype(np.float64) for k in group], axis=0)
+
+    return groups, trace_images, len(groups)
+
+
 def build_pixel_signal_array(
     trace_images: Dict[int, np.ndarray],
     mask: Optional[np.ndarray] = None,

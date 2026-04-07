@@ -48,7 +48,7 @@ B_VALUES = np.array([0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75,
                       2., 2.25, 2.5, 2.75, 3., 3.25, 3.5])
 
 # Ridge regularization (from configs/prior/ridge.yaml)
-RIDGE_STRENGTH = 0.5
+RIDGE_STRENGTH = 0.1  # Must match paper: configs/prior/ridge.yaml
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
