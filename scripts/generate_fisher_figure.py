@@ -28,13 +28,13 @@ U = np.exp(-np.outer(b_values, D))  # shape (15, 8)
 # ── Fisher information matrix ───────────────────────────────────────────────
 F = (1.0 / sigma**2) * (U.T @ U)  # shape (8, 8)
 
-# Correlation matrix: C[j,k] = F[j,k] / sqrt(F[j,j] * F[k,k])
-diag_f = np.sqrt(np.diag(F))
-C = F / np.outer(diag_f, diag_f)
-
 # ── CRLB ────────────────────────────────────────────────────────────────────
 F_inv = np.linalg.inv(F)
 crlb_std = np.sqrt(np.diag(F_inv))  # theoretical minimum std (unconstrained)
+
+# Parameter correlation matrix: normalize F^{-1} (covariance), not F
+diag_inv = np.sqrt(np.diag(F_inv))
+C = F_inv / np.outer(diag_inv, diag_inv)
 
 # ── Load observed posterior std from NUTS ────────────────────────────────────
 project_root = Path(__file__).resolve().parent.parent
@@ -55,7 +55,7 @@ ax.set_yticks(range(len(D)))
 ax.set_yticklabels(D_labels, fontsize=9)
 ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=11)
 ax.set_ylabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=11)
-ax.set_title("(a) Fisher Information\nCorrelation Matrix", fontsize=12, fontweight="bold")
+ax.set_title("(a) Parameter Correlation\nMatrix (from CRLB)", fontsize=12, fontweight="bold")
 
 # Add text annotations
 for i in range(len(D)):
@@ -75,9 +75,9 @@ x = np.arange(len(D))
 width = 0.35
 
 bars_crlb = ax.bar(x - width / 2, crlb_std, width, label="CRLB (unconstrained)",
-                    color="#4878CF", edgecolor="black", linewidth=0.5, alpha=0.85)
+                    color="#888888", edgecolor="black", linewidth=0.5, alpha=0.85)
 bars_nuts = ax.bar(x + width / 2, nuts_std, width, label="NUTS posterior std",
-                   color="#D65F5F", edgecolor="black", linewidth=0.5, alpha=0.85)
+                   color="#ff7f0e", edgecolor="black", linewidth=0.5, alpha=0.85)
 
 ax.set_xticks(x)
 ax.set_xticklabels(D_labels, fontsize=9, rotation=45, ha="right")

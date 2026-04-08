@@ -299,16 +299,10 @@ def fig_sensitivity(df):
         x = np.arange(len(DIFFUSIVITIES)); width = 0.35
         ax.bar(x - width/2, sens_norm, width,
                label=r"$-\partial$ADC/$\partial R_j$ (Normalized)",
-               color="#2ca02c", alpha=0.8, edgecolor="white")  # dark green
+               color=ADC_COLOR, alpha=0.7, edgecolor="white")
         ax.bar(x + width/2, coefs_norm, width,
                label="LR Coefficient (Normalized)",
-               color="#7b2d8e", alpha=0.8, edgecolor="white")  # purple
-
-        # D=20 annotation
-        ax.annotate("ADC Less Sensitive\nTo D=20",
-                     xy=(7, sens_norm[7]), xytext=(5.5, sens_norm[7] + 0.35),
-                     fontsize=7, ha="center", color=GRAY,
-                     arrowprops=dict(arrowstyle="->", color=GRAY, lw=0.8))
+               color=NUTS_COLOR, alpha=0.7, edgecolor="white")
 
         r, _ = stats.pearsonr(sens, coefs)
         r7, _ = stats.pearsonr(sens[:7], coefs[:7])
@@ -359,13 +353,6 @@ def fig_map_nuts(df):
         ax.text(0.05, 0.92, f"r = {r:.3f}", transform=ax.transAxes, fontsize=10,
                 va="top", bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.8))
         ax.set_aspect("equal")
-
-        # For D=3.0, add annotation about ridge smoothing
-        if d == 3.0:
-            ax.annotate("Ridge Smoothing\nSpreads Mass",
-                         xy=(0.24, 0.65), xytext=(0.08, 0.50),
-                         fontsize=7, color=GRAY,
-                         arrowprops=dict(arrowstyle="->", color=GRAY, lw=0.8))
 
     axes[0].legend(loc="lower right", fontsize=8, framealpha=0.9)
     plt.tight_layout()
