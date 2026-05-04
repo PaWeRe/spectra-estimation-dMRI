@@ -1,31 +1,38 @@
 \section{Results}
 
-\subsection{Tissue-Specific Diffusivity Spectra}
+\subsection{Tissue-Specific Diffusivity Spectra} (@comment stpehan: It would be nice if you could report SNR+/-stddev you determined with NUTS in the patient data.)
 
-Figure~\ref{fig:spectra} shows MAP and NUTS spectral fractions for tumor and normal tissue in both zones.
-Tumor ROIs exhibited elevated restricted diffusion ($D = 0.25\;\umsmm$: 12.0\% MAP / 16.6\% NUTS in PZ tumor vs.\ 2.5\% / 5.7\% in PZ normal) and reduced free-water fractions ($D = 3.0\;\umsmm$: 16.9\% MAP / 21.0\% NUTS in PZ tumor vs.\ 23.5\% / 47.5\% in PZ normal), consistent with increased cellular density restricting water mobility.
-These patterns were qualitatively similar in the transition zone, though TZ tumor spectra showed higher restricted fractions overall ($D = 0.25$: 19.5\% MAP / 25.0\% NUTS).
+Figure~\ref{fig:spectra} shows MAP and NUTS spectral fractions (@comment stephan: average of N patients ) (@comment stephan: water fractions at different diffusivities of the spectrum) for tumor and normal tissue in both zones.
+Tumor ROIs exhibited elevated restricted diffusion (@comment stephan: restricted diffusion water fraction) ($D = 0.25\;\umsmm$: 12.0\% MAP / 16.6\% NUTS in PZ tumor vs.\ 2.5\% / 5.7\% in PZ normal) and reduced free-water fractions ($D = 3.0\;\umsmm$: 16.9\% MAP / 21.0\% NUTS in PZ tumor vs.\ 23.5\% / 47.5\% in PZ normal), consistent with increased cellular density restricting water mobility.
+These patterns were qualitatively similar in the transition zone, though TZ tumor spectra showed higher restricted fractions overall ($D = 0.25$: 19.5\% MAP / 25.0\% NUTS). (@stephan comment: Add units here)
 
 A notable difference between MAP and NUTS is visible in the free-water component: NUTS concentrates mass at $D = 3.0$ (47.5\% in PZ normal) whereas MAP distributes it across $D = 1.5$--$3.0$ (MAP: 23.5\% at $D = 3.0$).
+
+(@comment stephan: This is very interesting, but should rather go into the discussion section. Bring this up when you compare with the JMRI 4-compartment paper.)
 This ``ridge smoothing'' effect arises because the $L_2$ penalty in MAP estimation penalizes large fractions, spreading mass across adjacent bins.
-NUTS, with independent HalfNormal priors per component, is free to concentrate mass where the posterior supports it.
+NUTS, with independent HalfNormal priors per component, is free to concentrate mass where the posterior supports it. (@comment stephan: You probably should add units for each D.)
 
 \subsection{Per-Component Identifiability}
 
-The NUTS posterior provides a direct measure of which spectral components are well constrained by the data (Figure~\ref{fig:spectra}, CV annotations).
+The NUTS posterior provides (@comment stephan: Are these values like that for each patient? May be this needs to explained (also in methods section) for people who are not so well versed in the mathematical meaning of posterior) a direct measure of which spectral components are well constrained by the data (Figure~\ref{fig:spectra}, CV annotations).
 Only restricted diffusion ($D = 0.25\;\umsmm$, CV = 0.20) and free water ($D = 3.0\;\umsmm$, CV = 0.32) had posterior coefficient of variation below 0.40.
 The IVIM-perfusion proxy ($D = 20.0\;\umsmm$) was moderately constrained (CV = 0.36).
 Intermediate components ($D = 0.50$--$1.00\;\umsmm$) had CV $> 0.80$, indicating that the posterior uncertainty was comparable to the estimate itself.
 
+(@comment stephan: Interesting. This belongs into the Discussion section. May be leave as is but mention in Discussion (I put a comment there))
 This identifiability pattern is predicted by the Fisher information analysis (Figure~\ref{fig:fisher}): the intermediate components have near-perfect mutual correlation ($r > 0.99$) in the Fisher matrix, making them fundamentally indistinguishable from 15 b-value measurements.
 The Bayesian priors reduce the effective estimation error by 100--8000$\times$ relative to the unconstrained Cram\'er-Rao bound (Figure~\ref{fig:fisher}b), but cannot overcome the intrinsic collinearity for the intermediate bins.
 
 \subsection{Classification Performance}
 
 Table~\ref{tab:auc} and Figure~\ref{fig:roc} summarize classification AUCs.
-ADC achieved the highest tumor detection AUCs in both zones (PZ: 0.951, TZ: 0.979 using raw rank; slightly lower via logistic regression at 0.940 and 0.964, respectively).
+ADC achieved the highest tumor detection AUCs (@comment stephan: We discussed if you should have standard deviation for AUC. In the past I have been calculating according ref \bibitem{HM82}
+J.~A. Hanley and B.~J. McNeil.
+\newblock The meaning and use of the area under a receiver operating
+  characteristic ({ROC}) curve.
+\newblock {\em Radiology}, 143(1):29--36, 1982. This may be antiquated but is a paper that has been referenced 10000 times! They use some sort of derivative with extrapolation.) in both zones (PZ: 0.951, TZ: 0.979 using raw rank; slightly lower via logistic regression at 0.940 and 0.964, respectively).
 The eight-component MAP and NUTS spectral classifiers achieved comparable but slightly lower AUCs (PZ: MAP 0.919, NUTS 0.926; TZ: MAP 0.945, NUTS 0.923).
-Among individual spectral components, $D = 0.25$ was the strongest single predictor (PZ: 0.88, TZ: 0.91), consistent with its role as a marker of restricted diffusion in tumor tissue.
+Among individual spectral components, $D = 0.25$ (@comment stephan: If you would like to use this short form, you may have to explain in the methods section (where you introduce the discrete diffusivity values)) was the strongest single predictor (PZ: 0.88, TZ: 0.91), consistent with its role as a marker of restricted diffusion in tumor tissue.
 For Gleason grade classification ($n = 29$), ADC again performed best (0.811 raw rank), though all methods showed limited discriminative power given the small sample size.
 
 These results were robust to regularization: at $C = 0.1$ and $C = 10.0$, AUC values varied by less than 0.03 across all tasks.
@@ -34,18 +41,21 @@ The consistent near-parity of ADC and spectral classifiers for tumor detection m
 \subsection{ADC as Near-Optimal Spectral Discriminant}
 
 Across ROIs, ADC values were near-perfectly anti-correlated with the spectral discriminant score (Figure~\ref{fig:adc_discriminant}).
-Using MAP features at $C = 1.0$: PZ $r = -0.975$ ($p < 10^{-52}$, $n = 81$), TZ $r = -0.982$ ($p < 10^{-48}$, $n = 68$).
-Using NUTS features: PZ $r = -0.977$, TZ $r = -0.981$.
+Using MAP features at $C = 1.0$: PZ $r = -0.975$ ($p < 10^{-52}$, $n = 81$), TZ $r = -0.982$ ($p < 10^{-48}$, $n = 68$). (@comment stephan: These p values are insane. Are they meaningful?)
+Using NUTS features: PZ $r = -0.977$, TZ $r = -0.981$. (@comment stephan: If you report p values further up, you should also report here.)
 This correlation was robust across regularization strengths ($C = 0.1$ to $50$; $|r| > 0.97$ in all cases) and held for both MAP and NUTS feature representations.
 
+(@comment stephan: Belongs in discussion.)
 This result means that the rank ordering of patients by ADC is nearly identical to the rank ordering by the optimal eight-component spectral classifier---ADC is, to a close approximation, already performing the same discrimination as the full spectral model.
 
 \subsection{ADC Sensitivity Analysis}
 
 The mechanistic basis for ADC's near-optimality was revealed by the sensitivity analysis (Figure~\ref{fig:sensitivity}).
-The ADC sensitivity vector $\partial\text{ADC}/\partial R_j$, evaluated at the average PZ tumor operating point, had large negative components for restricted diffusion ($D = 0.25$: $-1.59$) and positive components for free water ($D = 3.0$: $+0.85$), indicating that increasing restricted diffusion decreases ADC while increasing free water raises it.
+The ADC sensitivity vector $\partial\text{ADC}/\partial R_j$, evaluated at the average PZ tumor operating point, had large negative components for restricted diffusion ($D = 0.25$: $-1.59$) and positive components for free water ($D = 3.0$: $+0.85$) (@stephan comment: In the figure 4 you used opposite signs for the weightings of 0.25 and 3.0. This has to be consistent.), indicating that increasing restricted diffusion decreases ADC while increasing free water raises it.
 
 Using MAP features, this sensitivity vector correlated with the logistic regression coefficient vector at $r = -0.979$ (PZ, $C = 1.0$) and $r = -0.931$ (TZ).
+
+(@comment stephan: This may need some discussion. Our previously published paper showed calculation of ADC from multi-b without b0 (the signal with the strongest perfusion fraction) resulted in better discrimination. So the formulation should be something like that "ADC can also be computed without b=0 and that it has been shown that this resulted in slightly better discrimination".)
 Excluding $D = 20.0\;\umsmm$---to which ADC is less sensitive because the vascular signal has largely decayed by the second b-value step \citep{aksitciris2019accelerated}---the correlation improved to $r = -0.982$ (PZ) and $r = -0.941$ (TZ).
 The Spearman rank correlation at the PZ normal operating point was $r_s = -1.0$---a perfect rank match.
 This demonstrates that ADC implicitly weights each resolvable spectral compartment in almost exactly the same proportion as the optimal linear classifier.
@@ -55,17 +65,18 @@ However, the ROI-level discrimination remains equivalent ($r = -0.98$) because t
 
 \subsection{MAP vs.\ NUTS Comparison}
 
-MAP and NUTS estimates agreed closely for well-identified components (Figure~\ref{fig:map_nuts}; across 149 ROIs: $D = 0.25$, $r = 0.990$; $D = 3.0$, $r = 0.825$) and diverged for ill-posed ones ($D = 1.0$, $r = 0.483$; $D = 1.5$, $r = -0.106$).
-For $D = 3.0$, MAP systematically underestimated the dominant fraction relative to NUTS (MAP median 0.21 vs.\ NUTS 0.31 in normal tissue) due to the ridge smoothing effect described above.
+MAP and NUTS estimates agreed (@commetn stephan: did you mean correlate rather than agree? I mean for D=3.0 the results correlated, but MAP systematically estimated lower.) closely for well-identified components (Figure~\ref{fig:map_nuts}; across 149 ROIs: $D = 0.25$, $r = 0.990$; $D = 3.0$, $r = 0.825$) and diverged for ill-posed ones ($D = 1.0$, $r = 0.483$; $D = 1.5$, $r = -0.106$).
+For $D = 3.0$, MAP systematically underestimated the dominant fraction relative to NUTS (MAP median 0.21 vs.\ NUTS 0.31 in normal tissue) due to the ridge smoothing effect described above. (@comment stephan: This is actually a very important finding that I hope to see again in the discussion. This is because D=3.0 represents the acinar lumen fraction (the liquid portion of the gland without any tissue). It is of great interest to know this number exactly.) (@comment stephan: For D=3.0, which can be confidently believed to represent free water diffusion in  the acinar lumen. ...")
 Despite this component-level divergence, the discriminant scores derived from MAP and NUTS features were highly correlated (PZ: $r = 0.985$; TZ: $r = 0.994$), confirming that both methods extract the same clinically relevant information.
 
-The practical implication is that MAP estimation---computed in closed form in under one second---is sufficient for discrimination tasks.
+(@comment stephan: For D=3.0, which can be confidently believed to represent free water diffusion in  the acinar lumen. ...")
+The practical implication is that MAP estimation---computed in closed form in under one second---is sufficient for discrimination tasks. (@comment stephan: But this can still be excruciatingly slow if done for each pixel of an 128x128 image?)
 The value of full Bayesian inference lies in the uncertainty estimates: it identifies which components are trustworthy (Figure~\ref{fig:uncertainty}) and provides per-ROI confidence measures that MAP estimation cannot.
 
 % ======================================================================
 \subsection{Pixel-wise Spectral Decomposition}
 
-Pixel-wise spectral estimation was performed on 146 manually segmented prostate voxels from patient 8640 (slice~6).
+Pixel-wise spectral estimation was performed on 146 manually segmented prostate voxels from patient 8640 (slice~6). (@comment stephan: remove specific infomraiton)
 Both MAP and NUTS estimates were computed for all voxels; all 146 NUTS runs converged ($\hat{R} < 1.05$).
 
 The restricted diffusion fraction ($D = 0.25\;\umsmm$) showed the strongest spatial contrast among spectral components, providing a more specific marker of the restricted diffusion compartment than ADC alone (Figure~\ref{fig:pixelwise}).

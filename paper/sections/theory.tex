@@ -7,6 +7,7 @@ Two fundamentally different estimation strategies exist: (1)~treat both the diff
 The first approach is highly nonlinear and suffers from severe non-uniqueness, while the second reduces the problem to linear estimation at the cost of discretization.
 We adopt the second approach: normalizing by the $b = 0$ signal, the discrete spectral model is:
 %
+(@comment stephan: S not s (throughout the document))
 \begin{equation}
   \frac{S(b_i)}{S_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
   \quad i = 1, \ldots, M,
@@ -20,7 +21,7 @@ For this study, $M = 15$ b-values spanning $0$--$3500\;\text{s/mm}^2$ in steps o
 The design matrix $\Umat$ has condition number $\kappa(\Umat) \approx 2.8 \times 10^5$, reflecting the inherent ill-posedness of the inverse problem.
 
 \subsection{Identifiability and Discretization}
-
+(@comment stephan: May be explain first that there different approaches: 1) determine Di and fractions_i through fitting or 2) pre-define Di and then determine fractions_i through fitting.)
 The choice of diffusivity bins $D_j$ determines which spectral components can be resolved from the data.
 The Fisher information matrix for the spectral fractions $\Rvec$ (assuming known noise $\sigma$) is:
 %
@@ -38,7 +39,7 @@ The Fisher correlation matrix $C_{jk} = F_{jk} / \sqrt{F_{jj} F_{kk}}$ shows tha
 In contrast, $D = 0.25\;\umsmm$ (restricted diffusion) contributes detectable signal across all 15 b-values, while fast-diffusing components ($D \geq 3.0$) decay below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
 
 This resolving limitation can be quantified analytically.
-For a simplified two-component model with adjacent diffusivities $D$ and $D + \Delta D$, the Fisher information for the fraction parameter approximately scales as
+For a simplified two-component model with adjacent diffusivities $D$ and $D + \Delta D$, the Fisher information for the fraction parameter approximately scales (@comment stephan: "approximately scales". This is for a two-compartment solution. I don't know how this holds for multi-compartment.) as
 %
 \begin{equation}
   I \propto \frac{(\Delta D)^2}{D^3}
@@ -58,6 +59,8 @@ Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that interme
 The ill-posedness is intrinsic to the Laplace inversion and cannot be eliminated by optimizing the discretization alone.
 
 The unconstrained CRLB vastly overestimates the actual estimation error: for intermediate components, the CRLB predicts standard deviations exceeding the physical range of the fractions (Figure~\ref{fig:fisher}b).
+
+(@comment stephan: This is very interesting, since I was thinking that my CRLB estimates were far worse than our results. Important to have this in the Discussion.)
 The non-negativity constraint and Bayesian priors reduce the effective estimation error by two to three orders of magnitude, making the problem tractable.
 This improvement is greatest for the most ill-conditioned components and demonstrates the essential role of prior information in spectral decomposition.
 
@@ -78,6 +81,7 @@ This is equivalent to ridge regression with a non-negativity constraint (Ridge N
 The MAP estimate is a point estimate and does not quantify how reliably each component $R_j$ is determined by the data.
 
 \subsection{Bayesian Formulation}
+(@comment stephan: better motivaiton why fully bayesian is cool and beneficial here (meainng etsimating SNR as well as R))
 
 The MAP estimate provides a single point in spectrum space but offers no information about the reliability of each component.
 Given the severe ill-conditioning documented above, this is a critical limitation: a point estimate at an intermediate component ($D = 0.75\;\umsmm$) may appear precise while in fact being largely determined by the regularization rather than the data.
@@ -106,12 +110,16 @@ Posterior summaries (mean, standard deviation) for each $R_j$ provide both a poi
 
 The apparent diffusion coefficient can be viewed as a functional of the spectral fractions.
 Given a spectrum $\Rvec$, the synthesized signal at each b-value is $\hat{S}(b) = \sum_j R_j \exp(-b D_j)$.
+(@comment stephan: It is actually a bad idea to do the least-square fitting to a log signal (you can reference 
+Truly reproducible uniform estimation of the ADC with multi-b diffusion data- Application in prostate diffusion imaging.
+Kuczera S, Langkilde F, Maier SE. Magn Reson Med. 2023 Apr;89(4):1586-1600. In this publication there is supplementary Fig 1 that shows this. Notwithstanding this is what is actually done for all commercial MR solutions (it is faster and it is approved for health applications).)
 Fitting a monoexponential $\log \hat{S}(b) = \log \hat{S}_0 - b \cdot \text{ADC}$ to b-values below a cutoff $b_{\max}$ yields the apparent diffusion coefficient $\text{ADC}(\Rvec)$.
+(@comment stephan: Perfect modification.)
 Note that least-squares fitting in the log domain introduces a systematic bias because the log transform distorts the noise distribution, particularly at low signal-to-noise ratios \citep{kuczera2023truly}; nevertheless, this is the standard approach used in commercial MR systems and is adopted here for comparability.
 This is a nonlinear, spectrum-dependent mapping: the same diffusivity component $R_j$ contributes differently to ADC depending on the operating point (i.e., the overall spectral composition).
 
 \subsection{ADC Sensitivity Analysis}
-
+(@comment stpehan: You don't need this title, but you can certainly start a new paragraph.)
 To understand which spectral components ADC is most sensitive to, we define the sensitivity vector:
 %
 \begin{equation}

@@ -1,11 +1,11 @@
 % === SUPPORTING INFORMATION ===
 
-\section*{Supporting Information}
+\section*{Appendix}
 
 % --- Appendix: CRLB Derivation ---
 \subsection*{Cramér-Rao Scaling of Bin Spacing}
-
-Consider a simplified two-component model $f(b) = p\,e^{-bD} + (1-p)\,e^{-b(D+\Delta D)}$.
+(@comment stephan: I think we ware doing fine with word count. This could be material for a short appendix section. The figures would still be in an "supporting information" document.)
+Consider a simplified two-component model $f(b) = p\,e^{-bD} + (1-p)\,e^{-b(D+\Delta D)}$. (@comment stephan: You need "S" here or you have to specify that f(b) is the normalized signal. S0 ist sehr gut bestimmt, sigma recht niedrig...)
 The Fisher information for the fraction parameter $p$ is:
 %
 \begin{equation*}
@@ -40,9 +40,10 @@ broad posteriors for $D = 0.50$--$1.50$ confirm ill-posedness.
 % --- Fig S2: Robustness Across Spectral Shapes ---
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_robustness.png}
+\includegraphics[width=\textwidth]{figures/fig_robustness.png} (@comment stephan: larger fonts needed)
+(@comment stephan: Would it make sense to show MAP results as well? Green would be the color for MAP.)
 \capt[NUTS Spectrum Recovery Across Diverse Spectral Shapes And SNR Levels.]{%
-True (blue) versus NUTS-recovered (red, with credible intervals) spectra for
+(@comment stephan: I suggest you use your standard NUTS color orange and black for true.) True (blue) versus NUTS-recovered (red, with credible intervals) spectra for
 six synthetic shapes at the lowest (SNR = 50, left) and highest
 (SNR = 1000, right) tested noise levels.
 Recovery error (RMSE) decreases with SNR for all shapes.

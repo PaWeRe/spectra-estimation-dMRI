@@ -1,19 +1,22 @@
 \section{Discussion}
 
 The central finding of this study is that ADC, despite reducing multi-component diffusion information to a single scalar, achieves near-optimal spectral discrimination for prostate tumor detection.
+
+(@comment stephan: In the results section you had this language, which should move here:  "This result means that the rank ordering of patients by ADC is nearly identical to the rank ordering by the optimal eight-component spectral classifier---ADC is, to a close approximation, already performing the same discrimination as the full spectral model.")
 The anti-correlation between ADC scores and the optimal spectral discriminant ($r \approx -0.98$ across zones and inference methods) is not coincidental---the sensitivity analysis shows that ADC's implicit weighting of spectral compartments closely matches the learned classification direction ($r = -0.98$ for MAP features, Figure~\ref{fig:sensitivity}).
 This provides a formal, quantitative answer to the question of what ADC measures in the context of spectral tissue characterization: it is a near-optimal linear combination of the diffusivity spectrum for the purpose of distinguishing tumor from normal prostate tissue.
 
 This result has important implications for the clinical interpretation of ADC.
-Rather than viewing ADC as an impoverished summary of a richer signal, our analysis suggests that it effectively captures the dominant axis of spectral variation relevant to tumor detection.
+Rather than viewing ADC as an impoverished summary of a richer signal (@comment stephan: Nice language!), our analysis suggests that it effectively captures the dominant axis of spectral variation relevant to tumor detection.
 The spectral decomposition does not obsolete ADC---it explains it.
 The added value of multi-component analysis lies in three areas: (1)~biological interpretability, revealing which tissue compartments (restricted diffusion, free water) drive the observed ADC contrast; (2)~uncertainty quantification, identifying which components are reliably estimated from the available data; and (3)~potential for detecting spectral signatures that are orthogonal to the dominant tumor--normal axis, such as differences in glandular water content between Gleason grades.
 
 The comparison between MAP and NUTS estimation revealed a complementary relationship.
 MAP and NUTS agreed closely for well-identified components ($D = 0.25\;\umsmm$: $r = 0.99$; Figure~\ref{fig:map_nuts}) and their discriminant scores were nearly interchangeable ($r > 0.98$), confirming that closed-form MAP estimation is sufficient for classification.
-For the dominant free-water component ($D = 3.0$), MAP systematically underestimated the fraction due to the ridge smoothing effect: the $L_2$ penalty distributes mass across adjacent bins rather than concentrating it at the posterior mode.
-The divergence on intermediate components ($D = 0.5$--$1.0\;\umsmm$: $r < 0.50$) was not a deficiency of either method but a faithful reflection of the ill-posedness: these components are genuinely undetermined by 15 b-value measurements at typical clinical noise levels.
-NUTS makes this ill-posedness explicit through wide posterior intervals (CV $> 0.80$), while MAP silently returns a point estimate that may be misleadingly precise.
+For the dominant (@comment stephan: ".... believed to represent the acinar lumen, ...") free-water component ($D = 3.0$), MAP systematically underestimated the fraction due to the ridge smoothing effect: (@comment stephan: Move this formulation from the Results section to here: This ``ridge smoothing'' effect arises because the $L_2$ penalty in MAP estimation penalizes large fractions, spreading mass across adjacent bins.
+NUTS, with independent HalfNormal priors per component, is free to concentrate mass where the posterior supports it.) the $L_2$ penalty distributes mass across adjacent bins rather than concentrating it at the posterior mode.
+The divergence on intermediate components ($D = 0.5$--$1.0\;\umsmm$: $r < 0.50$) was not a deficiency of either method but a faithful reflection of the ill-posedness: these components are genuinely undetermined by 15 b-value measurements at (@comment stephan: Important, you need to be very specific here "..., but also at the relatively low noise levels attained with low resolution and use of an endorectal coil in the evaluated data set.") typical clinical noise levels.
+NUTS makes this ill-posedness explicit through wide  (@comment stephan: Here you can repeat your finding: The Bayesian priors reduce the effective estimation error by 100--8000, may be more generalized "2-4 or several magnitudes.") posterior intervals (CV $> 0.80$), while MAP silently returns a point estimate that may be misleadingly precise.
 The Bayesian approach thus serves as an exploratory tool that identifies what can and cannot be learned from a given acquisition protocol---a perspective endorsed by the information-theoretic view of inverse problems \citep{prange2009quantifying}.
 
 The Fisher information analysis (Figure~\ref{fig:fisher}) provides a theoretical foundation for the observed identifiability pattern.
@@ -23,7 +26,7 @@ Our grid approximately follows this scaling, but numerical evaluation of the ful
 This confirms that the poor identifiability of the $D = 0.50$--$1.00\;\umsmm$ range is an intrinsic property of the Laplace inversion at clinical SNR, not an artifact of suboptimal discretization.
 The unconstrained Cram\'er-Rao lower bound predicts estimation errors 100--8000$\times$ larger than what the Bayesian sampler achieves, demonstrating that non-negativity constraints and prior information are not merely convenient regularization but are essential for making the spectral decomposition tractable.
 
-\paragraph{Limitations.}
+\paragraph{Limitations.} (@comment stephan: They don't do such titles in MRM)
 This study has several limitations.
 First, the tumor ROIs were placed based on multiparametric MRI (including DWI/ADC maps), introducing a potential circularity: lesions that are well delineated on ADC maps may be overrepresented \citep{langkilde2018evaluation}.
 This bias could inflate ADC's apparent discriminative performance relative to spectral features.
@@ -31,9 +34,15 @@ Only the Gleason grade classification, derived from biopsy pathology, is free fr
 Second, the GGG sample size ($n = 29$) is insufficient for reliable AUC comparison between methods; differences below $\Delta\text{AUC} \approx 0.10$ cannot be meaningfully distinguished.
 Third, the spectral model assumes a fixed set of diffusivity bins; a continuous spectral approach \citep{prange2009quantifying} might reveal additional structure but at the cost of increased ill-posedness.
 Finally, the pixel-wise demonstration was limited to a single patient; generalization requires larger studies with histopathological correlation.
+(@comment stephan: Fourth, only data for one configuration of echo time and diffusion time was analyzed. Recent advances in gradient performance would allow for substantially shorter echo and diffusion times (references: Human prostate MRI at ultrahigh-performance gradient: 1) A feasibility study.
+Zhu A, Tarasek M, Hua Y, Fiveland E, Maier SE, Mazaheri Y, Fung M, Westin CF, Yeo DTB, Szczepankiewicz F, Tempany C, Akin O, Foo TKF. Magn Reson Med. 2024 Feb;91(2):640-648. 2) 
+Magn Reson Med 
+. 2026 Mar;95(3):1833-1846.
+doi: 10.1002/mrm.70125. Epub 2025 Oct 13. A Nonlinear Single Channel Gradient Insert for Prostate Diffusion Imaging
+Nahla M H Elsaid  1   2 , Horace Z Zhang  1 , Ates Fettahoglu  1   3 , Chenhao Sun  1 , Andrea De Simone  1   4 , Terence Nixon  1 , Andrew Dewdney  5 , Dana C Peters  1 , Jeffrey Weinreb  1 , Todd Constable  1 , Gigi Galiana)Finally, the pixel-wise demonstration was limited to a single patient; generalization requires larger studies with histopathological correlation.
 
 \paragraph{Future Directions.}
 The framework presented here is directly applicable to other organs and tumor types where multi-b DWI is acquired, including breast, liver, and brain tumors.
 Amortized inference approaches---training a neural network to approximate the posterior distribution---could reduce computation time from minutes per ROI (NUTS) to milliseconds, enabling real-time clinical deployment.
 While the $D^{3/2}$ scaling law shows that bin redistribution alone cannot overcome the intrinsic ill-posedness, the Fisher information framework could guide joint optimization of b-value protocols and discretization grids to maximize identifiability for specific clinical questions.
-Integration with T2-weighted imaging and PI-RADS scoring could yield multi-parametric spectral biomarkers.
+Integration with (@comment stephan: T$_2$)T2-weighted imaging and (@comment stephan: I would leave this out, since it is entirely subjective.) PI-RADS scoring could yield multi-parametric spectral biomarkers.

@@ -1,17 +1,34 @@
-\section{Methods}
+\section{Methods} 
+(@comment stephan: You need a subsection MRI data: All patients underwent a standard multiparametric MR
+exam (1) with an additional diffusion-weighted sequence on
+a GE 3 Tesla Discovery MR750 scanner. For all examinations,
+an endorectal coil (Medrad, Pittsburgh, PA) in combination
+with pelvic phased array coils (General Electric Medical Sys-
+tems, Milwaukee, WI) was used for signal reception. An added DWI sequence (matrix size 64  64, field of view 280  280 mm,
+slice thickness 5 mm without gap, TR 4000 ms) was per-
+formed over an extended b-factor range; 15 b-factors equally
+spaced in 250 s/mm2 increments from b 1⁄4 0 to 3500 s/mm2
+along each of three orthogonal diffusion encoding direc-
+tions were used. Scan time for the extended-range b-factor
+scan was 3 min. A relatively long echo time (100 ms) was
+required to accommodate the high diffusion weighting with
+gradient times d 1⁄4 37 ms and D)
 
 \subsection{Patient Data}
 
-Retrospective multi-b DWI data from 56 men (age range 43--77 years, mean 62 years; mean serum PSA 8.8~ng/mL, range 0.37--46~ng/mL) were acquired at Brigham and Women's Hospital using the extended b-value protocol described by \citet{langkilde2018evaluation}.
+Retrospective multi-b DWI data from 56 men (age range 43--77 years, mean 62 years; mean serum PSA 8.8~ng/mL, range 0.37--46~ng/mL) were acquired at Brigham and Women's Hospital using the extended b-value protocol (@comment stephan:  For the 56 included patients,
+the age ranged from 43 to 77 years with a mean of 62 years.
+The mean serum prostate specific antigen (PSA) level of
+these patients was 8.8 ng/mL (range, 0.37–46 ng/mL). (from reference Langkilde)) (@comment stephan: Since this is an MR journal I do think you need the detailed protocol description as I provided in the other comment. People need to understand why we such high SNR data (endorectal coil, low resolution). And this we need to bring up again in the discussion re future applicability: higher gradient performance for shorter TE, improved coil albeit not endorectal.) described by \citet{langkilde2018evaluation}.
 The cohort included patients with biopsy-confirmed prostate cancer as well as 10 patients with benign biopsies and 2 with high-grade prostatic intraepithelial neoplasia (HGPIN).
 Fifteen b-values were acquired at $b = 0, 250, 500, \ldots, 3500\;\text{s/mm}^2$ along three orthogonal gradient directions, with direction-averaged (trace) images used for analysis.
 A total of 149 regions of interest (ROIs) were annotated: 40 tumor and 109 normal tissue, spanning peripheral zone (PZ; 81 ROIs: 27 tumor, 54 normal) and transition zone (TZ; 68 ROIs: 13 tumor, 55 normal).
 The benign and HGPIN patients contributed normal-tissue ROIs, providing a test of specificity.
-Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5).
+Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5). (@comment stephan: I don't think we need a table. Your write up looks fine. But don't you want to mention the 7 benign and one HGPIN (tumor precursor). Didn't you included those in the analysis? I would think it is of interest to demonstrate that we do not categorize benign as malignant.)
 
 \subsection{Spectral Estimation}
 
-For each ROI, the direction-averaged signal decay was decomposed into eight diffusivity components using both MAP and fully Bayesian estimation as described in Theory.
+For each ROI, the direction-averaged signal decay (@comment stephan: geometric mean of signals measured along three orthogonal diffusion encoding directions) was decomposed into eight diffusivity components using both MAP and fully Bayesian estimation as described in Theory.
 
 \subsubsection{MAP Estimation}
 
@@ -28,7 +45,10 @@ Posterior means of the spectral fractions (normalized to sum to one) were used a
 \subsection{ADC Computation}
 
 Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log S(b) = \log S_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
-This cutoff is consistent with PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate}.
+This cutoff is  (@comment stephan: This cutoff was chosen in keeping with PI-RADSv2.1 recommendations (cite). According to PI-RADS v2.1, the maximum b-value for calculating the
+Apparent Diffusion Coefficient (ADC) map is recommended to be
+(typically 800–1000
+)) consistent with PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate}.
 
 \subsection{Classification}
 
@@ -48,10 +68,10 @@ Logistic regression coefficients were obtained by fitting the full model (all ei
 The Pearson and Spearman rank correlations between the sensitivity vector and the LR coefficient vector (both eight-dimensional) were computed to quantify alignment.
 
 % ======================================================================
-\subsection{Pixel-wise Spectral Estimation}
+\subsection{Pixel-wise Spectral Estimation} (@comment stephan: Pixel-wise and direction-wise spectral estimations, reference ROI encoding directions)
 
 To demonstrate the framework at the voxel level, pixel-wise spectral decomposition was performed on a single axial slice from one patient dataset acquired separately from the ROI-level cohort, using a similar extended b-value protocol with directional encoding.
-The prostate was manually segmented, yielding 146 voxels at $64 \times 64$ native resolution.
+The prostate was manually segmented, yielding 146 voxels at $64 \times 64$ native resolution. (@comment stephan: Do not provide such detail. Just say of "one patient data set acquired outside the patient data set mentioned in the methods section" (we may have mention this in the methods section, moreover since the protocol was slightly different and we obtained directional data))
 
 For each voxel, the multi-b signal decay $\svec = [S(b_1), \ldots, S(b_{15})]^T$ was normalized by the $b = 0$ signal and decomposed using both MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the same parameters as the ROI-level analysis.
 A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra (Eq.~\ref{eq:discriminant}).
