@@ -1,38 +1,57 @@
 % === SUPPORTING INFORMATION ===
+%
+% Per Stephan: the CRLB derivation is short enough to remain in an Appendix
+% in the main document; the supplementary figures (NUTS convergence on
+% simulated data and the robustness sweep) live in a separate Supporting
+% Information document.
 
-\section*{Appendix}
+\section*{Appendix: Cram\'er-Rao Scaling of Bin Spacing}
 
-% --- Appendix: CRLB Derivation ---
-\subsection*{Cramér-Rao Scaling of Bin Spacing}
-(@comment stephan: I think we ware doing fine with word count. This could be material for a short appendix section. The figures would still be in an "supporting information" document.)
-Consider a simplified two-component model $f(b) = p\,e^{-bD} + (1-p)\,e^{-b(D+\Delta D)}$. (@comment stephan: You need "S" here or you have to specify that f(b) is the normalized signal. S0 ist sehr gut bestimmt, sigma recht niedrig...)
-The Fisher information for the fraction parameter $p$ is:
+Consider a simplified two-component model in which the normalized signal at
+b-value $b$ is
+%
+\begin{equation*}
+  \frac{S(b)}{S_0} = p\,e^{-bD} + (1-p)\,e^{-b(D+\Delta D)},
+\end{equation*}
+%
+with additive Gaussian noise of standard deviation $\sigma$.
+The Fisher information for the fraction parameter $p$ is
 %
 \begin{equation*}
   I(p) = \frac{1}{\sigma^2}\sum_{i=1}^{M}\left(e^{-b_i D} - e^{-b_i(D+\Delta D)}\right)^2.
 \end{equation*}
 %
-Approximating the sum by an integral over $[0,\,b_{\max}]$, expanding the square, and evaluating in the regime $b_{\max} D \gg 1$ (so that the exponential boundary terms vanish):
+Approximating the sum by an integral over $[0,\,b_{\max}]$, expanding the
+square, and evaluating in the regime $b_{\max} D \gg 1$ (so that the
+exponential boundary terms vanish):
 %
 \begin{equation*}
   I(p) \propto \frac{1}{2D} - \frac{2}{2D + \Delta D} + \frac{1}{2(D + \Delta D)}.
 \end{equation*}
 %
-For $\Delta D \ll D$, a Taylor expansion yields $I(p) \propto (\Delta D)^2 / (4D^3)$.
-Setting $I = \text{const}$ (equal estimation precision for all bin pairs) gives $\Delta D \propto D^{3/2}$, Equation~\ref{eq:spacing_scaling} in the main text.
-The same scaling is obtained from the full two-parameter model ($p$ and $q = 1-p$ independent) via inversion of the $2 \times 2$ Fisher matrix.
+For $\Delta D \ll D$, a Taylor expansion yields
+$I(p) \propto (\Delta D)^2 / (4D^3)$.
+Setting $I = \text{const}$ (equal estimation precision for all bin pairs)
+gives $\Delta D \propto D^{3/2}$, Equation~\ref{eq:spacing_scaling} in the
+main text.
+The same scaling is obtained from the full two-parameter model ($p$ and
+$q = 1-p$ independent) via inversion of the $2 \times 2$ Fisher matrix.
+This argument is intentionally restricted to the two-compartment limit; the
+full multi-compartment problem is treated numerically in the main text.
 
 % --- Fig S1: NUTS Convergence (Simulation) ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_trace_simulation.pdf}
-\capt[NUTS Convergence On Simulated Data.]{%
+\caption{%
+NUTS convergence on simulated data.
 Posterior densities (left) and trace plots (right) for all eight spectral
 components and the noise parameter $\sigma$ from a synthetic signal
 (uniform spectrum, SNR = 500, $\lambda = 0.1$, 4 chains, 2000 draws).
 Max $\hat{R} = 1.003$, confirming convergence.
-Tight posteriors for $D = 0.25$ and $D = 3.0$--$20.0$ confirm identifiability;
-broad posteriors for $D = 0.50$--$1.50$ confirm ill-posedness.
+Tight posteriors for $D = 0.25\;\umsmm$ and $D = 3.0$--$20.0\;\umsmm$
+confirm identifiability; broad posteriors for $D = 0.50$--$1.50\;\umsmm$
+confirm ill-posedness.
 }
 \label{fig:trace_supp}
 \end{figure}
@@ -40,12 +59,15 @@ broad posteriors for $D = 0.50$--$1.50$ confirm ill-posedness.
 % --- Fig S2: Robustness Across Spectral Shapes ---
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_robustness.png} (@comment stephan: larger fonts needed)
-(@comment stephan: Would it make sense to show MAP results as well? Green would be the color for MAP.)
-\capt[NUTS Spectrum Recovery Across Diverse Spectral Shapes And SNR Levels.]{%
-(@comment stephan: I suggest you use your standard NUTS color orange and black for true.) True (blue) versus NUTS-recovered (red, with credible intervals) spectra for
-six synthetic shapes at the lowest (SNR = 50, left) and highest
-(SNR = 1000, right) tested noise levels.
+% TODO(figure-regen): larger fonts (~+50%). Recolor: NUTS posterior in
+% orange (matching Fig 1), ground truth in black; optionally add MAP
+% recovery in green for direct comparison.
+\includegraphics[width=\textwidth]{figures/fig_robustness.png}
+\caption{%
+NUTS spectrum recovery across diverse spectral shapes and SNR levels.
+Ground-truth spectra (black) versus NUTS-recovered posteriors (orange, with
+credible intervals) for six synthetic spectral shapes at the lowest
+(SNR = 50, left) and highest (SNR = 1000, right) tested noise levels.
 Recovery error (RMSE) decreases with SNR for all shapes.
 Intermediate components ($D = 0.50$--$1.00\;\umsmm$) consistently show the
 widest credible intervals, consistent with the identifiability analysis on

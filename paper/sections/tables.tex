@@ -4,21 +4,21 @@
 % --- Table 1: Classification AUCs ---
 \begin{table}[p]
 \centering
-\caption{Classification Performance (AUC) By Leave-One-Out Cross-Validation.
+\caption{Classification performance (AUC $\pm$ standard error) by leave-one-out cross-validation.
 ADC (raw rank) uses the raw feature value without classifier training.
 Multi-feature models use $L_2$-regularized logistic regression ($C = 1.0$) on
 all eight spectral fractions without feature selection.
-95\% bootstrap confidence intervals in brackets.}
+Standard errors computed by the Hanley--McNeil method \citep{hanley1982meaning}.}
 \label{tab:auc}
 \smallskip
 \begin{tabular}{lccc}
 \toprule
 Method & PZ ($n=81$) & TZ ($n=68$) & GGG ($n=29$) \\
 \midrule
-ADC (raw rank)  & \textbf{0.951} & \textbf{0.979} & \textbf{0.811} \\
-ADC (LR)        & 0.940          & 0.964          & 0.778          \\
-MAP Full LR     & 0.919          & 0.945          & 0.733          \\
-NUTS Full LR    & 0.926          & 0.923          & 0.772          \\
+ADC (raw rank)  & $\mathbf{0.951 \pm 0.030}$ & $\mathbf{0.979 \pm 0.028}$ & $\mathbf{0.811 \pm 0.052}$ \\
+ADC (LR)        & $0.940 \pm 0.033$         & $0.964 \pm 0.037$         & $0.778 \pm 0.055$         \\
+MAP Full LR     & $0.919 \pm 0.038$         & $0.945 \pm 0.045$         & $0.733 \pm 0.059$         \\
+NUTS Full LR    & $0.926 \pm 0.036$         & $0.923 \pm 0.053$         & $0.772 \pm 0.056$         \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -1,15 +1,22 @@
 \begin{abstract}
 
 \noindent\textbf{Purpose:}
-\todo{Draft abstract after all sections are written}
+To investigate, both theoretically and on patient data, how reliably each component of the diffusivity spectrum can be recovered from extended b-value prostate diffusion-weighted MRI, and to characterize the relationship between the conventional apparent diffusion coefficient (ADC) and the optimal multi-component spectral classifier for tumor detection.
 
 \noindent\textbf{Methods:}
-\todo{Methods summary}
+Multi-b DWI ($b = 0$--$3500\;\text{s/mm}^2$, 15 b-values) from 56 patients (149 ROIs: 40 tumor, 109 normal) was decomposed into eight diffusivity components using both maximum a~posteriori (MAP, ridge non-negative least squares) and fully Bayesian No-U-Turn Sampler (NUTS) inference.
+Per-component identifiability was assessed both theoretically through the Cram\'er-Rao lower bound on the Fisher information matrix and practically through the NUTS posterior coefficient of variation.
+Tumor detection in the peripheral and transition zones, and Gleason grade differentiation among tumor ROIs, were evaluated by leave-one-out cross-validation with $L_2$-regularized logistic regression on the spectral fractions, ADC alone, and individual components.
+A pixel-wise demonstration was performed on a separate patient dataset.
 
 \noindent\textbf{Results:}
-\todo{Results summary}
+Only restricted diffusion ($D = 0.25\;\umsmm$, mean posterior CV = 0.20) and free water ($D = 3.0\;\umsmm$, mean CV = 0.32) were well identified; intermediate components ($D = 0.50$--$1.00\;\umsmm$) had CV $> 0.80$, consistent with mutual Fisher correlation $> 0.99$ at the SNR realized in this cohort (median 303).
+Non-negativity constraints and Bayesian priors reduced effective estimation error by 100--8000$\times$ relative to the unconstrained Cram\'er-Rao bound.
+ADC (raw rank) achieved the highest tumor-detection AUCs (PZ: $0.951 \pm 0.030$; TZ: $0.979 \pm 0.028$), narrowly outperforming the eight-component MAP and NUTS classifiers.
+Across patients, ADC scores anti-correlated with the optimal spectral discriminant at $r \approx -0.98$ (95\% bootstrap CI within $[-0.99,\,-0.97]$ in both zones), and the ADC sensitivity vector aligned with the learned classification direction at $|r| > 0.93$, providing a mechanistic explanation for ADC's near-optimality.
 
 \noindent\textbf{Conclusion:}
-\todo{Conclusion summary}
+ADC is a near-optimal linear projection of the prostate diffusivity spectrum for tumor detection.
+Bayesian spectral decomposition does not obsolete ADC but explains it, while additionally quantifying which spectral compartments are reliably recoverable, identifying a systematic MAP underestimation of the acinar-lumen fraction, and providing per-voxel uncertainty for pixel-wise tissue characterization.
 
 \end{abstract}
