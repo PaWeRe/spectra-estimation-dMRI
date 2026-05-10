@@ -62,6 +62,17 @@ confirm ill-posedness.
 % TODO(figure-regen): larger fonts (~+50%). Recolor: NUTS posterior in
 % orange (matching Fig 1), ground truth in black; optionally add MAP
 % recovery in green for direct comparison.
+% TODO(figure-regen, stability): Patrick is unhappy with the current
+% robustness figure; the older simulation plots looked better and were
+% more informative. In particular, the old "Mode vs Mean Stability
+% Analysis" panel (N=10 noise realizations of a fixed truth, MAP boxes
+% vs Bayesian-posterior-mean boxes side by side, with the truth as a
+% reference line) makes the variance-reduction story visible in a way
+% the current shape-recovery layout does not. Discuss trade-offs in the
+% next collaborative session: keep the shape sweep, replace it with
+% the stability comparison, or merge both. Reference example:
+% old/testing/simulation_results_old25.pdf page 3 in the
+% "spectra-estimation-dMRI/code copy" tree.
 \includegraphics[width=\textwidth]{figures/fig_robustness.png}
 \caption{%
 NUTS spectrum recovery across diverse spectral shapes and SNR levels.

@@ -27,10 +27,16 @@ posterior-mean estimates (orange).
 NUTS concentrates mass at the dominant component ($D = 3.0\;\umsmm$ in normal
 tissue), whereas MAP (ridge regression) smooths across adjacent bins due to
 the $L_2$ penalty.
-The cohort-averaged posterior coefficient of variation (CV) from NUTS is
-annotated above the normal-PZ panel: only $D = 0.25\;\umsmm$ (CV = 0.20) and
-$D = 3.0\;\umsmm$ (CV = 0.32) are well identified; intermediate components
-have CV $> 0.74$.
+Per-panel posterior coefficient of variation (CV $=$ posterior std / posterior
+mean), averaged over each panel's ROIs, is annotated above each subplot.
+Identifiability is tissue-dependent: in normal tissue the free-water peak
+($D = 3.0\;\umsmm$) is well resolved (PZ CV $\approx 0.19$, TZ CV $\approx 0.30$),
+whereas in tumor it loses identifiability (CV $\approx 0.55$--$0.59$); the
+restricted-diffusion bin ($D = 0.25\;\umsmm$) shows the inverse pattern,
+better identified in tumor (CV $\approx 0.12$--$0.18$) than normal
+(CV $\approx 0.17$--$0.25$).
+Intermediate bins ($D = 0.50$--$1.00\;\umsmm$) are uniformly poorly
+identified across all panels (CV $> 0.7$).
 }
 \label{fig:spectra}
 \end{figure}

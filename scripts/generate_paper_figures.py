@@ -94,62 +94,82 @@ def bootstrap_auc_ci(y, y_pred, n_boot=2000, alpha=0.05):
 # Fig 1: Spectra + Identifiability Combined
 # =========================================================================
 def fig_spectra_combined(df):
-    ident = pd.read_csv("results/biomarkers/identifiability.csv")
+    # Local font bump (~+50% over the global rcParams) per Stephan's review.
+    with mpl.rc_context({
+        "font.size": 14, "axes.labelsize": 14, "axes.titlesize": 15,
+        "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12,
+    }):
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+        zones = [("pz", "Peripheral Zone"), ("tz", "Transition Zone")]
+        legend_handles = None
 
-    zones = [("pz", "Peripheral Zone"), ("tz", "Transition Zone")]
+        # Per-panel CV: mean across that panel's ROIs of (NUTS posterior std / mean).
+        # Computed inline from features.csv columns nuts_std_D_<d> and nuts_D_<d>.
+        nuts_mean_cols = [f"nuts_{c}" for c in D_COLS]
+        nuts_std_cols = [f"nuts_std_{c}" for c in D_COLS]
 
-    for col_idx, (zone, zone_title) in enumerate(zones):
-        zdf = df[df["zone"] == zone]
+        flier_style = dict(marker="o", markersize=4, markerfacecolor="none",
+                           markeredgecolor="black", markeredgewidth=0.8, alpha=0.85)
 
-        for row_idx, (is_tumor, tissue_label) in enumerate([(False, "Normal"), (True, "Tumor")]):
-            ax = axes[row_idx, col_idx]
-            sub = zdf[zdf["is_tumor"] == is_tumor]
-            n = len(sub)
+        for col_idx, (zone, zone_title) in enumerate(zones):
+            zdf = df[df["zone"] == zone]
 
-            map_cols = [f"map_{c}" for c in D_COLS]
-            nuts_cols = [f"nuts_{c}" for c in D_COLS]
+            for row_idx, (is_tumor, tissue_label) in enumerate([(False, "Normal"), (True, "Tumor")]):
+                ax = axes[row_idx, col_idx]
+                sub = zdf[zdf["is_tumor"] == is_tumor]
+                n = len(sub)
 
-            x = np.arange(len(DIFFUSIVITIES))
-            width = 0.35
+                map_cols = [f"map_{c}" for c in D_COLS]
+                nuts_cols = [f"nuts_{c}" for c in D_COLS]
 
-            # MAP boxplot
-            map_data = [sub[c].values for c in map_cols]
-            bp_map = ax.boxplot(map_data, positions=x - width/2, widths=width*0.85,
-                                patch_artist=True, medianprops=dict(color="black", linewidth=1.2),
-                                flierprops=dict(markersize=3), manage_ticks=False)
-            for patch in bp_map["boxes"]:
-                patch.set_facecolor(MAP_COLOR); patch.set_alpha(0.5)
+                x = np.arange(len(DIFFUSIVITIES))
+                width = 0.35
 
-            # NUTS boxplot
-            nuts_data = [sub[c].values for c in nuts_cols]
-            bp_nuts = ax.boxplot(nuts_data, positions=x + width/2, widths=width*0.85,
-                                 patch_artist=True, medianprops=dict(color="black", linewidth=1.2),
-                                 flierprops=dict(markersize=3), manage_ticks=False)
-            for patch in bp_nuts["boxes"]:
-                patch.set_facecolor(NUTS_COLOR); patch.set_alpha(0.5)
+                # MAP boxplot
+                map_data = [sub[c].values for c in map_cols]
+                bp_map = ax.boxplot(
+                    map_data, positions=x - width/2, widths=width*0.85,
+                    patch_artist=True, medianprops=dict(color="black", linewidth=1.2),
+                    flierprops=flier_style, manage_ticks=False,
+                )
+                for patch in bp_map["boxes"]:
+                    patch.set_facecolor(MAP_COLOR); patch.set_alpha(0.5)
 
-            ax.set_xticks(x)
-            ax.set_xticklabels(D_LABELS, fontsize=8)
-            ax.set_xlabel("Diffusivity D (\u03bcm\u00b2/ms)")
-            ax.set_ylabel("Spectral Fraction")
-            ax.set_title(f"{tissue_label} {zone_title} (n={n})", fontweight="bold")
-            ax.set_ylim(-0.02, 0.85)
+                # NUTS boxplot
+                nuts_data = [sub[c].values for c in nuts_cols]
+                bp_nuts = ax.boxplot(
+                    nuts_data, positions=x + width/2, widths=width*0.85,
+                    patch_artist=True, medianprops=dict(color="black", linewidth=1.2),
+                    flierprops=flier_style, manage_ticks=False,
+                )
+                for patch in bp_nuts["boxes"]:
+                    patch.set_facecolor(NUTS_COLOR); patch.set_alpha(0.5)
 
-            if row_idx == 0 and col_idx == 0:
-                ax.legend([bp_map["boxes"][0], bp_nuts["boxes"][0]],
-                          ["MAP", "NUTS"], loc="upper right", framealpha=0.9)
+                ax.set_xticks(x)
+                ax.set_xticklabels(D_LABELS)
+                ax.set_xlabel("Diffusivity D (\u03bcm\u00b2/ms)")
+                ax.set_ylabel("Spectral Fraction")
+                ax.set_title(f"{tissue_label} {zone_title} (n={n})", fontweight="bold")
+                ax.set_ylim(-0.02, 0.85)
 
-            # Add CV annotation on top row only (identifiability)
-            if row_idx == 0 and col_idx == 0:
-                for i, cv in enumerate(ident["mean_CV"].values):
+                if legend_handles is None:
+                    legend_handles = [bp_map["boxes"][0], bp_nuts["boxes"][0]]
+
+                # Per-panel CV (NUTS posterior CV averaged over this panel's ROIs).
+                cv_panel = (sub[nuts_std_cols].values
+                            / np.maximum(sub[nuts_mean_cols].values, 1e-12)).mean(axis=0)
+                for i, cv in enumerate(cv_panel):
                     color = MAP_COLOR if cv < 0.4 else TUMOR_COLOR if cv > 0.7 else NUTS_COLOR
-                    ax.text(i, ax.get_ylim()[1] * 0.95, f"CV={cv:.2f}",
-                            ha="center", fontsize=6.5, color=color, fontweight="bold")
+                    ax.text(i, 0.81, f"CV={cv:.2f}",
+                            ha="center", va="top", fontsize=9,
+                            color=color, fontweight="bold")
 
-    plt.tight_layout()
-    _save(fig, "fig_spectra_combined")
+        fig.legend(legend_handles, ["MAP", "NUTS"],
+                   loc="upper center", ncol=2, frameon=True, framealpha=0.9,
+                   bbox_to_anchor=(0.5, 1.0))
+        fig.tight_layout(rect=(0, 0, 1, 0.965))
+        _save(fig, "fig_spectra_combined")
 
 
 # =========================================================================

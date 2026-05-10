@@ -70,4 +70,5 @@ For each voxel, the multi-b signal decay $\svec = [S(b_1), \ldots, S(b_{15})]^T$
 A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra.
 For the Bayesian estimates, uncertainty in the discriminant was propagated by drawing 500 Monte Carlo samples from the per-voxel posterior and passing each through the discriminant function.
 
-Example code reproducing the analyses in this work is available at \url{https://github.com/PaWeRe/spectra-estimation-dMRI}.
+Code, configuration files, and the de-identified per-ROI signal decays used in this study are openly available at \url{https://github.com/PaWeRe/spectra-estimation-dMRI}.
+The repository also packages the inference methods (closed-form ridge MAP and PyMC NUTS) so that the full pipeline can be re-run end-to-end on either the released data or new datasets.
