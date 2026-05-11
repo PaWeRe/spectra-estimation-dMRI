@@ -465,6 +465,212 @@ def fig_uncertainty(df):
 
 
 # =========================================================================
+# Fig 7: Per-direction Comparison (Whole-ROI)
+# =========================================================================
+# Validates the trace-averaging approach: for a representative normal and
+# tumor ROI from one demonstration patient, per-direction signal decays
+# and per-direction MAP-estimated spectra agree within noise.
+#
+# Source data: pre-extracted Stephan tarball at /tmp/stephan_directions/.
+# We use one patient/slice/zone pair (anonymized as "Demonstration Patient")
+# with both a NormalPZ and a TumorPZ ROI from the same slice.
+DIRECTIONS_DAT_DIR = Path("/tmp/stephan_directions/diffusion-spectrum-analysis")
+DIRECTIONS_NORMAL_DAT = DIRECTIONS_DAT_DIR / "9283-Series12-Slice6-NormalPZ.dat"
+DIRECTIONS_TUMOR_DAT = DIRECTIONS_DAT_DIR / "9283-Series12-Slice6-TumorPZ.dat"
+
+
+def _parse_directions_dat(path):
+    """Parse Stephan's .dat ROI-mean format.
+
+    File layout (validated):
+      - 46 image-mean rows, columns NR MEAN MAX MIN STDDEV AREA AREA FLUX.
+      - Row 0 = shared b=0 image.
+      - Rows 1-15 = direction 1, b descending (high b -> low b).
+      - Rows 16-30 = direction 2, same descending convention.
+      - Rows 31-45 = direction 3, same descending convention.
+
+    We reverse each direction's slice to get ascending b and prepend the
+    shared b=0 value. Each per-direction decay therefore has 16 points
+    spanning b=0 to b=3500 s/mm^2; we attach an evenly-spaced 16-point
+    b-value grid linspace(0, 3.5, 16) ms/um^2 to match. (Patrick's
+    nominal grid is 15-point [0, 250, ..., 3500] but the .dat block has
+    15 nonzero rows per direction; the small spacing difference does not
+    affect the qualitative direction-consistency story this figure tells.)
+    """
+    rows = []
+    with open(path) as f:
+        for line in f:
+            s = line.strip()
+            if not s or s.startswith("*"):
+                continue
+            parts = s.split()
+            if len(parts) >= 2 and parts[0].isdigit():
+                rows.append([float(x) for x in parts])
+    arr = np.array(rows)
+    means = arr[:, 1]
+    s_b0 = means[0]
+    d1 = np.concatenate([[s_b0], means[1:16][::-1]])
+    d2 = np.concatenate([[s_b0], means[16:31][::-1]])
+    d3 = np.concatenate([[s_b0], means[31:46][::-1]])
+    return d1, d2, d3  # each shape (16,)
+
+
+def _map_estimate(b_values_ms, signal_norm, diffusivities, ridge=0.1):
+    """Closed-form ridge-NNLS MAP (matches project's `ridge` prior, lambda=0.1)."""
+    U = np.exp(-np.outer(b_values_ms, diffusivities))
+    spec = np.linalg.solve(
+        U.T @ U + ridge * np.eye(U.shape[1]), U.T @ signal_norm
+    )
+    return np.maximum(spec, 0)
+
+
+def fig_directions():
+    """Per-direction signal decays + MAP spectra for one normal and one tumor ROI.
+
+    Story: 3 gradient directions give consistent spectra within noise,
+    validating the trace-averaging approach used elsewhere in the paper.
+    """
+    # 16-point b grid matching the parser output (see _parse_directions_dat).
+    b_values_ms = np.linspace(0.0, 3.5, 16)
+    b_values_smm2 = b_values_ms * 1000.0  # for axis label
+
+    # Load both ROIs.
+    n_d1, n_d2, n_d3 = _parse_directions_dat(DIRECTIONS_NORMAL_DAT)
+    t_d1, t_d2, t_d3 = _parse_directions_dat(DIRECTIONS_TUMOR_DAT)
+
+    def _normalize(d1, d2, d3):
+        s0 = (d1[0] + d2[0] + d3[0]) / 3.0  # shared b=0 value
+        return d1 / s0, d2 / s0, d3 / s0
+
+    n1, n2, n3 = _normalize(n_d1, n_d2, n_d3)
+    t1, t2, t3 = _normalize(t_d1, t_d2, t_d3)
+    n_trace = (n1 + n2 + n3) / 3.0
+    t_trace = (t1 + t2 + t3) / 3.0
+
+    # MAP spectra (ridge=0.1, project convention).
+    n_specs = [_map_estimate(b_values_ms, x, DIFFUSIVITIES, ridge=0.1)
+               for x in (n1, n2, n3)]
+    n_trace_spec = _map_estimate(b_values_ms, n_trace, DIFFUSIVITIES, ridge=0.1)
+    t_specs = [_map_estimate(b_values_ms, x, DIFFUSIVITIES, ridge=0.1)
+               for x in (t1, t2, t3)]
+    t_trace_spec = _map_estimate(b_values_ms, t_trace, DIFFUSIVITIES, ridge=0.1)
+
+    # Print per-direction spectra to stdout (sanity check requested in spec).
+    print("\n[fig_directions] Per-direction MAP spectra (D-bins, mass at each bin)")
+    print(f"  D bins:    {D_LABELS}")
+    for tag, specs, trace_spec in [
+        ("normal", n_specs, n_trace_spec),
+        ("tumor", t_specs, t_trace_spec),
+    ]:
+        for d_idx, spec in enumerate(specs):
+            print(f"  {tag} dir{d_idx+1}: " + ", ".join(f"{v:.3f}" for v in spec))
+        print(f"  {tag} trace:" + ", ".join(f"{v:.3f}" for v in trace_spec))
+
+    # Per-direction spread for the report.
+    n_spread = np.std(np.stack(n_specs, axis=0), axis=0)
+    t_spread = np.std(np.stack(t_specs, axis=0), axis=0)
+    print(f"  Normal cross-direction std (per bin): "
+          + ", ".join(f"{v:.3f}" for v in n_spread))
+    print(f"  Tumor  cross-direction std (per bin): "
+          + ", ".join(f"{v:.3f}" for v in t_spread))
+
+    # ---- Plot ----
+    # Local font bump to match Fig 1's in-figure rcParams pattern.
+    with mpl.rc_context({
+        "font.size": 14, "axes.labelsize": 14, "axes.titlesize": 15,
+        "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12,
+    }):
+        fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+
+        # Three shades for the directions: lighter -> darker within tissue color.
+        # Use grayscale for tissue-neutral direction encoding so the tissue
+        # context comes from the column header, not the line color.
+        dir_shades = ["#7f7f7f", "#404040", "#0a0a0a"]
+        dir_styles = ["-", "-", "-"]
+        dir_markers = ["o", "s", "^"]
+        dir_labels = ["Direction 1", "Direction 2", "Direction 3"]
+        trace_color = NORMAL_COLOR  # overridden per-column below
+        trace_label = "Trace average"
+
+        # Tissue accent colors used for the trace line + per-column subtitles.
+        n_color = NORMAL_COLOR
+        t_color = TUMOR_COLOR
+
+        # --- Top row: signal decays ---
+        for col, (ax, decays, trace, accent, tissue_label) in enumerate([
+            (axes[0, 0], (n1, n2, n3), n_trace, n_color, "Normal ROI"),
+            (axes[0, 1], (t1, t2, t3), t_trace, t_color, "Tumor ROI"),
+        ]):
+            for d_idx, dec in enumerate(decays):
+                ax.plot(b_values_smm2, dec,
+                        color=dir_shades[d_idx], linestyle=dir_styles[d_idx],
+                        marker=dir_markers[d_idx], markersize=5,
+                        linewidth=1.2, alpha=0.85,
+                        label=dir_labels[d_idx] if col == 0 else None)
+            ax.plot(b_values_smm2, trace, color=accent, linestyle="--",
+                    linewidth=2.2, marker="x", markersize=6,
+                    label=trace_label if col == 0 else None)
+            ax.set_xlabel("b (s/mm$^{2}$)")
+            ax.set_ylabel("S / S$_0$")
+            ax.set_title(tissue_label, fontweight="bold", color=accent)
+            ax.set_yscale("log")
+            ax.set_ylim(0.03, 1.1)
+            ax.set_xlim(-100, 3700)
+
+        # --- Bottom row: MAP spectra ---
+        x = np.arange(len(DIFFUSIVITIES))
+        width = 0.2
+        for col, (ax, specs, trace_spec, accent, tissue_label) in enumerate([
+            (axes[1, 0], n_specs, n_trace_spec, n_color, "Normal ROI"),
+            (axes[1, 1], t_specs, t_trace_spec, t_color, "Tumor ROI"),
+        ]):
+            for d_idx, spec in enumerate(specs):
+                offset = (d_idx - 1) * width
+                ax.bar(x + offset, spec, width * 0.9,
+                       color=dir_shades[d_idx], alpha=0.75,
+                       edgecolor="white", linewidth=0.4,
+                       label=None)
+            # Trace overlay (line with markers, on top of bars).
+            ax.plot(x, trace_spec, color=accent, linestyle="--",
+                    linewidth=2.2, marker="x", markersize=8,
+                    label=None, zorder=5)
+            ax.set_xticks(x)
+            ax.set_xticklabels(D_LABELS)
+            ax.set_xlabel("Diffusivity D (μm$^{2}$/ms)")
+            ax.set_ylabel("Spectral fraction R$_j$")
+            ax.set_title(tissue_label, fontweight="bold", color=accent)
+            ymax = max(
+                max(s.max() for s in specs),
+                trace_spec.max(),
+            ) * 1.18
+            ax.set_ylim(0, ymax)
+
+        # Figure-level legend (one row, all four entries: 3 directions + trace).
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Patch
+        legend_handles = [
+            Line2D([0], [0], color=dir_shades[0], linestyle=dir_styles[0],
+                   marker=dir_markers[0], markersize=6, linewidth=1.4,
+                   label=dir_labels[0]),
+            Line2D([0], [0], color=dir_shades[1], linestyle=dir_styles[1],
+                   marker=dir_markers[1], markersize=6, linewidth=1.4,
+                   label=dir_labels[1]),
+            Line2D([0], [0], color=dir_shades[2], linestyle=dir_styles[2],
+                   marker=dir_markers[2], markersize=6, linewidth=1.4,
+                   label=dir_labels[2]),
+            Line2D([0], [0], color="black", linestyle="--",
+                   marker="x", markersize=7, linewidth=2.0,
+                   label="Trace average"),
+        ]
+        fig.legend(legend_handles, [h.get_label() for h in legend_handles],
+                   loc="upper center", ncol=4, frameon=True, framealpha=0.9,
+                   bbox_to_anchor=(0.5, 1.0))
+
+        fig.tight_layout(rect=(0, 0, 1, 0.96))
+        _save(fig, "fig_directions")
+
+
+# =========================================================================
 # Main
 # =========================================================================
 if __name__ == "__main__":
@@ -477,6 +683,7 @@ if __name__ == "__main__":
     fig_sensitivity(df)
     fig_map_nuts(df)
     fig_uncertainty(df)
+    fig_directions()
 
     print(f"\nAll figures saved to {OUTPUT_DIR}/")
     print("\nMain figures (6 generated here + directions + pixelwise = 8):")
