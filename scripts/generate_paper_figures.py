@@ -176,73 +176,90 @@ def fig_spectra_combined(df):
 # Fig 2: ROC Curves With Individual Components
 # =========================================================================
 def fig_roc(df):
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    map_cols = [f"map_{c}" for c in D_COLS]
+    # Local font bump (~+50% over the global rcParams) to match Fig 1 styling.
+    with mpl.rc_context({
+        "font.size": 14, "axes.labelsize": 14, "axes.titlesize": 15,
+        "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 10,
+    }):
+        # 2x2 layout (PZ, TZ, GGG, blank) so each panel matches Fig 1's
+        # aspect ratio when rendered at \linewidth in the manuscript.
+        fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+        axes_flat = axes.flatten()
+        map_cols = [f"map_{c}" for c in D_COLS]
 
-    # Component colors (consistent warm-to-cool)
-    comp_cmap = plt.cm.coolwarm
-    comp_colors = [comp_cmap(i / (len(DIFFUSIVITIES)-1)) for i in range(len(DIFFUSIVITIES))]
+        # Component colors (consistent warm-to-cool)
+        comp_cmap = plt.cm.coolwarm
+        comp_colors = [comp_cmap(i / (len(DIFFUSIVITIES)-1)) for i in range(len(DIFFUSIVITIES))]
 
-    tasks = [
-        ("PZ: Tumor Detection", df[df["zone"] == "pz"], "is_tumor"),
-        ("TZ: Tumor Detection", df[df["zone"] == "tz"], "is_tumor"),
-    ]
-    ggg_df = df[(df["is_tumor"]) & (df["ggg"].notna()) & (df["ggg"] != 0)].copy()
-    ggg_df["ggg_binary"] = (ggg_df["ggg"] >= 3).astype(int)
-    tasks.append(("GGG: Grade Classification", ggg_df, "ggg_binary"))
+        tasks = [
+            ("PZ: Tumor Detection", df[df["zone"] == "pz"], "is_tumor"),
+            ("TZ: Tumor Detection", df[df["zone"] == "tz"], "is_tumor"),
+        ]
+        ggg_df = df[(df["is_tumor"]) & (df["ggg"].notna()) & (df["ggg"] != 0)].copy()
+        ggg_df["ggg_binary"] = (ggg_df["ggg"] >= 3).astype(int)
+        tasks.append(("GGG: Grade Classification", ggg_df, "ggg_binary"))
 
-    for ax, (title, tdf, label_col) in zip(axes, tasks):
-        y = tdf[label_col].astype(int).values
-        n = len(y)
+        for ax, (title, tdf, label_col) in zip(axes_flat[:3], tasks):
+            y = tdf[label_col].astype(int).values
+            n = len(y)
 
-        # Individual components (thin lines)
-        for i, d in enumerate(DIFFUSIVITIES):
-            feat_col = f"map_{D_COLS[i]}"
-            vals = tdf[feat_col].values
-            auc_val = roc_auc_score(y, vals)
-            if auc_val < 0.5:
-                vals = -vals; auc_val = 1 - auc_val
-            fpr, tpr, _ = roc_curve(y, vals)
-            ax.plot(fpr, tpr, color=comp_colors[i], linewidth=0.8, alpha=0.6,
-                    label=f"D={d} ({auc_val:.2f})")
+            # Individual components (thin lines) — per-component AUC restored
+            # to anchor pairwise comparison; CIs reserved for the 3 thick lines.
+            for i, d in enumerate(DIFFUSIVITIES):
+                feat_col = f"map_{D_COLS[i]}"
+                vals = tdf[feat_col].values
+                auc_val = roc_auc_score(y, vals)
+                if auc_val < 0.5:
+                    vals = -vals; auc_val = 1 - auc_val
+                fpr, tpr, _ = roc_curve(y, vals)
+                ax.plot(fpr, tpr, color=comp_colors[i], linewidth=0.8, alpha=0.6,
+                        label=f"D={d} ({auc_val:.2f})")
 
-        # ADC raw rank (thick blue)
-        adc_vals = tdf["adc"].values
-        adc_auc = roc_auc_score(y, adc_vals)
-        if adc_auc < 0.5: adc_vals = -adc_vals; adc_auc = 1 - adc_auc
-        fpr_a, tpr_a, _ = roc_curve(y, adc_vals)
-        ci_lo, ci_hi = bootstrap_auc_ci(y, adc_vals if adc_auc == roc_auc_score(y, adc_vals) else -adc_vals)
-        ax.plot(fpr_a, tpr_a, color=ADC_COLOR, linewidth=2.5,
-                label=f"ADC ({adc_auc:.3f} [{ci_lo:.2f}-{ci_hi:.2f}])")
+            # ADC raw rank (thick blue). Flip sign if AUC < 0.5 so high score
+            # always means tumor; bootstrap CI is then computed on the flipped
+            # direction (avoids a float-equality bug in the original code).
+            adc_vals = tdf["adc"].values
+            adc_auc = roc_auc_score(y, adc_vals)
+            if adc_auc < 0.5:
+                adc_vals = -adc_vals
+                adc_auc = 1 - adc_auc
+            fpr_a, tpr_a, _ = roc_curve(y, adc_vals)
+            ci_lo, ci_hi = bootstrap_auc_ci(y, adc_vals)
+            ax.plot(fpr_a, tpr_a, color=ADC_COLOR, linewidth=3,
+                    label=f"ADC ({adc_auc:.3f} [{ci_lo:.2f}-{ci_hi:.2f}])")
 
-        # MAP Full LR (thick green)
-        X_map = tdf[map_cols].values
-        map_pred = loocv_roc(X_map, y, C=1.0)
-        map_auc = roc_auc_score(y, map_pred)
-        ci_lo, ci_hi = bootstrap_auc_ci(y, map_pred)
-        fpr_m, tpr_m, _ = roc_curve(y, map_pred)
-        ax.plot(fpr_m, tpr_m, color=MAP_COLOR, linewidth=2,
-                label=f"MAP 8-feat ({map_auc:.3f} [{ci_lo:.2f}-{ci_hi:.2f}])")
+            # MAP Full LR (thick green)
+            X_map = tdf[map_cols].values
+            map_pred = loocv_roc(X_map, y, C=1.0)
+            map_auc = roc_auc_score(y, map_pred)
+            ci_lo, ci_hi = bootstrap_auc_ci(y, map_pred)
+            fpr_m, tpr_m, _ = roc_curve(y, map_pred)
+            ax.plot(fpr_m, tpr_m, color=MAP_COLOR, linewidth=2.5,
+                    label=f"MAP 8-feat ({map_auc:.3f} [{ci_lo:.2f}-{ci_hi:.2f}])")
 
-        # NUTS Full LR (thick orange)
-        nuts_cols_list = [f"nuts_{c}" for c in D_COLS]
-        X_nuts = tdf[nuts_cols_list].values
-        nuts_pred = loocv_roc(X_nuts, y, C=1.0)
-        nuts_auc = roc_auc_score(y, nuts_pred)
-        ci_lo, ci_hi = bootstrap_auc_ci(y, nuts_pred)
-        fpr_n, tpr_n, _ = roc_curve(y, nuts_pred)
-        ax.plot(fpr_n, tpr_n, color=NUTS_COLOR, linewidth=2, linestyle="--",
-                label=f"NUTS 8-feat ({nuts_auc:.3f} [{ci_lo:.2f}-{ci_hi:.2f}])")
+            # NUTS Full LR (thick orange, dashed)
+            nuts_cols_list = [f"nuts_{c}" for c in D_COLS]
+            X_nuts = tdf[nuts_cols_list].values
+            nuts_pred = loocv_roc(X_nuts, y, C=1.0)
+            nuts_auc = roc_auc_score(y, nuts_pred)
+            ci_lo, ci_hi = bootstrap_auc_ci(y, nuts_pred)
+            fpr_n, tpr_n, _ = roc_curve(y, nuts_pred)
+            ax.plot(fpr_n, tpr_n, color=NUTS_COLOR, linewidth=2.5, linestyle="--",
+                    label=f"NUTS 8-feat ({nuts_auc:.3f} [{ci_lo:.2f}-{ci_hi:.2f}])")
 
-        ax.plot([0, 1], [0, 1], "k--", alpha=0.2, linewidth=0.5)
-        ax.set_xlabel("False Positive Rate")
-        ax.set_ylabel("True Positive Rate")
-        ax.set_title(f"{title} (n={n})", fontweight="bold", fontsize=11)
-        ax.legend(loc="lower right", fontsize=6.5, framealpha=0.9)
-        ax.set_xlim(-0.02, 1.02); ax.set_ylim(-0.02, 1.02)
+            ax.plot([0, 1], [0, 1], "k--", alpha=0.2, linewidth=0.5)
+            ax.set_xlabel("False Positive Rate")
+            ax.set_ylabel("True Positive Rate")
+            ax.set_title(f"{title} (n={n})", fontweight="bold")
+            ax.legend(loc="lower right", framealpha=0.9)
+            ax.set_xlim(-0.02, 1.02); ax.set_ylim(-0.02, 1.02)
+            ax.grid(False)
 
-    plt.tight_layout()
-    _save(fig, "fig_roc")
+        # Hide the unused fourth quadrant.
+        axes_flat[3].axis("off")
+
+        fig.tight_layout()
+        _save(fig, "fig_roc")
 
 
 # =========================================================================
