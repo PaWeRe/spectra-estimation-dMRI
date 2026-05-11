@@ -176,10 +176,12 @@ def fig_spectra_combined(df):
 # Fig 2: ROC Curves With Individual Components
 # =========================================================================
 def fig_roc(df):
-    # Local font bump (~+50% over the global rcParams) to match Fig 1 styling.
+    # Aggressive font bump — larger than Fig 1's because ROC panels have
+    # less visual weight (thin spider-web lines vs Fig 1's bold boxplots),
+    # so the surrounding text needs to be proportionally bigger to read.
     with mpl.rc_context({
-        "font.size": 14, "axes.labelsize": 14, "axes.titlesize": 15,
-        "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 10,
+        "font.size": 20, "axes.labelsize": 20, "axes.titlesize": 21,
+        "xtick.labelsize": 17, "ytick.labelsize": 17, "legend.fontsize": 15,
     }):
         # 2x2 layout (PZ, TZ, GGG, blank) so each panel matches Fig 1's
         # aspect ratio when rendered at \linewidth in the manuscript.
@@ -187,8 +189,11 @@ def fig_roc(df):
         axes_flat = axes.flatten()
         map_cols = [f"map_{c}" for c in D_COLS]
 
-        # Component colors (consistent warm-to-cool)
-        comp_cmap = plt.cm.coolwarm
+        # Component colors. `coolwarm` fades to near-white in the middle which
+        # made D=1.0 invisible (and easy to confuse with other lines).
+        # `viridis` keeps saturation across the full range so every curve is
+        # clearly distinguishable.
+        comp_cmap = plt.cm.viridis
         comp_colors = [comp_cmap(i / (len(DIFFUSIVITIES)-1)) for i in range(len(DIFFUSIVITIES))]
 
         tasks = [
@@ -212,7 +217,7 @@ def fig_roc(df):
                 if auc_val < 0.5:
                     vals = -vals; auc_val = 1 - auc_val
                 fpr, tpr, _ = roc_curve(y, vals)
-                ax.plot(fpr, tpr, color=comp_colors[i], linewidth=0.8, alpha=0.6,
+                ax.plot(fpr, tpr, color=comp_colors[i], linewidth=1.6, alpha=0.9,
                         label=f"D={d} ({auc_val:.2f})")
 
             # ADC raw rank (thick blue). Flip sign if AUC < 0.5 so high score
