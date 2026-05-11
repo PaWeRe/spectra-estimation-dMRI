@@ -465,6 +465,348 @@ def fig_uncertainty(df):
 
 
 # =========================================================================
+# Fig 7: Per-direction Comparison (Whole-ROI)
+# =========================================================================
+# Validates the trace-averaging approach: for a representative normal and
+# tumor ROI from one demonstration patient, per-direction signal decays
+# and per-direction MAP-estimated spectra agree within noise.
+#
+# Source data: pre-extracted Stephan tarball at /tmp/stephan_directions/.
+# We use one patient/slice/zone pair (anonymized as "Demonstration Patient")
+# with both a NormalPZ and a TumorPZ ROI from the same slice.
+DIRECTIONS_DAT_DIR = Path("/tmp/stephan_directions/diffusion-spectrum-analysis")
+DIRECTIONS_NORMAL_DAT = DIRECTIONS_DAT_DIR / "9283-Series12-Slice6-NormalPZ.dat"
+DIRECTIONS_TUMOR_DAT = DIRECTIONS_DAT_DIR / "9283-Series12-Slice6-TumorPZ.dat"
+
+
+def _parse_directions_dat(path):
+    """Parse Stephan's .dat ROI-mean format.
+
+    File layout (matches the project's pixel-binary pipeline; see
+    `scripts/direction_comparison.py:68-107` for the analogue):
+
+      - 46 image-mean rows, columns NR MEAN MAX MIN STDDEV AREA AREA FLUX.
+      - Row 0 (image 1) = scanner reference / calibration scan (NOT
+        protocol b=0). It is ~20% brighter than protocol b=0 and is dropped
+        — same convention as the pixel-binary loader.
+      - Rows 1-15 (images 2-16)  = direction 1, b descending 3500 -> 0.
+      - Rows 16-30 (images 17-31) = direction 2, same descending order.
+      - Rows 31-45 (images 32-46) = direction 3, same descending order.
+
+    Each per-direction block ends with its own protocol b=0. After
+    reversing, each direction yields a 15-point decay on the canonical
+    b-grid [0, 250, ..., 3500] s/mm^2 — exactly matching the project
+    grid in CLAUDE.md's critical parameters table.
+    """
+    rows = []
+    with open(path) as f:
+        for line in f:
+            s = line.strip()
+            if not s or s.startswith("*"):
+                continue
+            parts = s.split()
+            if len(parts) >= 2 and parts[0].isdigit():
+                rows.append([float(x) for x in parts])
+    arr = np.array(rows)              # shape (46, 8)
+    means = arr[:, 1]                 # MEAN column
+
+    # DROP image 1 (scanner reference). Reverse each 15-row block to get
+    # b ascending 0 -> 3500. Each block's last raw row is protocol b=0.
+    d1 = means[1:16][::-1]   # 15 values, b=[0, 250, ..., 3500]
+    d2 = means[16:31][::-1]
+    d3 = means[31:46][::-1]
+    return d1, d2, d3        # each shape (15,)
+
+
+def fig_directions():
+    """Per-direction NUTS posterior spectra (MAP overlay) for one normal
+    and one tumor ROI.
+
+    Story: per-direction spectra agree within posterior uncertainty,
+    validating the trace-averaging convention used elsewhere. The three
+    per-direction posteriors collectively *are* the trace — no separate
+    trace overlay is needed.
+
+    Layout: 1x2 (spectra only — Normal left, Tumor right).
+      Each panel shows three NUTS posteriors (one per gradient direction)
+      as colored mean lines with 95% credible bands, plus the corresponding
+      MAP point estimates as discrete jittered circular markers.
+
+    NUTS cache: results from the 6 NUTS runs (3 directions x 2 ROIs) are
+    cached to /tmp/fig_directions_nuts.npz on first run. To force a clean
+    recompute (e.g. after changing inputs/parameters), simply delete the
+    cache file:
+
+        rm /tmp/fig_directions_nuts.npz
+
+    Inputs are Stephan's whole-ROI mean .dat files for a single
+    demonstration patient (one NormalPZ and one TumorPZ on the same slice).
+    """
+    # Canonical 15-point project b-grid (CLAUDE.md). Parser drops the
+    # scanner-reference calibration so each direction has its own
+    # protocol b=0 at index 0.
+    b_values_smm2 = np.array([0, 250, 500, 750, 1000, 1250, 1500, 1750,
+                              2000, 2250, 2500, 2750, 3000, 3250, 3500],
+                             dtype=float)
+    b_values_ms = b_values_smm2 / 1000.0  # convert s/mm^2 -> ms/um^2
+
+    # ---- Parser sanity (per spec) ----
+    # Load raw (un-normalized) decays per direction so we can verify the
+    # calibration vs protocol-b=0 relationship and pass raw signals to
+    # run_nuts_pixel (which normalizes internally).
+    def _raw_means(path):
+        rows = []
+        with open(path) as f:
+            for line in f:
+                s = line.strip()
+                if not s or s.startswith("*"):
+                    continue
+                parts = s.split()
+                if len(parts) >= 2 and parts[0].isdigit():
+                    rows.append([float(x) for x in parts])
+        return np.array(rows)[:, 1]
+
+    n_means = _raw_means(DIRECTIONS_NORMAL_DAT)
+    t_means = _raw_means(DIRECTIONS_TUMOR_DAT)
+    normal_calib = n_means[0]
+    tumor_calib = t_means[0]
+    normal_b0_trace = (n_means[15] + n_means[30] + n_means[45]) / 3.0
+    tumor_b0_trace = (t_means[15] + t_means[30] + t_means[45]) / 3.0
+    print("\n[fig_directions] Parser sanity")
+    print("  Calibration vs protocol b=0:")
+    print(f"    Normal: img1={normal_calib:.1f}, mean_b0={normal_b0_trace:.1f}, "
+          f"ratio={normal_calib/normal_b0_trace:.3f}")
+    print(f"    Tumor:  img1={tumor_calib:.1f}, mean_b0={tumor_b0_trace:.1f}, "
+          f"ratio={tumor_calib/tumor_b0_trace:.3f}")
+    # Per-direction b=0 agreement (should be within ~1-2%).
+    for tag, arr, trace_b0 in [("Normal", n_means, normal_b0_trace),
+                                ("Tumor ", t_means, tumor_b0_trace)]:
+        rel = [abs(arr[idx] - trace_b0) / trace_b0 for idx in (15, 30, 45)]
+        print(f"  {tag} per-direction b=0 |delta|/mean = "
+              + ", ".join(f"{r*100:.2f}%" for r in rel))
+
+    # ---- Load reversed per-direction decays (15 b-values, b ascending) ----
+    n_d1, n_d2, n_d3 = _parse_directions_dat(DIRECTIONS_NORMAL_DAT)
+    t_d1, t_d2, t_d3 = _parse_directions_dat(DIRECTIONS_TUMOR_DAT)
+    # Trace decays still computed for parser sanity (not plotted).
+    n_trace_raw = (n_d1 + n_d2 + n_d3) / 3.0
+    t_trace_raw = (t_d1 + t_d2 + t_d3) / 3.0
+
+    # Normalized per-direction signals (each by its own b=0). Used for both
+    # the canonical MAP call and the closed-form parity check.
+    n1 = n_d1 / n_d1[0]; n2 = n_d2 / n_d2[0]; n3 = n_d3 / n_d3[0]
+    t1 = t_d1 / t_d1[0]; t2 = t_d2 / t_d2[0]; t3 = t_d3 / t_d3[0]
+
+    # ---- MAP spectra via the project's canonical entry point ----
+    # ProbabilisticModel.U_matrix() does np.exp(-np.outer(b_values, diffusivities)),
+    # so b_values MUST be in ms/um^2 (= s/mm^2 / 1000) to match the
+    # dimensionless decay model. Passing s/mm^2 here would produce all-but-
+    # constant spectra — verified by the parity check below.
+    from spectra_estimation_dmri.models.prob_model import ProbabilisticModel
+    from types import SimpleNamespace
+
+    def _project_map(signal_norm):
+        prior_cfg = SimpleNamespace(type="ridge", strength=0.1)
+        model = ProbabilisticModel(
+            b_values=b_values_ms.tolist(),
+            diffusivities=DIFFUSIVITIES.tolist(),
+            prior_config=prior_cfg,
+        )
+        return model.map_estimate(signal_norm)
+
+    n_specs = [_project_map(x) for x in (n1, n2, n3)]
+    t_specs = [_project_map(x) for x in (t1, t2, t3)]
+
+    # ---- One-shot parity check: project MAP vs old closed-form ridge ----
+    # (Sanity per spec: should match to ~1e-10. If much bigger, units bug.)
+    def _legacy_closed_form_map(signal_norm, ridge=0.1):
+        U = np.exp(-np.outer(b_values_ms, DIFFUSIVITIES))
+        spec = np.linalg.solve(
+            U.T @ U + ridge * np.eye(U.shape[1]), U.T @ signal_norm
+        )
+        return np.maximum(spec, 0)
+
+    legacy_n1 = _legacy_closed_form_map(n1, ridge=0.1)
+    parity_delta = float(np.abs(legacy_n1 - n_specs[0]).max())
+    print(f"\n[fig_directions] MAP parity check (project vs legacy closed-form):")
+    print(f"  max |Delta| on Normal dir1: {parity_delta:.3e}")
+    if parity_delta > 1e-3:
+        raise RuntimeError(
+            f"MAP parity check FAILED: max |Delta|={parity_delta:.3e}. "
+            f"Likely a b-value unit error in ProbabilisticModel input."
+        )
+
+    # ---- NUTS posterior per direction (6 runs total, cached on disk) ----
+    # Pass raw (un-normalized) signal; run_nuts_pixel normalizes internally.
+    from spectra_estimation_dmri.pixelwise import run_nuts_pixel
+    U_design = np.exp(-np.outer(b_values_ms, DIFFUSIVITIES))
+
+    CACHE = Path("/tmp/fig_directions_nuts.npz")
+    nuts_inputs = {
+        "n_d1": n_d1, "n_d2": n_d2, "n_d3": n_d3,
+        "t_d1": t_d1, "t_d2": t_d2, "t_d3": t_d3,
+    }
+
+    def _run_or_load_nuts():
+        """Returns dict mapping key -> result dict (spectrum_mean, ..., r_hat_max)."""
+        if CACHE.exists():
+            print(f"[fig_directions] Loaded NUTS cache from {CACHE}")
+            data = np.load(CACHE, allow_pickle=True)
+            results = {}
+            for key in nuts_inputs:
+                r = {}
+                for field in ("spectrum_mean", "spectrum_std",
+                              "sigma_mean", "sigma_std", "snr", "r_hat_max"):
+                    arr = data[f"{key}__{field}"]
+                    # 0-d arrays -> scalar; 1-d arrays stay arrays.
+                    r[field] = arr.item() if arr.ndim == 0 else arr
+                results[key] = r
+            return results
+
+        print(f"[fig_directions] Cache miss — running 6 NUTS samplers (~3 min)")
+        results = {}
+        for key, raw_sig in nuts_inputs.items():
+            results[key] = run_nuts_pixel(
+                signal=raw_sig,
+                U=U_design,
+                ridge_strength=0.1,
+                n_draws=2000, n_tune=200, n_chains=4, target_accept=0.95,
+                random_seed=42,
+            )
+        # Persist for next run.
+        flat = {}
+        for key, r in results.items():
+            for field, val in r.items():
+                flat[f"{key}__{field}"] = np.asarray(val)
+        np.savez(CACHE, **flat)
+        print(f"[fig_directions] Saved NUTS cache to {CACHE}")
+        return results
+
+    nuts_results = _run_or_load_nuts()
+    n_nuts = [nuts_results["n_d1"], nuts_results["n_d2"], nuts_results["n_d3"]]
+    t_nuts = [nuts_results["t_d1"], nuts_results["t_d2"], nuts_results["t_d3"]]
+
+    # ---- NUTS convergence printout (6 runs) ----
+    print("\n[fig_directions] NUTS convergence (R-hat max) and D=0.25 posterior:")
+    rhat_all = []
+    for roi_name, dir_results in [("Normal", n_nuts), ("Tumor", t_nuts)]:
+        for d, res in enumerate(dir_results, 1):
+            rhat_all.append(float(res["r_hat_max"]))
+            print(f"  {roi_name} dir{d}: R-hat_max={float(res['r_hat_max']):.3f}, "
+                  f"D=0.25 mean={res['spectrum_mean'][0]:.3f} "
+                  f"+- {res['spectrum_std'][0]:.3f}")
+    print(f"  Overall R-hat max across 6 runs: {max(rhat_all):.3f}")
+
+    # ---- MAP vs NUTS comparison ----
+    print("\n[fig_directions] MAP vs NUTS posterior mean (max |Delta|):")
+    clinical_idx = [i for i, d in enumerate(DIFFUSIVITIES) if d <= 3.0]
+    for roi_name, maps, nuts_list in [
+        ("Normal", n_specs, n_nuts), ("Tumor", t_specs, t_nuts)
+    ]:
+        for d_i, (m, n) in enumerate(zip(maps, nuts_list), 1):
+            diff = np.abs(m - n["spectrum_mean"])
+            clin_max = diff[clinical_idx].max()
+            all_max = diff.max()
+            print(f"  {roi_name} dir{d_i}: max |Delta| clinical(D<=3)={clin_max:.3f}, "
+                  f"all-bins={all_max:.3f}")
+
+    # Per-direction MAP spread (useful for caption).
+    n_spread = np.std(np.stack(n_specs, axis=0), axis=0)
+    t_spread = np.std(np.stack(t_specs, axis=0), axis=0)
+    print(f"  Normal cross-direction MAP std (per bin): "
+          + ", ".join(f"{v:.3f}" for v in n_spread))
+    print(f"  Tumor  cross-direction MAP std (per bin): "
+          + ", ".join(f"{v:.3f}" for v in t_spread))
+
+    # ---- Plot (1x2: spectra only) ----
+    # Three colorblind-safe-ish colors distinct from the tissue palette
+    # (blue NORMAL_COLOR / red TUMOR_COLOR) and the inference palette
+    # (green MAP_COLOR / orange NUTS_COLOR): purple, magenta, teal-green.
+    DIR_COLORS = ["#5e3c99", "#d01c8b", "#1a9850"]
+    dir_labels = ["Direction 1", "Direction 2", "Direction 3"]
+    n_color = NORMAL_COLOR
+    t_color = TUMOR_COLOR
+
+    with mpl.rc_context({
+        "font.size": 14, "axes.labelsize": 14, "axes.titlesize": 15,
+        "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12,
+    }):
+        fig, axes = plt.subplots(1, 2, figsize=(13, 5.2))
+        x = np.arange(len(DIFFUSIVITIES), dtype=float)
+
+        for ax, nuts_list, maps, accent, tissue_label in [
+            (axes[0], n_nuts, n_specs, n_color, "Normal ROI"),
+            (axes[1], t_nuts, t_specs, t_color, "Tumor ROI"),
+        ]:
+            for d_idx, (res, map_spec) in enumerate(zip(nuts_list, maps)):
+                color = DIR_COLORS[d_idx]
+                mu = np.asarray(res["spectrum_mean"])
+                sd = np.asarray(res["spectrum_std"])
+                lo = np.maximum(mu - 1.96 * sd, 0.0)
+                hi = mu + 1.96 * sd
+
+                # 95% credible band per direction.
+                ax.fill_between(x, lo, hi, color=color, alpha=0.18,
+                                linewidth=0)
+                # NUTS posterior mean as a solid line (no markers, so it
+                # reads as a continuous summary curve).
+                ax.plot(x, mu, color=color, linewidth=1.8, alpha=0.95)
+
+                # MAP markers — discrete circles ONLY (no connecting line),
+                # x-jittered so all three directions are individually
+                # visible at each D-bin instead of stacking on top of each
+                # other.
+                x_jit = x + (d_idx - 1) * 0.15
+                ax.plot(x_jit, map_spec,
+                        linestyle="none",
+                        marker="o", markersize=7,
+                        markerfacecolor=color,
+                        markeredgecolor="black", markeredgewidth=0.8,
+                        alpha=0.95, zorder=6)
+
+            ax.set_xticks(x)
+            ax.set_xticklabels(D_LABELS)
+            ax.set_xlabel("Diffusivity D (μm$^{2}$/ms)")
+            ax.set_ylabel("Spectral fraction R$_j$")
+            ax.set_title(tissue_label, fontweight="bold", color=accent)
+            ymax = max(
+                max((np.asarray(r["spectrum_mean"])
+                     + 1.96 * np.asarray(r["spectrum_std"])).max()
+                    for r in nuts_list),
+                max(s.max() for s in maps),
+            ) * 1.18
+            ax.set_ylim(0, ymax)
+
+        # Figure-level legend: 3 directions + MAP marker + NUTS band.
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Patch
+        legend_handles = []
+        for d_idx in range(3):
+            legend_handles.append(
+                Line2D([0], [0], color=DIR_COLORS[d_idx], linewidth=2.0,
+                       marker="o", markersize=7,
+                       markerfacecolor=DIR_COLORS[d_idx],
+                       markeredgecolor="black", markeredgewidth=0.8,
+                       label=dir_labels[d_idx])
+            )
+        legend_handles.append(
+            Line2D([0], [0], color="black", linestyle="none",
+                   marker="o", markersize=7,
+                   markerfacecolor="white", markeredgecolor="black",
+                   markeredgewidth=0.8, label="MAP estimate")
+        )
+        legend_handles.append(
+            Patch(facecolor="#888888", alpha=0.25, label="NUTS 95% CI")
+        )
+        fig.legend(legend_handles, [h.get_label() for h in legend_handles],
+                   loc="upper center", ncol=5, frameon=True, framealpha=0.9,
+                   bbox_to_anchor=(0.5, 1.02))
+
+        fig.tight_layout(rect=(0, 0, 1, 0.93))
+        _save(fig, "fig_directions")
+
+
+# =========================================================================
 # Main
 # =========================================================================
 if __name__ == "__main__":
@@ -477,6 +819,7 @@ if __name__ == "__main__":
     fig_sensitivity(df)
     fig_map_nuts(df)
     fig_uncertainty(df)
+    fig_directions()
 
     print(f"\nAll figures saved to {OUTPUT_DIR}/")
     print("\nMain figures (6 generated here + directions + pixelwise = 8):")
