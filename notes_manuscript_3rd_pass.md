@@ -25,21 +25,71 @@ Most of the manuscript is in good shape; we are hardening, not rewriting.
 These are the items where the current manuscript is at risk of being wrong, not
 just unclear. They should be triaged before any cosmetic figure work.
 
-1. **[P1] Logistic-regression-vs-individual-feature paradox.** In Fig 2 (and
-   the AUC table), single spectral fractions sometimes beat the optimized
-   LOOCV-LR classifier. That is mathematically suspicious — an LR fit on the
-   full feature set should be at least as good as its best single coordinate on
-   the training fold, and shouldn't be _much_ worse out-of-fold unless we are
-   over-regularizing, leaking labels in scaling, or computing the AUC on
-   different sample sets. This casts doubt on the central
-   "discriminant" narrative. Verify:
-   - LOOCV pipeline: scaler/regularizer fit inside vs. outside fold.
-   - Regularization strength (C grid) and whether unregularized LR can match
-     the best single feature.
-   - Whether the "best feature" AUC and the "LR AUC" are computed on the same
-     ROI list (PZ / TZ subsets).
-   - Whether non-identifiable bins are silently dominating the LR fit via the
-     prior/regularizer (see also point 3 below).
+1. **[P1] Logistic-regression-vs-individual-feature paradox — RESOLVED
+   (mechanism identified, fix pending).** Empirical check on the current
+   `features.csv` (149 ROIs) confirms the asymmetry and pins it to a
+   methodology mismatch in `scripts/generate_paper_figures.py:213–253`:
+   per-component AUCs in Fig 2 are computed **in-sample** with
+   `roc_auc_score(y, df["map_{d}"].values)` over the full PZ / TZ / GGG
+   subset; the 8-feature LR AUCs on the same panel are computed
+   **out-of-fold via LOOCV** (`loocv_roc(...)`).
+   For a single feature with no learnable parameters this asymmetry is
+   harmless (in-sample AUC equals LOOCV AUC since the held-out prediction
+   is just the raw value), but for an 8-dim LR it isn't: the LR
+   in-sample AUC almost exactly matches the best single bin (PZ
+   0.949 vs 0.947), but LOOCV LR drops to 0.919 because the extra 7
+   coefficients overfit at N = 81.
+
+   Verified numbers (MAP features, current `features.csv`):
+
+   | | PZ tumor | TZ tumor | GGG |
+   | --- | ---: | ---: | ---: |
+   | Best single MAP fraction (in-sample) | **D=0.50 → 0.947** | **D=0.50 → 0.972** | **D=0.25 → 0.817** |
+   | MAP 8-feat LR — LOOCV @ C=1.0 | 0.919 | 0.946 | 0.733 |
+   | MAP 8-feat LR — LOOCV @ C=0.1 | 0.938 | 0.950 | — |
+   | MAP 8-feat LR — **in-sample @ C=1.0** | **0.949** | **0.973** | **0.861** |
+   | ADC raw rank (in-sample, 1 feat) | 0.951 | 0.979 | 0.811 |
+
+   The pre-LOOCV bullets in the original P1 (scaler / regularizer / leakage
+   / non-identifiable bins) are not the cause: the scaler is fit inside the
+   fold (`mc_classification.py:169–175`), and the regularization grid
+   `C ∈ {0.1, 1, 10}` does not close the in-sample vs LOOCV gap.
+
+   _Implications beyond fixing the figure:_
+
+   a. **Manuscript text fix (results.tex L27).** "D = 0.25 was the
+      strongest single predictor (PZ: 0.88, TZ: 0.91)" is doubly wrong:
+      the numbers are stale (D=0.25 gives 0.90 / 0.95 on current
+      `features.csv`, not 0.88 / 0.91) AND the strongest single bin in
+      both zones is actually **D = 0.50** at 0.947 / 0.972. Either rewrite
+      around D=0.50 (and accept that the figure's strongest bin is one we
+      also called poorly identifiable — see Exec #3) or report the
+      strongest _well-identified_ bin (D=0.25 or D=3.0, which is also a
+      narrative-coherent choice) and explain the cherry-pick honestly.
+
+   b. **Narrative consequence (connects to Exec #2 and #3).** In-sample,
+      the 8-feature LR barely exceeds the best single bin
+      (PZ: 0.949 vs 0.947; TZ: 0.973 vs 0.972). That means most of the
+      discriminative information lives in 1–2 spectral coordinates, not
+      in the joint 8-vector. The "optimal multi-compartment spectral
+      classifier" framing should be softened (already flagged in Exec #2),
+      and the section that motivates the LR over a single-fraction
+      classifier needs an honest one-line statement of this.
+
+   c. **Figure fix options for Fig 2 (pick one):**
+      - **(A) Report LOOCV for everything.** For single features this
+        equals the current in-sample number, so the per-component
+        AUCs don't change; the difference is in the legend wording
+        ("AUC, LOOCV"). The LR comparison then sits on the same axis
+        without an asymmetry footnote. _My recommendation._
+      - **(B) Drop per-component lines from Fig 2** and rely on the
+        identifiability figure (Fig 1 CV annotations) plus Fig 4
+        (MAP↔NUTS) to communicate per-bin behaviour. The ROC panel
+        becomes pure LR vs ADC vs ADC-LR. Cleaner figure, but loses
+        the "which bin is doing the work" visual hook.
+      - **(C) Keep both and add a caption sentence.** Cheapest, but
+        introduces the methodology asymmetry into the paper rather
+        than out of it.
 2. **[P1] "Optimal multi-compartment spectral classifier" claim (abstract +
    discussion).** _Calling our LOOCV-LR fit "optimal" is too strong._ Optimal
    over what hypothesis class? With this sample size (149 ROIs, 40 tumor) we
@@ -47,15 +97,31 @@ just unclear. They should be triaged before any cosmetic figure work.
    "the data-driven linear combination of spectral features," and reserve
    "near-optimal-in-class" language for the spectral-discriminant ↔ ADC
    comparison only.
-3. **[P1] Identifiability vs. classifier weight.** Fig 2 shows the 0.5 and 0.75
-   bins driving PZ tumor detection (AUC ≈ 0.95) while we _also_ say those bins
-   are poorly identifiable. If the classifier is weighting bins whose values
-   are basically determined by the prior, the AUC is encoding regularizer
-   behavior, not data. Resolve by:
-   - Inspecting the LR coefficient vector for each task.
-   - Re-running with the non-identifiable bins zeroed/merged.
-   - If the AUC collapses → the current figure is misleading; if it holds →
-     the prior is doing something real and we need to say so.
+3. **[P1] Identifiability vs. classifier weight — narrowed.** Confirmed
+   empirically: the 0.50 bin gives the **highest** in-sample per-component
+   AUC in both PZ (0.947) and TZ (0.972) tumor detection, and the 0.75 bin
+   is also high. Per Exec #1 these are in-sample numbers, not LOOCV — but
+   with single features that's mathematically the same as LOOCV, so they
+   are honest. The problem is the **interpretive collision** with the
+   Results §"Per-Component Identifiability" claim that D = 0.50–1.00 have
+   posterior CV > 0.80 ("uncertainty comparable to the estimate itself").
+   Resolve by:
+   - Inspecting the LR coefficient vector for each task (still needed —
+     does the LR _also_ weight D=0.50 heavily, or does it lean on
+     well-identified bins instead?).
+   - Re-running the LR with the non-identifiable bins (D=0.50, 0.75,
+     1.00, 1.50) zeroed/merged. If LOOCV AUC stays ≥ 0.92 → the
+     well-identified bins (D=0.25, 2.0, 3.0, 20.0) carry the signal and
+     the figure's high single-bin AUC at D=0.50 is a coincidence of
+     bin-spread driven by prior. If it drops → the prior is genuinely
+     informative and we should say so explicitly.
+   - The honest reading of the joint Exec #1 + #3 evidence: a high
+     in-sample AUC on a high-CV bin is _expected_ when the bin's
+     posterior mean is correlated with disease state even though each
+     individual ROI's posterior is wide. The point estimate _separates
+     groups_ even when each estimate is _individually uncertain_. We
+     should say that in one sentence in Results rather than pretending
+     the tension doesn't exist.
 4. **[P1] SNR sanity check.** NUTS median σ across 149 ROIs gives SNR ≈ 303;
    old Gibbs-era numbers were 400–600. Either the old number was wrong (Gibbs
    used a closed-form SNR estimator with fixed voxel count, σ not jointly
@@ -84,12 +150,32 @@ just unclear. They should be triaged before any cosmetic figure work.
    either change the grid or remove the claim that the grid is informed by
    the law._ Both are defensible; mismatched theory and code is not. Check
    `configs/` for the bin definition vs the derivation in `theory.tex`.
-8. **[P1] Pixel-data provenance.** Methods currently say the pixel-wise demo
-   is on "an independent patient dataset." That is wrong: the pixel slice
-   comes from the same BWH cohort as the ROIs (just a single axial slice).
-   And the directional data is now a _different_ dataset (Stephan's recent
-   send). Fix the wording, and explicitly state which cohort each
-   pixel/direction figure draws from.
+8. **[P1] Pixel- and direction-data provenance.** Methods currently say the
+   pixel-wise demo is on "an independent patient dataset." That is wrong: the
+   pixel slice comes from the same BWH cohort as the ROIs (just a single
+   axial slice from patient `8640-sl6-bin`).
+   The directional figure was regenerated 2026-05-10 (commits 27f446b →
+   b504bbf) from a per-direction `.dat` ROI file in Stephan's recent tarball
+   `diff_spectrum_3_directions.tar.gz` (specifically `9283-Series12-Slice6-
+   {Normal,Tumor}PZ.dat`). [ASK Sandy/Stephan] — whether patient 9283 (and
+   the other tarball patients: 10203, 8804, 8805, 8864, 9322, 9675) belong
+   to the same Langkilde 2018 BWH cohort as the 56 ROIs cannot be determined
+   from the repo: BWH ROIs are stored under pseudonyms `new01..new56` with
+   no mapping back to raw study IDs. The acquisition protocol in the .dat
+   headers matches Langkilde 2018 exactly, so "same cohort, raw ID before
+   pseudonymization" is plausible but not proven. _Do not assert "different
+   dataset" until confirmed._
+   Independent of provenance, two text fixes are required regardless:
+     - Methods §"Pixel-wise and Direction-wise" (methods.tex L65) currently
+       claims both pixel and direction data come from "one patient dataset
+       acquired outside the patient cohort." This conflates two different
+       patients (8640 for pixel, 9283 for direction) and asserts an outside-
+       cohort status that isn't established for either.
+     - Fig 7 caption (`fig:directions`, figures.tex L167–177) still says
+       "representative prostate voxels from the supplementary patient" — but
+       the current figure is per-ROI mean decays, not per-voxel, and from a
+       different patient than the pixel demo. Caption needs a full rewrite
+       after we settle the provenance question.
 
 Everything below is conditional on the above being resolved (or explicitly
 deferred).
@@ -141,7 +227,13 @@ deferred).
   (NNLS) and its regularised variants" or list them as a sequence of
   increasingly constrained estimators. Trivial fix.
 - **[P1] "We demonstrate the framework at the pixel level on an independent
-  patient dataset…"** Same factual error as Exec #8. Fix here too.
+  patient dataset…"** Same factual error as Exec #8. The pixel demo is on
+  patient `8640` from the BWH source data — we have not established that
+  this patient is _outside_ the Langkilde 2018 cohort, only that they are
+  not part of the 149 ROIs (since 8640 has no `.json` ROI signal entry).
+  Reword to: "We additionally demonstrate the framework at the pixel level
+  on a single axial slice from a representative patient in the same source
+  acquisition." Pending confirmation per Exec #8.
 
 ---
 
@@ -210,7 +302,9 @@ deferred).
 ## 4. Methods
 
 - **[P1] Pixel + direction data provenance.** See Exec #8. Single most
-  important Methods fix.
+  important Methods fix. Direction figure is now per-ROI mean from patient
+  9283 (Stephan tarball); pixel figure is from patient 8640. Whether either
+  belongs to the BWH cohort is an open [ASK] item, not a known fact.
 - **[P2] How the pixel maps are computed.** Spell out explicitly: are LR
   coefficients fit once on all ROIs and then applied per-voxel? Or
   separately per zone/task? Per the note, this is currently ambiguous to
@@ -258,10 +352,14 @@ deferred).
 
 ## 5. Results
 
-- **[P1] LR-vs-individual-feature anomaly.** Exec #1. Either resolve and
-  rewrite Fig 2 + AUC table, or — if it turns out to be real — add a
-  paragraph honestly explaining what's happening (e.g., overfitting risk
-  with 40 tumor ROIs and 8 features).
+- **[P1] LR-vs-individual-feature anomaly.** Exec #1 — mechanism is the
+  in-sample-vs-LOOCV asymmetry, not a code bug. Results.tex L27 also has
+  stale single-component AUC numbers (0.88 / 0.91) that must be replaced
+  with current `features.csv` numbers (D=0.25 gives 0.90 / 0.95;
+  D=0.50 is strongest at 0.947 / 0.972). Decide single-bin to spotlight
+  and rewrite L26–27 accordingly. Connect to Exec #2 (don't call the
+  8-LR "optimal") and Exec #3 (the strongest single bin is the
+  poorly-identified one).
 - **[P2] MAP-NUTS correlation (r ≈ 0.985–0.994) is a double-edged sword.**
   3rd-pass note correctly identifies this: if MAP discriminant ≈ NUTS
   discriminant, why bother with NUTS? Options:
@@ -353,8 +451,9 @@ re-litigate per figure):
 - No changes. This is our style template.
 
 ### Fig 2 — ROC / AUC by zone and task
-- **[P1] LR-vs-individual-feature anomaly.** See Exec #1. This is the
-  blocker on this figure.
+- **[P1] LR-vs-individual-feature anomaly — mechanism known, fix pending.**
+  See Exec #1: per-component lines are in-sample, LR lines are LOOCV.
+  Pick figure-fix option A / B / C from Exec #1 before regenerating.
 - **[P1] Diagonal line in 0.5/0.25 ROC curve (PZ tumor subplot).** ROC
   curves should be staircase (horizontal/vertical only) for finite samples.
   A diagonal suggests interpolation or a bug. Investigate.
@@ -362,7 +461,10 @@ re-litigate per figure):
   shrink. Larger fonts (matches recent fig_roc commits — see commit
   17d107d).
 - **[P2] AUC ≈ 0.95 for 0.5 bin in PZ tumor while the 0.5 bin is
-  non-identifiable.** Tied to Exec #3. Either explain or fix.
+  non-identifiable.** Confirmed: D=0.50 is the strongest per-component
+  AUC (PZ 0.947, TZ 0.972) and yet has cohort-averaged posterior CV >
+  0.80. Tied to Exec #3. Resolution path is in Exec #3, not in the
+  figure itself.
 
 ### Fig 3 — ADC vs spectral discriminant scatter
 - **[P2]** Unify normal/tumor legend at the top.
@@ -434,9 +536,17 @@ re-litigate per figure):
 - **[P3] Interpretation.** Add 1 sentence connecting uncertainty pattern
   to lesion aggressiveness / boundary regions. Don't claim causality.
 
-### Direction-encoding figure
-- **[P1] Provenance.** Confirm which patient/cohort this is on (likely
-  Stephan's new send, _not_ the BWH ROI cohort).
+### Direction-encoding figure (Fig 7, `fig:directions`)
+- **[P1] Provenance.** Current figure is per-ROI mean spectra from
+  `9283-Series12-Slice6-{Normal,Tumor}PZ.dat` in Stephan's tarball. Whether
+  patient 9283 sits inside or outside the Langkilde 2018 BWH cohort cannot
+  be answered from the repo (raw IDs vs `new01..new56` pseudonyms). [ASK
+  Sandy/Stephan] before finalising the figure caption + Methods §"Pixel-wise
+  and Direction-wise Spectral Estimation."
+- **[P1] Caption is stale.** Caption (figures.tex L167–177) still claims
+  "representative prostate voxels from the supplementary patient" while the
+  underlying figure is now ROI-level from a different patient than the pixel
+  demo. Full caption rewrite after provenance is confirmed.
 - **[P2]** Same style pass as the rest.
 
 ### S2 — Simulation
@@ -525,7 +635,12 @@ separate threads.
 5. Intermediate-GGG ADC failure literature — does Stephan know the standard
    references? Affects Table 1 Option A vs B decision.
 6. Pixel-data and direction-data cohort identification — confirm provenance
-   for both before we put it in Methods.
+   for both before we put it in Methods. Specifically:
+   - Pixel demo: patient 8640 (slice 6). Is this one of the 56 Langkilde
+     2018 BWH patients (and if so, which `newXX` pseudonym), or a separate
+     acquisition?
+   - Direction figure: patient 9283 + the rest of Stephan's recent tarball
+     (10203, 8804, 8805, 8864, 9322, 9675). Same cohort as the 149 ROIs?
 
 **Both:**
 7. Is the MAP↔NUTS near-equivalence a feature or a bug for the paper's
