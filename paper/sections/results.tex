@@ -9,7 +9,7 @@ Tumor ROIs exhibited an elevated restricted-diffusion water fraction ($D = 0.25\
 These patterns were qualitatively similar in the transition zone, though TZ tumor spectra showed a higher restricted fraction overall ($D = 0.25\;\umsmm$: 19.5\% MAP / 25.0\% NUTS).
 
 A notable difference between MAP and NUTS appears in the free-water component: NUTS concentrates mass at $D = 3.0\;\umsmm$ (47.5\% in PZ normal) whereas MAP distributes it across $D = 1.5$--$3.0\;\umsmm$ (MAP: 23.5\% at $D = 3.0\;\umsmm$).
-The interpretation of this divergence---and its relationship to ridge smoothing and to the four-compartment fits reported by \citet{conlin2021improved}---is taken up in the Discussion.
+The interpretation of this divergence---and its relationship to ridge smoothing and to the four-compartment fits reported by \citet{conlin2021improved}---is taken up in the Discussion. @Stephan comment: Do not mention here what you will discuss in the Discussion. Of course the reference may be important, but belongs to the Discussion.
 
 \subsection{Per-Component Identifiability}
 
@@ -17,7 +17,7 @@ For each ROI, NUTS yields a full marginal posterior for each spectral fraction $
 Only restricted diffusion ($D = 0.25\;\umsmm$, mean CV = 0.20) and free water ($D = 3.0\;\umsmm$, mean CV = 0.32) had cohort-averaged CV below 0.40 (Figure~\ref{fig:spectra}, CV annotations).
 The IVIM-perfusion proxy ($D = 20.0\;\umsmm$) was moderately constrained (CV = 0.36).
 Intermediate components ($D = 0.50$--$1.00\;\umsmm$) had CV $> 0.80$, indicating posterior uncertainty comparable to the estimate itself.
-The mechanistic explanation for this pattern (intermediate-component collinearity in the Fisher matrix; see Figure~\ref{fig:fisher}) is developed in the Discussion.
+The mechanistic explanation for this pattern (intermediate-component collinearity in the Fisher matrix; see Figure~\ref{fig:fisher}) is developed in the Discussion. @Stephan comment: Again, take this explanation up only in the Discussion.
 
 \subsection{Classification Performance}
 
@@ -56,7 +56,7 @@ However, the ROI-level discrimination remains equivalent ($r = -0.98$) because t
 
 MAP and NUTS posterior-mean estimates correlated closely for well-identified components (Figure~\ref{fig:map_nuts}; across 149 ROIs: $D = 0.25\;\umsmm$, $r = 0.990$; $D = 3.0\;\umsmm$, $r = 0.825$) and diverged for ill-posed ones ($D = 1.0\;\umsmm$, $r = 0.483$; $D = 1.5\;\umsmm$, $r = -0.106$).
 For $D = 3.0\;\umsmm$---which can be confidently interpreted as free-water diffusion in the acinar lumen---MAP systematically underestimated the dominant fraction relative to NUTS (MAP median 0.24 vs.\ NUTS 0.48 in PZ normal).
-Because the acinar lumen fraction is a quantity of independent biological interest (it reflects the liquid portion of the gland with no intervening tissue), the magnitude of this MAP--NUTS offset is taken up in the Discussion.
+Because the acinar lumen fraction is a quantity of independent biological interest (it reflects the liquid portion of the gland with no intervening tissue), the magnitude of this MAP--NUTS offset is taken up in the Discussion. @Stephan comment: Again, don't say what you will bring up in the Discussion.
 
 Despite this component-level divergence, the discriminant scores derived from MAP and NUTS features were highly correlated (PZ: $r = 0.985$; TZ: $r = 0.994$), confirming that both methods extract the same clinically relevant information.
 
