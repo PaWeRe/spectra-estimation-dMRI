@@ -5,10 +5,10 @@
 Retrospective multi-b DWI data were obtained from the cohort previously described by \citet{langkilde2018evaluation}.
 For the 56 included patients, age ranged from 43 to 77 years (mean 62 years) and the mean serum prostate-specific antigen (PSA) level was 8.8~ng/mL (range, 0.37--46~ng/mL).
 The cohort included patients with biopsy-confirmed prostate cancer, 7 patients with benign biopsies, and 1 patient with high-grade prostatic intraepithelial neoplasia (HGPIN, a known tumor precursor).
-The benign and HGPIN cases contribute only normal-tissue ROIs to the analysis and therefore serve as a specificity test against false-positive labelling of non-malignant tissue.
+The benign and HGPIN cases contribute only normal-tissue ROIs to the analysis and therefore serve as a specificity test against false-positive labeling of non-malignant tissue.
 
 All patients underwent a standard multiparametric MR examination with an additional diffusion-weighted sequence on a GE 3~T Discovery MR750 scanner (GE Medical Systems, Milwaukee, WI).
-An endorectal coil (Medrad, Pittsburgh, PA) was used in combination with pelvic phased-array coils for signal reception, providing high signal-to-noise ratio at the cost of a non-routine setup; the implications for the generalizability of our findings are addressed in the Discussion.
+An endorectal coil (Medrad, Pittsburgh, PA) was used in combination with pelvic phased-array coils for signal reception, providing high signal-to-noise ratio at the cost of a non-routine setup.
 The added DWI sequence used a matrix size of $64 \times 64$, field of view $280 \times 280\;\text{mm}^2$, slice thickness 5~mm without gap, TR~4000~ms, and TE~100~ms.
 The relatively long echo time was required to accommodate the high diffusion weighting with gradient times $\delta = 37$~ms and $\Delta = 45$~ms.
 Fifteen b-values were acquired in 250~s/mm$^2$ increments from $b = 0$ to $3500\;\text{s/mm}^2$ along each of three orthogonal diffusion encoding directions; total scan time for the extended-range acquisition was 3~min.
@@ -18,9 +18,9 @@ A total of 149 regions of interest (ROIs) were annotated: 40 tumor and 109 norma
 Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5).
 
 \subsection{Spectral Estimation}
-
+@Stephan comment: Avoid using so many sub-headers. In the remainder of Methods try to reduce to two, max 3 headers.
 For each ROI, the trace signal decay was decomposed into eight diffusivity components ($D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$) using both MAP and fully Bayesian estimation as described in Theory.
-We use the shorthand ``$D = 0.25$'' to refer to the spectral fraction $R_j$ associated with the diffusivity bin centered at $D_j = 0.25\;\umsmm$ throughout the Results.
+We use the shorthand ``$D = 0.25$'' to refer to the spectral fraction (@Stephan comment: You ended up never using this short-hand annotation. So you probably should remove this explanation you make here.) $R_j$ associated with the diffusivity bin centered at $D_j = 0.25\;\umsmm$ throughout the Results.
 
 \subsubsection{MAP Estimation}
 
@@ -38,7 +38,8 @@ The posterior coefficient of variation (CV $=$ posterior std / posterior mean) r
 \subsection{ADC Computation}
 
 Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log S(b) = \log S_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
-This cutoff was chosen to follow PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate, weinreb2016pirads}.
+This cutoff was chosen to follow PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate, weinreb2016pirads}. @Stephan comment: We sneak in one my own references here. Changing the b-value range would result in changes of the ADC value (Prostate Cancer Diffusion-Weighted Magnetic Resonance Imaging: Does the Choice of Diffusion-Weighting Level Matter?
+Maier SE, Wallström J, Langkilde F, Johansson J, Kuczera S, Hugosson J, Hellström M. J Magn Reson Imaging. 2022 Mar;55(3):842-853. doi: 10.1002/jmri.27895. Epub 2021 Sep 18. PMID: 34535940 ).
 
 \subsection{Classification}
 
@@ -49,7 +50,7 @@ For each task, three feature representations were compared: (a)~ADC alone (singl
 For single-feature models (ADC, individual components), the raw feature value was used directly as the classification score without training a classifier.
 For multi-feature models, standardized features were passed through logistic regression with regularization $C = 1.0$ (inverse regularization strength), with separate standardization and model fitting in each LOOCV fold to prevent data leakage.
 Performance was measured by the area under the receiver operating characteristic curve (AUC).
-Standard errors for AUC were computed using the Hanley--McNeil method \citep{hanley1982meaning}, and 95\% confidence intervals were obtained by case-resampling bootstrap (1000 resamples).
+Standard errors for AUC were computed using the Hanley--McNeil method \citep{hanley1982meaning}, and 95\% confidence intervals were obtained by case-resampling bootstrap (1000 resamples). @Stephan commetn: Confused about this statement. If you have standard errors you can compute 95% confidence intervals and vice versa. Here you say that you used two different methods.
 Sensitivity analyses at $C = 0.1$ and $C = 10.0$ confirmed that results were robust to regularization strength.
 
 \subsection{ADC Sensitivity Analysis}
