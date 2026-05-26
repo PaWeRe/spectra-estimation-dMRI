@@ -34,9 +34,14 @@ B_VALUES_MS = np.array([0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75,
 B_VALUES_S_MM2 = B_VALUES_MS * 1000  # [0, 250, ..., 3500]
 DIFFUSIVITIES = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
 D_COLS = [f"D_{d:.2f}" for d in DIFFUSIVITIES]
-RIDGE_STRENGTH = 0.1
+# MAP ridge regularizer, tuned via simulation sweep (scripts/map_lambda_sweep.py).
+# Original manuscript value was 0.1; lambda=1e-3 better matches NUTS on prostate-realistic
+# log-normal ground truths (see F1 / F-new-1).
+RIDGE_STRENGTH = 1e-3
 
-# Config dicts for spectra_id hash (must match what generated the .nc files)
+# Config dicts for spectra_id hash (must match what generated the .nc files).
+# Do NOT change strength here — it is the lookup key for the existing NUTS .nc files
+# computed at the original prior strength. NUTS is robust to wider priors (F8).
 _LIKELIHOOD_CFG = {"type": "gaussian"}
 _PRIOR_CFG = {"type": "ridge", "strength": 0.1, "nonnegative": True}
 _INFERENCE_CFG = {
@@ -61,18 +66,21 @@ def build_design_matrix() -> np.ndarray:
 
 
 def compute_map_spectrum(signal: np.ndarray, U: np.ndarray) -> np.ndarray:
-    """Ridge NNLS MAP estimate for a single ROI.
+    """Constrained ridge MAP estimate: argmin_{R >= 0} ||U R - s/S0||^2 + lambda ||R||^2.
 
-    Normalizes signal by S(b=0), solves (U'U + λI)^{-1} U' s, clips to >=0.
-    Returns normalized spectrum (fractions summing to ~1).
+    Solved as NNLS on the augmented system [U; sqrt(lambda) I] R = [s/S0; 0].
+    Projecting an unconstrained Gaussian MAP onto the non-negative orthant is NOT
+    the same as the constrained MAP whenever the unconstrained optimum is infeasible
+    (Sandy 2026-05-25 counter-example).
     """
+    from scipy.optimize import nnls
     S0 = signal[0] if signal[0] > 0 else 1.0
     s_norm = signal / S0
     n_d = U.shape[1]
-    A = U.T @ U + RIDGE_STRENGTH * np.eye(n_d)
-    projection = np.linalg.solve(A, U.T)
-    spectrum = projection @ s_norm
-    return np.maximum(spectrum, 0.0)
+    U_aug = np.vstack([U, np.sqrt(RIDGE_STRENGTH) * np.eye(n_d)])
+    s_aug = np.concatenate([s_norm, np.zeros(n_d)])
+    spectrum, _ = nnls(U_aug, s_aug)
+    return spectrum
 
 
 def compute_adc(signal: np.ndarray, b_max_s_mm2: float = 1000.0) -> float:

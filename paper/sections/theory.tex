@@ -64,24 +64,24 @@ This improvement is greatest for the most ill-conditioned components and demonst
 
 \subsection{MAP Estimation}
 
-The maximum \emph{a~posteriori} @Stephan comment: Avoid font changes for emphasis. They usually do not allow this by the journal. estimate under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ is obtained in closed form:
+The maximum a posteriori estimate under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ combined with the physical non-negativity of compartment fractions is the solution of the constrained quadratic program
 %
 \begin{equation}
-  \hat{\Rvec}_{\text{MAP}} = \max\!\Big(
-    (\Umat^T \Umat + \lambda \mathbf{I})^{-1} \Umat^T (\svec / S_0),\;
-    \mathbf{0}
-  \Big),
+  \hat{\Rvec}_{\text{MAP}} \;=\; \argmin_{\Rvec \,\in\, \mathbb{R}_{\geq 0}^{K}}
+  \Big\{\; \big\lVert\, \svec/S_0 \;-\; \Umat\,\Rvec\, \big\rVert_2^{\,2}
+  \;+\; \lambda\, \lVert \Rvec \rVert_2^{\,2}\, \Big\},
   \label{eq:map}
 \end{equation}
 %
-where $\lambda > 0$ controls the regularization strength and the $\max(\cdot, \mathbf{0})$ operator enforces non-negativity by projection.
-This is equivalent to ridge regression with a non-negativity constraint (Ridge NNLS).
+where $\lambda > 0$ controls the regularization strength and the feasible set $\mathbb{R}_{\geq 0}^{K}$ enforces non-negativity of the compartment fractions.
+For this ill-conditioned design matrix, the unconstrained Gaussian MAP $(\Umat^{T}\Umat + \lambda \mathbf{I})^{-1}\Umat^{T}(\svec/S_0)$ frequently lies outside the feasible orthant, and projecting that closed-form solution onto $\mathbb{R}_{\geq 0}^{K}$ does not in general recover the constrained MAP in (\ref{eq:map}).
+We therefore solve (\ref{eq:map}) directly as non-negative least squares on the augmented system $[\Umat;\, \sqrt{\lambda}\,\mathbf{I}]\,\Rvec = [\svec/S_0;\, \mathbf{0}]$, which is equivalent to the original ridge-NNLS objective and is solved with an active-set algorithm.
 The MAP estimate is a point estimate and does not quantify how reliably each component $R_j$ is determined by the data.
 
 \subsection{Bayesian Formulation}
 
 The MAP estimate provides a single point in spectrum space but offers no information about the reliability of each component. Moreover, it requires the noise standard deviation $\sigma$ to be known.
-Given the severe ill-conditioning documented above, both limitations matter: a point estimate at an intermediate component ($D = 0.75\;\umsmm$) may appear precise while in fact being largely determined by the regularization rather than the data, and an incorrect $\sigma$ silently (@Stephan comment: Avoid long sentences with ", and". Split into two sentences.) rescales the regularization weight.
+Given the severe ill-conditioning documented above, both limitations matter. A point estimate at an intermediate component ($D = 0.75\;\umsmm$) may appear precise while in fact being largely determined by the regularization rather than the data. An incorrect $\sigma$ silently rescales the regularization weight.
 A fully Bayesian approach addresses both by characterizing the joint posterior over $(\Rvec, \sigma)$, simultaneously inferring the spectrum and the per-ROI noise level while making the ill-posedness explicit through the marginal posterior widths rather than hiding it behind a single number.
 
 We specify a hierarchical model with explicit priors on both the spectrum and the noise level:
@@ -94,11 +94,11 @@ We specify a hierarchical model with explicit priors on both the spectrum and th
   \label{eq:likelihood}
 \end{align}
 %
-The HalfNormal (@Stephan comment: Make sure you capitalize/spell correctly. I am familiar with "half-normal" distribution.) prior on $\Rvec$ naturally enforces non-negativity while providing smooth gradients for Hamiltonian Monte Carlo (HMC), and its variance $1/\lambda$ corresponds to the ridge penalty strength, establishing a direct link between the MAP and Bayesian formulations.
-The HalfCauchy prior on the noise level $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that allows the noise to be inferred jointly with the spectrum, rather than fixed \emph{a priori}. @Stephan comment: Avoid emphasis with font change.
+The half-normal prior on $\Rvec$ naturally enforces non-negativity while providing smooth gradients for Hamiltonian Monte Carlo (HMC), and its variance $1/\lambda$ corresponds to the ridge penalty strength, establishing a direct link between the MAP and Bayesian formulations.
+The half-Cauchy prior on the noise level $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that allows the noise to be inferred jointly with the spectrum, rather than fixed a priori.
 
 The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
-Standard Gibbs sampling is ineffective for this model because the HalfNormal priors are not conjugate to the Gaussian likelihood and, more fundamentally, the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry where coordinate-wise updates mix extremely slowly.
+Standard Gibbs sampling is ineffective for this model because the half-normal priors are not conjugate to the Gaussian likelihood and, more fundamentally, the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry where coordinate-wise updates mix extremely slowly.
 NUTS, as an adaptive variant of HMC \citep{neal2011mcmc}, exploits gradient information to propose joint moves across all components simultaneously, and automatically adapts the trajectory length to the local curvature of the posterior, making it well suited to the correlated, constrained geometry of this problem.
 
 Posterior summaries (mean, standard deviation) for each $R_j$ provide both a point estimate and a measure of identifiability: components with posterior coefficient of variation (CV = posterior std / posterior mean) much less than one are well constrained, while those with CV near or above one are effectively undetermined by the data.

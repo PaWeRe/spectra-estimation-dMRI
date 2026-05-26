@@ -1,5 +1,15 @@
 # Handover — Figure Regeneration Session
 
+> **2026-05-25 update — the figure *list* below is partially superseded.** See
+> `PROJECT_STATE.md` §6 for the current figure plan. Several figures are slated
+> for cuts (Fig 5, Fig 8 → SI), heavy revision (Fig 4 — given F4b that the
+> ADC-sensitivity ≈ inverted-LR-coef r ≈ −0.98 was a regulariser artifact), or
+> new additions (F-new-1 MAP λ-sweep panel, F-new-2 axis separation). The
+> figure-regen *sub-tasks* in this doc (font bump, color conventions, marker
+> sizes, NUTS pixel overlay, anonymisation) remain accurate and useful — treat
+> this file as the checklist for when figure regen actually begins, not as the
+> figure list itself.
+
 **Status when this hand-off was written:** May 2026, manuscript text is locked-in
 after addressing all of Stephan's `(@comment stephan: ...)` markers from commit
 `a7aa22d`. The Stephan-comments commit + Kuczera-style code-availability

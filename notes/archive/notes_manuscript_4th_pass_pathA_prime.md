@@ -1,5 +1,15 @@
 # Manuscript Revision Plan — 4th Pass (Path A' Locked)
 
+> **2026-05-22 update — READ FIRST: `notes_session_2026-05-22.md`.**
+> The §7 "next-session order of operations" is partially superseded. Exec 4P1
+> (step 1) is **done** but the LR-coefficient axis-separation claim does not
+> survive at N=29 — lead F-new-2 with the §10f per-bin Spearman ρ profile, not
+> with LR cosines. A mid-session framing debate proposed a "methods-only Alive"
+> reframe; Stephan's 2026-05-22 response endorses Path A' and adds a new
+> differentiator (fixed-grid vs free-floating biexponential). Next session
+> picks between (a) full Path A', (b) Path A' framing + compressed methodology
+> Results spine, (c) hold until coauthor meeting. Hard deadline: ~2026-05-29.
+
 _Stub overlay on `notes_manuscript_3rd_pass.md` (2026-05-13). Most of
 that doc's Exec items have been resolved or rendered obsolete by work
 done 2026-05-14 → 2026-05-17. Use this file as the current spine; refer

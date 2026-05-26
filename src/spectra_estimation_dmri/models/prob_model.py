@@ -97,36 +97,22 @@ class ProbabilisticModel:
             fractions = fit_model.coef_
 
         elif self.prior_config.type == "ridge":
-            # Use sklearn's Ridge class for better convergence
+            # Constrained ridge MAP: argmin_{R >= 0} ||U R - s||^2 + lambda ||R||^2
+            # Equivalent to NNLS on the augmented system [U; sqrt(lambda) I] R = [s; 0].
+            # This is the correct constrained-optimization formulation; projecting an
+            # unconstrained Gaussian MAP onto the non-negative orthant is NOT the same
+            # (the projected solution is not the constrained MAP whenever the unconstrained
+            # optimum lies outside the feasible region; cf. Sandy 2026-05-25).
             strength = self.prior_config.strength
 
-            # Check if we should use RidgeCV for automatic hyperparameter selection
             if strength == 0:
-                # Use RidgeCV to automatically select best alpha
-                alphas = np.logspace(-10, 2, 20)  # Log-spaced alpha values
-                ridge_cv = RidgeCV(
-                    alphas=alphas,
-                    fit_intercept=False,
-                    cv=3,  # 3-fold cross-validation
-                    scoring="neg_mean_squared_error",
-                )
-                ridge_cv.fit(U, signal)
-                fractions = ridge_cv.coef_
-                self.prior_config.strength = str(ridge_cv.alpha_)
-                print(f"RidgeCV selected alpha: {ridge_cv.alpha_}")
+                # No regularization requested -> plain NNLS
+                fractions, _ = nnls(U, signal)
             else:
-                ridge = Ridge(
-                    alpha=float(strength),  # Direct strength parameter
-                    fit_intercept=False,
-                    max_iter=10000,
-                    tol=1e-6,  # More reasonable tolerance
-                    solver="auto",  # Let sklearn choose best solver
-                )
-                ridge.fit(U, signal)
-                fractions = ridge.coef_
-
-            # Apply non-negativity constraint by projection
-            fractions = np.maximum(fractions, 0)
+                lam = float(strength)
+                U_aug = np.vstack([U, np.sqrt(lam) * np.eye(n_dim)])
+                signal_aug = np.concatenate([signal, np.zeros(n_dim)])
+                fractions, _ = nnls(U_aug, signal_aug)
 
         elif self.prior_config.type == "lasso":
             # MAP for Laplace prior = LASSO

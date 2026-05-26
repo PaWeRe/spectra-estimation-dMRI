@@ -18,19 +18,11 @@ A total of 149 regions of interest (ROIs) were annotated: 40 tumor and 109 norma
 Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5).
 
 \subsection{Spectral Estimation}
-@Stephan comment: Avoid using so many sub-headers. In the remainder of Methods try to reduce to two, max 3 headers.
+
 For each ROI, the trace signal decay was decomposed into eight diffusivity components ($D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$) using both MAP and fully Bayesian estimation as described in Theory.
-We use the shorthand ``$D = 0.25$'' to refer to the spectral fraction (@Stephan comment: You ended up never using this short-hand annotation. So you probably should remove this explanation you make here.) $R_j$ associated with the diffusivity bin centered at $D_j = 0.25\;\umsmm$ throughout the Results.
 
-\subsubsection{MAP Estimation}
-
-MAP spectra were computed via Eq.~\ref{eq:map} with ridge strength $\lambda = 0.1$.
-The resulting eight-component spectra were normalized to sum to one (fractional representation).
-Computation was instantaneous ($< 1\;\text{s}$ for all 149 ROIs).
-
-\subsubsection{Bayesian Estimation (NUTS)}
-
-The posterior (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) was sampled independently for each of the 149 ROIs using NUTS via PyMC, with 2000 post-tuning draws, 200 tuning steps, 4 independent chains, and target acceptance rate 0.95.
+MAP spectra were computed via Eq.~\ref{eq:map} with ridge strength $\lambda = 0.1$, then normalized to sum to one (fractional representation); computation was instantaneous ($< 1\;\text{s}$ for all 149 ROIs).
+The Bayesian posterior (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) was sampled independently for each of the 149 ROIs using NUTS via PyMC, with 2000 post-tuning draws, 200 tuning steps, 4 independent chains, and target acceptance rate 0.95.
 Convergence was assessed using the split-$\hat{R}$ statistic \citep{vehtari2021rank}; all 149 ROIs converged ($\hat{R} < 1.05$).
 Posterior means of the spectral fractions (normalized to sum to one) were used as NUTS point estimates; posterior standard deviations quantify per-component uncertainty.
 The posterior coefficient of variation (CV $=$ posterior std / posterior mean) reported in the Results is computed per ROI and per component, then averaged across the patient cohort to summarize the typical identifiability of each component for this acquisition.
@@ -38,8 +30,7 @@ The posterior coefficient of variation (CV $=$ posterior std / posterior mean) r
 \subsection{ADC Computation}
 
 Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log S(b) = \log S_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
-This cutoff was chosen to follow PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate, weinreb2016pirads}. @Stephan comment: We sneak in one my own references here. Changing the b-value range would result in changes of the ADC value (Prostate Cancer Diffusion-Weighted Magnetic Resonance Imaging: Does the Choice of Diffusion-Weighting Level Matter?
-Maier SE, Wallström J, Langkilde F, Johansson J, Kuczera S, Hugosson J, Hellström M. J Magn Reson Imaging. 2022 Mar;55(3):842-853. doi: 10.1002/jmri.27895. Epub 2021 Sep 18. PMID: 34535940 ).
+This cutoff was chosen to follow PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate, weinreb2016pirads}; the choice of b-value range materially affects the absolute ADC value \citep{maier2022choice}.
 
 \subsection{Classification}
 
@@ -50,7 +41,7 @@ For each task, three feature representations were compared: (a)~ADC alone (singl
 For single-feature models (ADC, individual components), the raw feature value was used directly as the classification score without training a classifier.
 For multi-feature models, standardized features were passed through logistic regression with regularization $C = 1.0$ (inverse regularization strength), with separate standardization and model fitting in each LOOCV fold to prevent data leakage.
 Performance was measured by the area under the receiver operating characteristic curve (AUC).
-Standard errors for AUC were computed using the Hanley--McNeil method \citep{hanley1982meaning}, and 95\% confidence intervals were obtained by case-resampling bootstrap (1000 resamples). @Stephan commetn: Confused about this statement. If you have standard errors you can compute 95% confidence intervals and vice versa. Here you say that you used two different methods.
+Standard errors for AUC were computed using the Hanley--McNeil method \citep{hanley1982meaning}; bootstrap confidence intervals reported in the Results for ROI-level correlations between ADC and the spectral discriminant are a separate computation described in the ADC Sensitivity Analysis subsection below.
 Sensitivity analyses at $C = 0.1$ and $C = 10.0$ confirmed that results were robust to regularization strength.
 
 \subsection{ADC Sensitivity Analysis}
