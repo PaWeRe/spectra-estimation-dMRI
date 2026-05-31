@@ -248,7 +248,7 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 | Table 1 | keep | AUC table. |
 
 **Supplementary:**
-- S1 — ✅ DONE: all-ROI individual spectra, fig1_v3 style (NUTS bars + posterior-std whiskers; per-bin within-ROI CV colour = purple sequential; MAP as green ✕). 4 category grids `figS1_all_roi_{pz,tz}_{normal,tumor}` via `scripts/figS1_all_roi_spectra.py`, wired into supporting.tex (auto-numbered S1–S4). The un-conflated home for identifiability + full cohort browse.
+- S1 — ✅ DONE: all-ROI individual-spectra ATLAS, fig1_v3 style (NUTS bars + posterior-std whiskers; per-bin within-ROI CV = purple sequential; MAP green ✕; GGG titles, no patient IDs; proper diffusivity axes). Multi-page PDF `figS1_all_roi_spectra.pdf` (15 pages, 2 cols, grouped by zone×tissue) via `scripts/figS1_all_roi_spectra.py`; embedded in supporting.tex with `\includepdf` — **requires `\usepackage{pdfpages}` in the main preamble (Overleaf)**; fallback = per-page `\includegraphics[page=n]`. The un-conflated home for identifiability + full cohort browse.
 - S2 — NUTS posterior diagnostics (trace, R̂). NEW DESIGN (current arviz default rejected).
 - S3 — MAP λ-tuning: fraction-of-mass recovered vs λ (DROP the redundant MSE panel).
 - S4 — Simulation recovery battery (easy bimodal / hard concentrated / log-normal), NUTS + tuned-MAP vs truth.
