@@ -32,11 +32,11 @@ The consistent near-parity of ADC and spectral classifiers for tumor detection m
 
 \subsection{ADC and the Spectral Discriminant}
 
-Across ROIs, ADC values were near-perfectly anti-correlated with the spectral discriminant score (Figure~\ref{fig:adc_discriminant}).
-Using MAP features at $C = 1.0$: PZ $r = -0.975$ (95\% bootstrap CI $[-0.983,\,-0.969]$, $n = 81$); TZ $r = -0.982$ (95\% bootstrap CI $[-0.991,\,-0.976]$, $n = 68$).
-Using NUTS features: PZ $r = -0.977$ (95\% CI $[-0.985,\,-0.966]$); TZ $r = -0.981$ (95\% CI $[-0.989,\,-0.972]$).
-We report bootstrap confidence intervals rather than $p$-values because, with $|r| > 0.97$ and $n \geq 68$, the standard $p$-value formula yields values below $10^{-48}$ that are dominated by sample size and reflect distributional assumptions that no longer hold meaningfully at that scale; the interval estimates communicate the relevant quantity, namely how close the population correlation is to $-1$.
-This correlation was robust across regularization strengths ($C = 0.1$ to $50$; $|r| > 0.97$ in all cases) and held for both MAP and NUTS feature representations.
+Across ROIs, ADC values were near-perfectly anti-correlated with the spectral discriminant score in both zones and for both spectral estimators (Figure~\ref{fig:adc_discriminant}).
+Using NUTS posterior-mean features at $C = 1.0$: PZ $r = -0.977$ (95\% bootstrap CI $[-0.985,\,-0.964]$, $n = 81$); TZ $r = -0.979$ (95\% CI $[-0.988,\,-0.971]$, $n = 68$).
+Using constrained-MAP features at tuned regularization ($\lambda = 10^{-3}$): PZ $r = -0.969$ (95\% CI $[-0.981,\,-0.949]$); TZ $r = -0.959$ (95\% CI $[-0.976,\,-0.930]$).
+We report bootstrap confidence intervals rather than $p$-values because, with $|r| > 0.95$ and $n \geq 68$, the standard $p$-value formula yields values below $10^{-39}$ that are dominated by sample size and reflect distributional assumptions that no longer hold meaningfully at that scale; the interval estimates communicate the relevant quantity, namely how close the population correlation is to $-1$.
+This correlation was robust across regularization strengths ($C = 0.1$ to $50$; $|r| > 0.95$ in all cases) and, as the four panels of Figure~\ref{fig:adc_discriminant} show, held equivalently for the closed-form MAP and full-posterior NUTS feature representations.
 
 \subsection{ADC Sensitivity Analysis}
 
@@ -52,17 +52,14 @@ This demonstrates that ADC implicitly weights each resolvable spectral compartme
 With NUTS features, the vector-level correlation was weaker ($r = -0.788$ at PZ tumor) because the LR coefficients become unstable on the ill-posed intermediate components ($D = 0.5$--$1.0\;\umsmm$, CV $> 0.80$).
 However, the ROI-level discrimination remains equivalent ($r = -0.98$) because the classifier compensates by concentrating weight on the well-identified components.
 
-\subsection{MAP vs.\ NUTS Comparison}
+\subsection{Spectral Decomposition by Gleason Grade Group}
 
-MAP and NUTS posterior-mean estimates correlated closely for well-identified components (Figure~\ref{fig:map_nuts}; across 149 ROIs: $D = 0.25\;\umsmm$, $r = 0.990$; $D = 3.0\;\umsmm$, $r = 0.825$) and diverged for ill-posed ones ($D = 1.0\;\umsmm$, $r = 0.483$; $D = 1.5\;\umsmm$, $r = -0.106$).
-For $D = 3.0\;\umsmm$---which can be confidently interpreted as free-water diffusion in the acinar lumen---MAP systematically underestimated the dominant fraction relative to NUTS (MAP median 0.24 vs.\ NUTS 0.48 in PZ normal).
-Because the acinar lumen fraction is a quantity of independent biological interest (it reflects the liquid portion of the gland with no intervening tissue), the magnitude of this MAP--NUTS offset is taken up in the Discussion. @Stephan comment: Again, don't say what you will bring up in the Discussion.
-
-Despite this component-level divergence, the discriminant scores derived from MAP and NUTS features were highly correlated (PZ: $r = 0.985$; TZ: $r = 0.994$), confirming that both methods extract the same clinically relevant information.
-
-The practical implication is that MAP estimation---computed in closed form on the order of milliseconds per ROI---is sufficient for discrimination tasks at the ROI level.
-Note that this remains a relevant cost statement at the pixel level: a single $128 \times 128$ slice contains $\sim 1.6 \times 10^4$ voxels, which MAP processes in seconds whereas per-voxel NUTS sampling currently scales to minutes per slice.
-The added value of full Bayesian inference therefore lies in the uncertainty estimates: NUTS identifies which components are trustworthy (Figure~\ref{fig:uncertainty}) and provides per-ROI confidence measures that MAP estimation cannot.
+Figure~\ref{fig:spectrum_ggg} stratifies the cohort's average NUTS posterior-mean spectrum by Gleason Grade Group: normal ROIs ($n = 109$), low-grade tumor (GGG\,$=\,1$, $n = 8$), and intermediate/high-grade tumor (GGG\,$\geq 2$, $n = 21$).
+Two grade-dependent shifts are visible relative to normal tissue.
+First, the free-diffusion bin at $D = 3.0\;\umsmm$ is suppressed in both tumor groups, decreasing from a group mean of $0.39$ in normal tissue to $0.21$ in GGG\,$=\,1$ and $0.16$ in GGG\,$\geq 2$.
+Second, the intermediate bin at $D = 2.0\;\umsmm$ is preserved in low-grade tumor (group mean $0.28$, comparable to the normal value of $0.26$) but reduced in higher-grade tumor ($0.20$); the displaced spectral mass redistributes primarily to the restricted-cellular bin at $D = 0.25\;\umsmm$, with the redistribution most pronounced in GGG\,$\geq 2$ (group means $0.07$ normal, $0.17$ GGG\,$=\,1$, $0.23$ GGG\,$\geq 2$).
+The remaining intermediate bins ($D = 0.5$--$1.5\;\umsmm$) show a mild elevation in GGG\,$\geq 2$ relative to normal and GGG\,$=\,1$, but the per-group 95\% confidence intervals at these grade-specific sample sizes overlap substantially and we report this only as a descriptive observation.
+Method robustness: re-running the same group averaging on tuned-MAP ($\lambda = 10^{-3}$) posterior estimates rather than NUTS posterior means yielded indistinguishable group trajectories on all eight bins.
 
 % ======================================================================
 \subsection{Pixel-wise Spectral Decomposition}

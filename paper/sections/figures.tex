@@ -66,18 +66,33 @@ component across all tasks.
 % --- Fig 3: ADC vs Spectral Discriminant ---
 \begin{figure}[p]
 \centering
-% TODO(figure-regen): larger fonts (~+50%).
-\includegraphics[width=\textwidth]{figures/fig_adc_discriminant.pdf}
+\includegraphics[width=\textwidth]{figures/fig3_v3.pdf}
 \caption{%
-ADC is a near-optimal spectral discriminant.
+ADC is a near-optimal spectral discriminant, and the equivalence holds for both estimators.
 ADC versus the spectral discriminant score (logistic regression linear
-predictor from eight MAP spectral fractions) across ROIs.
-(Left)~Peripheral zone ($n = 81$, $r = -0.975$).
-(Right)~Transition zone ($n = 68$, $r = -0.982$).
+predictor from the eight spectral fractions) across ROIs, shown separately
+for each anatomical zone (rows) and each spectral estimator (columns).
+(Top)~peripheral zone (PZ; $n = 81$); (bottom)~transition zone (TZ; $n = 68$).
+(Left)~NUTS posterior-mean features; (right)~constrained-MAP features at
+tuned regularization ($\lambda = 10^{-3}$).
+All four panels share common axes; the discriminant is fit separately for
+each zone and estimator, so its absolute score scale is comparable only
+within a panel, whereas ADC ($x$-axis) is the same physical quantity throughout.
 Tumor ROIs (red) cluster at low ADC and high discriminant; normal ROIs
-(blue) at high ADC and low discriminant.
-The near-perfect anti-correlation demonstrates that ADC rank-orders patients
-nearly identically to the optimal spectral classifier.
+(blue) at high ADC and low discriminant; the black line is the
+ordinary-least-squares fit.
+The per-panel Pearson correlations are PZ NUTS $r = -0.977$; PZ MAP
+$r = -0.969$; TZ NUTS $r = -0.979$; TZ MAP $r = -0.959$.
+The bracketed values are 95\% confidence intervals for $r$ obtained by a
+percentile bootstrap: the ROIs within a panel are resampled with replacement
+1000 times, $r$ is recomputed for each resample, and the interval is taken as
+the 2.5th--97.5th percentile range of the resulting distribution; this
+nonparametric interval avoids the distributional assumptions of the analytic
+$p$-value, which is uninformative at $|r| > 0.95$ (see Results).
+The near-perfect anti-correlation across all four panels demonstrates that
+ADC rank-orders ROIs almost identically to the spectral classifier,
+independent of whether the spectrum is estimated by closed-form MAP or by
+full posterior sampling.
 }
 \label{fig:adc_discriminant}
 \end{figure}
@@ -112,23 +127,19 @@ and is discussed further in the Discussion.
 \label{fig:sensitivity}
 \end{figure}
 
-% --- Fig 5: MAP vs NUTS Per-Component Scatter ---
+% --- Fig 5: Average Diffusivity Spectrum by Gleason Grade Group ---
 \begin{figure}[p]
 \centering
-% TODO(figure-regen): larger fonts (~+50%).
-\includegraphics[width=\textwidth]{figures/fig_map_nuts.pdf}
+\includegraphics[width=0.85\textwidth]{figures/fig5_v2.pdf}
 \caption{%
-MAP and NUTS estimates correlate for well-identified components.
-MAP versus NUTS posterior-mean fractions across 149 ROIs.
-(Left)~$D = 0.25\;\umsmm$ ($r = 0.990$): near-perfect agreement.
-(Center)~$D = 1.0\;\umsmm$ ($r = 0.483$): divergence reflecting
-ill-posedness.
-(Right)~$D = 3.0\;\umsmm$ ($r = 0.825$): NUTS concentrates mass at the
-dominant component whereas MAP (ridge regression) distributes mass across
-adjacent bins due to the $L_2$ penalty, explaining the systematic offset
-from the identity line.
+Average diffusivity spectrum stratified by Gleason Grade Group reveals a grade-dependent redistribution of spectral mass.
+NUTS posterior-mean spectrum averaged across ROIs in each group: normal (gray, $n = 109$), low-grade tumor GGG\,$=\,1$ (blue, $n = 8$), and intermediate/high-grade tumor GGG\,$\geq 2$ (red, $n = 21$).
+Shaded bands give the 95\% confidence interval of the group mean (Student's $t$-based, with $\text{df} = n - 1$), reflecting between-ROI variability of the per-ROI posterior mean; they do not include within-ROI posterior uncertainty.
+The free-diffusion bin ($D = 3.0\;\umsmm$), a proxy for intact gland lumen (free-water pools of $\sim$100--300\,\textmu m diameter), collapses from $0.39$ in normal tissue to $0.21$ in GGG\,$=\,1$ and $0.16$ in GGG\,$\geq 2$.
+The intermediate bin at $D = 2.0\;\umsmm$, a candidate proxy for the glandular-epithelial compartment, is preserved in low-grade tumor ($0.28$, comparable to normal $0.26$) but reduced in higher-grade tumor ($0.20$); displaced mass redistributes primarily to the restricted-cellular bin at $D = 0.25\;\umsmm$ ($0.07$ normal, $0.17$ GGG\,$=\,1$, $0.23$ GGG\,$\geq 2$).
+Grade-specific sample sizes are small ($n = 8$ and $n = 21$) and the corresponding confidence bands are wide.
 }
-\label{fig:map_nuts}
+\label{fig:spectrum_ggg}
 \end{figure}
 
 % --- Fig 6: Uncertainty Propagation ---

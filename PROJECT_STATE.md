@@ -1,10 +1,10 @@
 # PROJECT_STATE — MRM submission
 
-**Single source of truth for the manuscript state. Read this file first every session. `MEETING_PREP_2026-05-25.md` is the archived Q&A from the 2026-05-25 coauthor meeting.**
+**Single source of truth for the manuscript state. Read this file first every session. `notes/archive/MEETING_PREP_2026-05-25.md` is the archived Q&A from the 2026-05-25 coauthor meeting.**
 
-- **Last update:** 2026-05-26 after coauthor meeting (Sandy + Stephan) and MAP solver fix.
-- **Target submission:** 2026-05-31 (Sunday).
-- **Status:** Narrative locked. MAP solver bug found by Sandy in meeting, fixed today, cohort + simulation re-run; downstream story preserved. Three figure agents in flight regenerating Fig 1, Fig 3, Fig 4, Fig 8. Eq. 5 rewritten as constrained QP. CRLB write-up ready to email Sandy.
+- **Last update:** 2026-05-31 — figure-scoping session: pillars + full main/supplementary figure plan reworked (see §6).
+- **Target submission:** next week (was 2026-05-31). Today's goal: finalized draft for Sandy + Stephan review.
+- **Status:** Figure scope locked (§6). Fig 3 + Fig 5 done and wired into the manuscript. Reworking remaining figures sequentially (Fig 1 → Fig 4 → ...), then manuscript text. Two-camps literature review running in background (→ `notes/lit_review_two_camps.md`). Old Fisher/CRLB Fig 8 dissolved into supplementary; new main Fig 8 = method-validation (spectrum recovery + joint noise inference).
 - **Locked claims** (no longer under revision):
   - F1 — Tuned MAP (λ=1e-3) recovers log-normal spectra ≥0.98 fraction, matching NUTS. Confirmed with corrected solver.
   - F4b — ADC-sensitivity ≈ inverted-LR-coef r ≈ −0.98 elegance was a regulariser artifact (drops to −0.80 at tuned MAP and NUTS). Comparison kept in revised form (per Stephan/Sandy 2026-05-25 meeting).
@@ -224,35 +224,45 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 
 ---
 
-## 6. Figure TODO list
+## 6. Figure plan — REWORKED 2026-05-31 (figure-scoping session)
 
-**Working assumption (subject to meeting):** rebuild figures around NUTS-for-uncertainty + MAP-tuned-for-point-estimates dual narrative, not NUTS-vs-MAP-divergence narrative.
+**Narrative pillars** (every figure must serve one):
+- **P1 — Why ADC works (the collapse).** Spectrum reduces to two well-identified outer compartments (D=0.25, D=3.0) moving together → one scalar (ADC) captures detection. Figs 1, 2, 3, 4. Cite Wang Y 2024 / Wang Q 2018 (MC≈ADC precedent); reconcile RSI/VERDICT via the PI-RADS-ADC-reference disambiguation (lit review running → `notes/lit_review_two_camps.md`).
+- **P2 — Beyond the outer bins (grading/biology).** Spectrum shifts with Gleason grade in intermediate+lumen bins (D=0.5, D=2.0) where ADC is least sensitive — real but identifiability-limited. Fig 5.
+- **P3 — Uncertainty-aware diagnostics (exploratory).** Propagate NUTS posterior through the classifier → calibrated cancer probability + uncertainty (Sandy's idea). Fig 6.
+- **Cross-cutting — identifiability.** NOT its own figure: woven into Fig 4 (bar colouring) + supplementary individual spectra (S1).
 
-| Fig | Status | What it shows | File |
-|---|---|---|---|
-| **1** | **v3 DONE 2026-05-26** | 8 representative ROIs (2 per zone×class), tuned MAP @ λ=1e-3 (NNLS-correct) vs NUTS bars side-by-side, CV-coloured. Big fonts. | `paper/figures/fig1_v3.{png,pdf}` |
-| **2** | PENDING | ROC: PZ + TZ only (GGG ROC dropped, N=29 too small). 3 curves per panel (ADC, MAP, NUTS). Legends outside. Big fonts. | `paper/figures/fig_roc.{png,pdf}` (rebuild) |
-| **3** | **v3 DONE 2026-05-26** | ADC vs spectral discriminant scatter, 2×2 grid (PZ/TZ × NUTS/tuned-MAP). r ≈ −0.97 to −0.98 robust across method × zone × λ. | `paper/figures/fig3_v3.{png,pdf}` |
-| **4** | IN FLIGHT (agent) | Replaces old vector-correlation figure. 2-panel: LR coefficient profile per bin (raw + standardised, PZ + TZ) + comparison to ∂ADC/∂R. Sensitivity-vector framing kept (Stephan + Sandy meeting) but no longer headline. | `paper/figures/fig4_v1.{png,pdf}` |
-| **5** | NEEDS PROMOTION | spectrum_by_ggg figure created in-meeting 2026-05-25. Overlay of Normal + GGG=1 + GGG≥2 spectra. Histology interpretation: lacunae loss + glandular preservation in GGG=1, full collapse in GGG≥2. Replaces old AUC-based GGG content. **STYLE PASS needed** to match Fig 1/2/3 fonts. | `results/biomarkers/spectrum_by_ggg.{png,pdf}` → move to `paper/figures/fig5_v1.*` |
-| **6** | PENDING | Per-ROI classifier uncertainty figure. Layout change: 2-on-top, 1-on-bottom. Legends outside. Bigger misclassified crosses with non-light colour. | `paper/figures/fig_uncertainty.{png,pdf}` (rebuild) |
-| **7** | NEEDS REWORK | Directional dependence. Use 1 representative patient from Stephan's tarball (all 10 patients) as figure + aggregate per-direction-variance stats in Results text. Clarify dots-vs-lines (Stephan's email). Possibly drop MAP if tuned MAP ≈ NUTS so visual is cleaner. | `paper/figures/fig_directions.{png,pdf}` (rebuild) |
-| **8** | IN FLIGHT (agent) | NEW: 2-panel main figure. (a) MAP-vs-NUTS recovery curves on simulated GTs as a function of λ; log-normal GTs highlighted. (b) Bayesian-CRLB-corrected 3-bar comparison per D-bin (unconstrained vs Bayesian CRLB vs NUTS empirical), SNR=303. Replaces old Fisher figure. | `paper/figures/fig8_v1.{png,pdf}` |
-| **9** | PENDING | Pixelwise heatmap. Drop subplot D (feature importance). 3×3 (or 4×3) layout: MAP, NUTS, ADC + spectral-discriminant + uncertainty variants. Anonymise patient ID. | `paper/figures/fig_pixelwise_v2.{png,pdf}` (rebuild) |
+**Main figures (9 + 1 table = 10, AT CAP):**
 
-**Figure-count check:** 9 main figs. MRM 10-figure cap OK.
+| Fig | Status | What it shows / decision |
+|---|---|---|
+| 1 | REWORK | Cohort-AVERAGE spectra (the clinical "first finding"), tumor/normal × PZ/TZ. KEEP box plots (cohort distribution). MAP vs NUTS by STYLE not colour (box edge/position). Identifiability demoted to light annotation. (Original fig_spectra_combined concept restyled — NOT the fig1_v3 8-ROI concept.) |
+| 2 | REWORK | ROC: PZ + TZ detection only (GGG ROC dropped). Legend on top, one row. |
+| 3 | ✅ DONE | ADC vs discriminant, 2×2 (PZ/TZ × NUTS/MAP), shared axes, legend top, no title. `fig3_v3`. |
+| 4 | REWORK (centrepiece) | Per-bin standardised LR coef (bars) + −∂ADC/∂R (charcoal line) on a SINGLE normalised axis (no dual-axis offset); bars COLOURED by identifiability (purple sequential). 2 panels (PZ, TZ). Story: outer bins = high weight + ADC-aligned + well-identified; intermediate bins = where LR/ADC diverge AND poorly identified — yet Fig 5 shows they still move with grade. Complement to Fig 3 (Fig3="≈ADC"; Fig4=per-bin anatomy + where it breaks). Drop raw-vs-standardised duality (standardised only). |
+| 5 | ✅ DONE | Spectrum by GGG (GGG=1 vs ≥2). `fig5_v2`, width 0.85\textwidth. Possible extension: 2nd panel GGG≤2 vs ≥3 (matches one-row ROC). |
+| 6 | REWORK | Uncertainty-aware classifier. Restyle (kill rejected-ISMRM leftovers) + recompute: propagate MCMC samples through LR → probability + CI; misclassified ↑ uncertainty. |
+| 7 | REWORK (MAIN) | Direction independence (trace-averaging validation). 1 representative patient + aggregate per-direction stats in text. Needs Stephan's 10-patient tarball. |
+| 8 | NEW (MAIN) | Method validation, 3-panel row: (a) recovery of expected spectrum — truth vs NUTS±90%CI vs tuned-MAP; (b) contrasting GT (concentrated/bimodal); (c) joint noise (σ) posterior over realisations vs true σ. Takeaways: reconstruct realistic spectrum, two methods, joint Bayesian noise inference. (Old Fisher/CRLB Fig 8 DISSOLVED → supp.) |
+| 9 | REWORK (MAIN) | Pixelwise feasibility demo. Drop subplot D. Multi-method MAP/NUTS/ADC + discriminant + uncertainty. Anonymise patient ID. |
+| Table 1 | keep | AUC table. |
 
 **Supplementary:**
-- S1 — Posterior diagnostics (trace plots overlaid for representative ROIs, R-hat). Rebuild — current arviz-default version too small/illegible.
-- S2 — Spectrum recovery for individual simulated GTs (NUTS + tuned MAP overlay, truth=black). Restyle per Stephan TODO.
-- S3 — λ-sweep MSE/fraction-recovered detail (the smaller plot that complements main Fig 8 panel a).
+- S1 — NEW: all-ROI individual spectra (NUTS bars + per-bin identifiability colour; MAP as ✕). Doubles as full between-ROI cohort spread + per-ROI uncertainty for interested readers.
+- S2 — NUTS posterior diagnostics (trace, R̂). NEW DESIGN (current arviz default rejected).
+- S3 — MAP λ-tuning: fraction-of-mass recovered vs λ (DROP the redundant MSE panel).
+- S4 — Simulation recovery battery (easy bimodal / hard concentrated / log-normal), NUTS + tuned-MAP vs truth.
+- S5 — Fisher information matrix + intermediate-bin collinearity (old Fig 8a).
+- S6 — Bayesian CRLB (van Trees) vs unconstrained vs NUTS (old Fig 8b). TENTATIVE: supp figure or fold into text — revisit.
 
-**Outstanding cosmetic items (consistent across all figures, Stephan-perfectionist):**
-- Global font sizes: xtick/ytick/axis labels = 17, title = 15, legend = 15. (Set via mpl.rcParams.)
-- Legends OUT of plot panels (right side of grid or below).
-- Colour palette: NUTS = orange, tuned MAP = green, ADC = grey/black, tumor points = red, normal points = blue. CV bar colours: green CV<0.4, yellow 0.4–0.6, orange 0.6–0.8, red >0.8.
-- 300 dpi PNG + PDF for every figure.
-- Anonymise patient IDs anywhere they appear (Fig 9 currently the only candidate).
+**Cosmetic conventions (locked):**
+- Match APPARENT font size, not point size: single-panel figs render larger at \textwidth than 2×2 grids, so size via LaTeX width (e.g. Fig 5 at width=0.85\textwidth ≈ Fig 3 at full width). 2×2 grids use axis labels 20 / ticks 18 / panel titles 17 / legend 17.
+- NO in-figure titles — caption's first sentence is the title (MRM convention; matches fig_roc, fig1).
+- Colour palette: NUTS = orange, tuned MAP = green, ADC = grey/black, tumor = red, normal = blue.
+- **Identifiability / CV colour = PURPLE SEQUENTIAL** (light lavender CV<0.4 → dark purple CV>0.8). NOT green→red (clashes with tumor/normal + MAP/NUTS).
+- 300 dpi PNG + PDF; anonymise patient IDs.
+
+**Build order (2026-05-31):** Fig 1 → Fig 4 → Fig 6 → Fig 2 → Fig 7 → Fig 8(new) → Fig 9 → supplementary. Then manuscript text.
 
 ---
 
@@ -281,40 +291,27 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 
 ---
 
-## 8. Open actions for the remaining 5 days
+## 8. Open actions (2026-05-31 session)
 
-**TODAY DONE (2026-05-26):**
-- MAP solver fix in prob_model.py + recompute.py (F9).
-- Cohort re-fit at λ=1e-3 (features.csv, auc_table.csv, adc_discriminant.csv etc. all regenerated).
-- Simulation re-run with corrected solver (F1 preserved).
-- CRLB analysis (F10) — `notes/CRLB_NOTE_FOR_SANDY.md`.
-- Eq. 5 rewritten in theory.tex.
-- Fig 1 v3, Fig 3 v3 regenerated. Fig 4, Fig 8 in flight.
-- Spectrum_by_ggg sent to Stephan for his grant.
+**Goal today:** finalized draft to send Sandy + Stephan for review next week. Submit next week.
 
-**TOMORROW (Wed 5/27):**
-- P1. Confirm Fig 4 + Fig 8 agent outputs. Style pass to match Fig 1/3.
-- P2. Promote spectrum_by_ggg to `paper/figures/fig5_v1.png` with style pass.
-- P3. Edit `scripts/generate_paper_figures.py:fig_roc` — drop GGG subplot, move legends outside, keep PZ + TZ.
-- P4. Rebuild Fig 6 (uncertainty): 2-on-top + 1-on-bottom, legends out, brighter misclassification colours, bigger fonts.
-- P5. **Send package to Stephan + Sandy:** updated figures + CRLB note + new Eq. 5. Ask for review by end of week.
+**Decided this session:**
+- Figure scope + pillars locked (§6). Old Fisher/CRLB Fig 8 → supplementary. New main Fig 8 = method validation (recovery + joint noise).
+- Fig 3 ✅ (2×2 shared axes, legend top, no title) and Fig 5 ✅ (GGG=1 vs ≥2, width 0.85) wired into figures.tex; Results/Discussion text synced.
+- Identifiability distributed (Fig 4 colour + supp S1), not a standalone figure.
+- Identifiability/CV colour → purple sequential (was green→red).
 
-**Thu 5/28:**
-- Fig 7 rework with all 10 patients from Stephan's tarball. 1 patient as figure + aggregate stats in Results.
-- Fig 9 pixelwise: drop subplot D, multi-method 3×3.
-- Supplementary trace plots S1.
+**In progress:**
+- Two-camps literature review (background agent → `notes/lit_review_two_camps.md`). Feeds Discussion reconciliation + Fig 4 framing.
 
-**Fri 5/29:**
-- All writing: Abstract + Conclusion rewrite (Task #12), Methods MAP-tuning paragraph (#13), Discussion histology speculation (#14), update Eq. 5 surrounding prose. Incorporate Sandy's Eq. 5 review if received.
-- Address remaining 7 @Stephan inline comments.
+**Figure reworks (sequential, this session):** Fig 1 → Fig 4 → Fig 6 → Fig 2 → Fig 7 → Fig 8(new) → Fig 9 → supplementary S1–S6.
 
-**Sat 5/30:** Final review pass. Run latex build. Address any leftover.
-
-**Sun 5/31:** Submit.
+**Then manuscript:** Results around the three pillars; Discussion two-camps reconciliation (await lit review); Abstract + Conclusion; resolve remaining @Stephan inline comments (§7); Methods MAP-tuning + joint-σ paragraphs.
 
 **Blocked / dependencies:**
-- Eq. 5 final wording — waiting on Sandy's review of draft in theory.tex (Patrick will email today). Draft is good enough to submit as-is if Sandy is silent.
-- Fig 7 — needs Patrick to load Stephan's full 10-patient tarball, not the 1-patient subset previously used.
+- Fig 7 — needs Stephan's full 10-patient tarball (per-direction data).
+- Discussion reconciliation paragraph — awaits background lit review.
+- Eq. 5 final wording — Sandy review (draft good enough to submit if silent).
 
 **Parked:** see §9 below; no changes there.
 
