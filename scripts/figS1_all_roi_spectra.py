@@ -70,10 +70,21 @@ def cv_color(cv: float) -> str:
 
 
 def panel_title(row: pd.Series) -> str:
+    # Match the old Gibbs-output titles: Gleason score + GGG, no patient id.
+    if not row["is_tumor"]:
+        return ""  # normal: the per-page header already states the group
     ggg = pd.to_numeric(row.get("ggg", np.nan), errors="coerce")
-    if row["is_tumor"]:
-        return f"GGG {int(ggg)}" if np.isfinite(ggg) and ggg >= 1 else "tumor, ungraded"
-    return ""  # normal: the per-page header already states the group
+    gs = row.get("gs", None)
+    # "0+0" is the metadata placeholder for a tumor ROI with no real biopsy grade.
+    gs_str = gs if (isinstance(gs, str) and "+" in gs and gs != "0+0") else None
+    has_ggg = bool(np.isfinite(ggg) and ggg >= 1)
+    if gs_str and has_ggg:
+        return f"{gs_str} (GGG {int(ggg)})"
+    if gs_str:
+        return gs_str
+    if has_ggg:
+        return f"GGG {int(ggg)}"
+    return "tumor, ungraded"
 
 
 def draw_panel(ax, row, show_x, show_y) -> None:
@@ -140,6 +151,12 @@ def make_page(pdf, chunk, header, first_preview=None):
 
 def main() -> None:
     df = pd.read_csv(FEAT)
+    # Join the Gleason score (gs, e.g. "4+3") from metadata by patient id, which
+    # is the roi_id prefix (e.g. "new02_pz_tumor" -> "new02").
+    meta = pd.read_csv(REPO / "src" / "spectra_estimation_dmri" / "data" / "bwh" / "metadata.csv")
+    gs_map = dict(zip(meta["patient_id"].astype(str), meta["gs"]))
+    df["patient_id"] = df["roi_id"].astype(str).str.split("_").str[0]
+    df["gs"] = df["patient_id"].map(gs_map)
     cats = [
         ("pz", False, "peripheral zone · normal"),
         ("pz", True, "peripheral zone · tumor"),
