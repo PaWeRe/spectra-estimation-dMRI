@@ -243,12 +243,12 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 | 5 | ✅ DONE | Spectrum by GGG (GGG=1 vs ≥2). `fig5_v2`, width 0.85\textwidth. Possible extension: 2nd panel GGG≤2 vs ≥3 (matches one-row ROC). |
 | 6 | REWORK | Uncertainty-aware classifier. Restyle (kill rejected-ISMRM leftovers) + recompute: propagate MCMC samples through LR → probability + CI; misclassified ↑ uncertainty. |
 | 7 | REWORK (MAIN) | Direction independence (trace-averaging validation). 1 representative patient + aggregate per-direction stats in text. Needs Stephan's 10-patient tarball. |
-| 8 | NEW (MAIN) | Method validation, 3-panel row: (a) recovery of expected spectrum — truth vs NUTS±90%CI vs tuned-MAP; (b) contrasting GT (concentrated/bimodal); (c) joint noise (σ) posterior over realisations vs true σ. Takeaways: reconstruct realistic spectrum, two methods, joint Bayesian noise inference. (Old Fisher/CRLB Fig 8 DISSOLVED → supp.) |
+| 8 | NEW (MAIN) | Method validation, 3-panel row: (a) recovery of expected spectrum — truth vs NUTS±90%CI vs tuned-MAP; (b) contrasting GT (concentrated/bimodal); (c) joint noise (σ) posterior over realisations vs true σ. Takeaways: reconstruct realistic spectrum, two methods, joint Bayesian noise inference. **ADD GIBBS as a 3rd method** (next session, see §8): show NUTS > Gibbs (Gibbs fails — too correlated / poor mixing); frames Gibbs as the first exploratory method that didn't work. Use `src/spectra_estimation_dmri/inference/gibbs.py`. (Old Fisher/CRLB Fig 8 DISSOLVED → supp.) |
 | 9 | REWORK (MAIN) | Pixelwise feasibility demo. Drop subplot D. Multi-method MAP/NUTS/ADC + discriminant + uncertainty. Anonymise patient ID. |
 | Table 1 | keep | AUC table. |
 
 **Supplementary:**
-- S1 — ✅ DONE: all-ROI individual-spectra ATLAS, fig1_v3 style (NUTS bars + posterior-std whiskers; per-bin within-ROI CV = purple sequential; MAP green ✕; titles = Gleason score + GGG e.g. "4+3 (GGG 3)" matching the old Gibbs output, no patient IDs; proper diffusivity axes). Multi-page PDF `figS1_all_roi_spectra.pdf` (15 pages, 2 cols, grouped by zone×tissue) via `scripts/figS1_all_roi_spectra.py`; embedded in supporting.tex with `\includepdf` — **requires `\usepackage{pdfpages}` in the main preamble (Overleaf)**; fallback = per-page `\includegraphics[page=n]`. The un-conflated home for identifiability + full cohort browse.
+- S1 — ⚠️ **REWORK NEEDED (next session — Patrick not satisfied, see §8 deferred items).** Current draft = `scripts/figS1_all_roi_spectra.py` → multi-page `figS1_all_roi_spectra.pdf` (15 pages, 2 cols, Gleason-score+GGG titles), embedded via `\includepdf` (needs `\usepackage{pdfpages}`). Issues: revert to box-plots-of-posterior; top legend cut off + no y-axis label (PDF layout broken); reconsider patient numbering for traceability. Low priority — after the main figures.
 - S2 — NUTS posterior diagnostics (trace, R̂). NEW DESIGN (current arviz default rejected).
 - S3 — MAP λ-tuning: fraction-of-mass recovered vs λ (DROP the redundant MSE panel).
 - S4 — Simulation recovery battery (easy bimodal / hard concentrated / log-normal), NUTS + tuned-MAP vs truth.
@@ -319,7 +319,23 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 - **Reconciliation framing** (`notes/lit_review_two_camps.md`): detection vs grading. Lead with Fennessy & Maier 2023 (Camp A = Stephan's own). RSIrs detection gap = whole-gland-min-ADC artifact, NOT b-values.
 - Data: LR fit per zone on the 8 features (features.csv, C=1.0, standardised, class_weight balanced — same as fig3); $\partial$ADC$/\partial R$ from `adc_sensitivity.csv` / `adc_sens_vs_lr_tuned_lambda.csv`; CV from `nuts_std_D_*` / `nuts_D_*`. Existing helpers: `scripts/{plot_lr_weights_per_bin,plot_lr_weights_vs_adc_sensitivity,adc_sensitivity_at_tuned_lambda}.py`.
 
-**Then manuscript:** Results around the three pillars; Discussion two-camps reconciliation (await lit review); Abstract + Conclusion; resolve remaining @Stephan inline comments (§7); Methods MAP-tuning + joint-σ paragraphs.
+**▶ NEXT SESSION — also deferred (Patrick flagged 2026-05-31, do AFTER main figures):**
+
+*1. Supplementary all-ROI atlas (S1) — REWORK (Patrick not satisfied):*
+- Revert to **box plots of the posterior samples** per bin (as in the old `output/gibbs` Gibbs output), NOT the current bars + CV-colour. Box-plot shows the full within-ROI posterior distribution.
+- Fix PDF layout: the **top legend is cut off** and the **y-axis label is missing** in the rendered PDF — the current `\includepdf` / page layout is broken.
+- Reconsider showing a **patient number / index** after all — currently there is no way to trace a panel back to a patient. Use a non-identifying sequential id + a private key for the authors (traceability matters; reverses the earlier "no patient id").
+- Keep **2 columns** (Patrick reaffirmed 2, not 3).
+- Generator: `scripts/figS1_all_roi_spectra.py`.
+
+*2. Simulation/validation figure (main Fig 8) — ADD GIBBS as a third method:*
+- Compare Gibbs vs NUTS vs tuned-MAP. Use the existing Gibbs code `src/spectra_estimation_dmri/inference/gibbs.py` (also in the old "code copy" repo). Show **NUTS outperforms Gibbs**: Gibbs fails because the chains are **too correlated** (extremely slow mixing, does not reliably converge to the target). Frames Gibbs as the first exploratory method that didn't work → motivates gradient-based NUTS/HMC. (Promotes the parked VI/Gibbs note in §9 to a main-figure + paragraph.)
+
+*3. Manuscript CORRECTION (Gibbs) — current text is WRONG:*
+- The manuscript claims there is **no conjugate prior / no closed-form solution** (used to justify NUTS). This is **incorrect** — Sandy implemented Gibbs with **closed-form full conditionals** (univariate truncated normals are conjugate); Patrick ran Gibbs for months. The real problem was **mixing** (very slow convergence, not necessarily to the right posterior), NOT lack of a closed form.
+- Find the claim (likely `theory.tex` / `methods.tex`) and correct it; add a short paragraph on the Gibbs→NUTS progression, tied to the Fig 8 Gibbs comparison.
+
+**Then manuscript:** Results around the three pillars; Discussion two-camps reconciliation (await lit review); Abstract + Conclusion; resolve remaining @Stephan inline comments (§7); Methods MAP-tuning + joint-σ paragraphs; Gibbs correction + paragraph (item 3 above).
 
 **Blocked / dependencies:**
 - Fig 7 — needs Stephan's full 10-patient tarball (per-direction data).
