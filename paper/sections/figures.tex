@@ -8,35 +8,32 @@
 % throughout: blue = normal tissue, red = tumor, orange = NUTS,
 % green = MAP, gray/black = CRLB / ground-truth / reference.
 
-% --- Fig 1: Spectra + Identifiability Combined ---
+% --- Fig 1: Cohort Diffusivity Spectra by Tissue and Zone ---
 \begin{figure}[p]
 \centering
-% TODO(figure-regen): increase font size by ~50% throughout (axis labels,
-% tick labels, legends, panel titles).
-\includegraphics[width=\textwidth]{figures/fig_spectra_combined.pdf}
+\includegraphics[width=\textwidth]{figures/fig1_v4.pdf}
 \caption{%
-Diffusivity spectra by tissue type with MAP and NUTS estimates.
+Cohort diffusivity spectra by tissue type and anatomical zone.
 Box plots show, for each diffusivity bin, the cohort distribution of the
-estimated water fraction $R_j$: box edges at the 25th and 75th percentiles,
-center line at the median, whiskers extending to 1.5$\times$ the
-interquartile range, and outliers shown as individual points.
-Top row: normal-tissue ROIs; bottom row: tumor ROIs.
+estimated water fraction $R_j$ across ROIs: box edges at the 25th and 75th
+percentiles, center line at the median, whiskers at 1.5$\times$ the
+interquartile range, and outliers as individual points.
+Top row: normal ROIs; bottom row: tumor ROIs.
 Left column: peripheral zone (PZ); right column: transition zone (TZ).
-Within each panel, MAP estimates (green) are plotted alongside NUTS
-posterior-mean estimates (orange).
-NUTS concentrates mass at the dominant component ($D = 3.0\;\umsmm$ in normal
-tissue), whereas MAP (ridge regression) smooths across adjacent bins due to
-the $L_2$ penalty.
-Per-panel posterior coefficient of variation (CV $=$ posterior std / posterior
-mean), averaged over each panel's ROIs, is annotated above each subplot.
-Identifiability is tissue-dependent: in normal tissue the free-water peak
-($D = 3.0\;\umsmm$) is well resolved (PZ CV $\approx 0.19$, TZ CV $\approx 0.30$),
-whereas in tumor it loses identifiability (CV $\approx 0.55$--$0.59$); the
-restricted-diffusion bin ($D = 0.25\;\umsmm$) shows the inverse pattern,
-better identified in tumor (CV $\approx 0.12$--$0.18$) than normal
-(CV $\approx 0.17$--$0.25$).
-Intermediate bins ($D = 0.50$--$1.00\;\umsmm$) are uniformly poorly
-identified across all panels (CV $> 0.7$).
+Within each panel, MAP estimates (green, hatched) are plotted alongside NUTS
+posterior-mean estimates (orange, solid).
+Relative to normal tissue, tumor shows an elevated restricted-diffusion
+fraction ($D = 0.25\;\umsmm$) and a reduced free-water fraction
+($D = 3.0\;\umsmm$) in both zones.
+MAP and NUTS agree closely at the tuned regularization $\lambda = 10^{-3}$,
+with only mild residual smoothing of the dominant free-water bin under MAP.
+The grey numbers above each panel give the mean NUTS posterior coefficient of
+variation (CV $=$ posterior std $/$ posterior mean) per bin, averaged over that
+panel's ROIs, as a light indicator of per-component identifiability (developed
+in Figure~\ref{fig:sensitivity}): the restricted ($D = 0.25\;\umsmm$) and
+free-water ($D = 3.0\;\umsmm$) bins are well resolved (CV typically $< 0.4$),
+whereas the intermediate bins ($D = 0.5$--$1.0\;\umsmm$) are poorly identified
+(CV $> 0.7$) across all panels.
 }
 \label{fig:spectra}
 \end{figure}

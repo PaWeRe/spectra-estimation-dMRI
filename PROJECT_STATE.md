@@ -236,7 +236,7 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 
 | Fig | Status | What it shows / decision |
 |---|---|---|
-| 1 | REWORK | Cohort-AVERAGE spectra (the clinical "first finding"), tumor/normal × PZ/TZ. KEEP box plots (cohort distribution). MAP vs NUTS by STYLE not colour (box edge/position). Identifiability demoted to light annotation. (Original fig_spectra_combined concept restyled — NOT the fig1_v3 8-ROI concept.) |
+| 1 | ✅ v4 (iterating) | `fig1_v4`: cohort box plots tumor/normal × PZ/TZ. MAP green-hatched / NUTS orange-solid (style + colour, grayscale-safe). Mean within-ROI NUTS CV as light grey annotation. PZ/TZ titles, legend top, no title, shared y. (Box-plot concept kept — NOT the fig1_v3 8-ROI concept.) |
 | 2 | REWORK | ROC: PZ + TZ detection only (GGG ROC dropped). Legend on top, one row. |
 | 3 | ✅ DONE | ADC vs discriminant, 2×2 (PZ/TZ × NUTS/MAP), shared axes, legend top, no title. `fig3_v3`. |
 | 4 | REWORK (centrepiece) | Per-bin standardised LR coef (bars) + −∂ADC/∂R (charcoal line) on a SINGLE normalised axis (no dual-axis offset); bars COLOURED by identifiability (purple sequential). 2 panels (PZ, TZ). Story: outer bins = high weight + ADC-aligned + well-identified; intermediate bins = where LR/ADC diverge AND poorly identified — yet Fig 5 shows they still move with grade. Complement to Fig 3 (Fig3="≈ADC"; Fig4=per-bin anatomy + where it breaks). Drop raw-vs-standardised duality (standardised only). |
@@ -248,7 +248,7 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 | Table 1 | keep | AUC table. |
 
 **Supplementary:**
-- S1 — NEW: all-ROI individual spectra (NUTS bars + per-bin identifiability colour; MAP as ✕). Doubles as full between-ROI cohort spread + per-ROI uncertainty for interested readers.
+- S1 — ✅ DONE: all-ROI individual spectra, fig1_v3 style (NUTS bars + posterior-std whiskers; per-bin within-ROI CV colour = purple sequential; MAP as green ✕). 4 category grids `figS1_all_roi_{pz,tz}_{normal,tumor}` via `scripts/figS1_all_roi_spectra.py`, wired into supporting.tex (auto-numbered S1–S4). The un-conflated home for identifiability + full cohort browse.
 - S2 — NUTS posterior diagnostics (trace, R̂). NEW DESIGN (current arviz default rejected).
 - S3 — MAP λ-tuning: fraction-of-mass recovered vs λ (DROP the redundant MSE panel).
 - S4 — Simulation recovery battery (easy bimodal / hard concentrated / log-normal), NUTS + tuned-MAP vs truth.
@@ -301,10 +301,23 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 - Identifiability distributed (Fig 4 colour + supp S1), not a standalone figure.
 - Identifiability/CV colour → purple sequential (was green→red).
 
-**In progress:**
-- Two-camps literature review (background agent → `notes/lit_review_two_camps.md`). Feeds Discussion reconciliation + Fig 4 framing.
+**Done this session (cont.):**
+- Two-camps literature review complete → `notes/lit_review_two_camps.md` (web-verified DOIs/PMIDs). **Reconciliation = detection vs grading:** fair PI-RADS ADC is hard to beat for DETECTION (Camp A — Fennessy & Maier 2023 Eur J Radiol is *Stephan's own* paper; He et al. 2025 = `assets/s00261...` is the cleanest fair head-to-head, ADC = MC for detection); cellular-compartment metrics (VERDICT fIC, DKI, MC restricted fractions) beat ADC for GRADING (Camp B), because grading signal lives in intracellular/intermediate diffusivities. **KEY CORRECTION:** the RSIrs detection gap (ADC AUC 0.48–0.54) is from an automated whole-gland *minimum* ADC vs radiologist-localized lesion ADC — NOT high-b vs PI-RADS b-values (all headline Camp B papers used b≤1000). Lead the Discussion reconciliation with Maier 2023.
+- Fig 1 rebuilt as `fig1_v4` (cohort box plots, MAP green-hatched / NUTS orange-solid, grey mean-CV annotation, PZ/TZ titles, legend top). Wired into figures.tex (caption rewritten, "ridge smoothing" softened to λ-dependent).
 
-**Figure reworks (sequential, this session):** Fig 1 → Fig 4 → Fig 6 → Fig 2 → Fig 7 → Fig 8(new) → Fig 9 → supplementary S1–S6.
+**TODO — near-final literature deep-dive (one of the LAST steps, before submission):**
+- Extend the lit review beyond medical MR: general signal-reconstruction / inverse-problem literature + ML approaches (variational inference, amortized / learned inference for spectral or parameter estimation). Goal: position our fully-Bayesian *joint spectrum + noise* inference against the wider methods landscape. Do once main text + final figures are locked.
+
+**Figure reworks:** ~~Fig 1 (fig1_v4)~~ ✅, ~~supp S1 all-ROI spectra~~ ✅ → **Fig 4 (NEXT SESSION)** → Fig 6 → Fig 2 → Fig 7 → Fig 8(new) → Fig 9 → supplementary S2–S6.
+
+**▶ NEXT SESSION — Fig 4 (centrepiece) spec — LOCKED this session:**
+- Rework `scripts/fig4_lr_coefs_and_sensitivity.py` → output `fig4_v2`. 2 panels (PZ, TZ), mirroring Fig 3.
+- Per bin: standardised LR coefficient (bars) + $-\partial$ADC$/\partial R_j$ (charcoal line+markers) on a SINGLE unit-normalised axis — NO dual-axis (v1's offset problem). Drop the raw-vs-standardised duality (standardised only).
+- Bars COLOURED by identifiability = purple sequential, same bands as supp S1 (light CV<0.4 → dark CV>0.8). Consider annotating mean±std of per-ROI CV per bin (Patrick's idea — shows identifiability spread, not just the mean).
+- Colours: charcoal sensitivity line + purple CV bars. No red/blue/orange/green clashes.
+- **Story it must tell:** outer bins (D=0.25, 3.0) = high LR weight + ADC-aligned + well-identified = the DETECTION axis; intermediate bins = where LR and ADC diverge AND poorly identified — yet Fig 5 shows they still shift with grade = the GRADING axis. Complement to Fig 3 (Fig3 = "spectrum ≈ ADC"; Fig4 = per-bin anatomy + where/whether it breaks).
+- **Reconciliation framing** (`notes/lit_review_two_camps.md`): detection vs grading. Lead with Fennessy & Maier 2023 (Camp A = Stephan's own). RSIrs detection gap = whole-gland-min-ADC artifact, NOT b-values.
+- Data: LR fit per zone on the 8 features (features.csv, C=1.0, standardised, class_weight balanced — same as fig3); $\partial$ADC$/\partial R$ from `adc_sensitivity.csv` / `adc_sens_vs_lr_tuned_lambda.csv`; CV from `nuts_std_D_*` / `nuts_D_*`. Existing helpers: `scripts/{plot_lr_weights_per_bin,plot_lr_weights_vs_adc_sensitivity,adc_sensitivity_at_tuned_lambda}.py`.
 
 **Then manuscript:** Results around the three pillars; Discussion two-camps reconciliation (await lit review); Abstract + Conclusion; resolve remaining @Stephan inline comments (§7); Methods MAP-tuning + joint-σ paragraphs.
 

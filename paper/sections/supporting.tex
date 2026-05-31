@@ -39,7 +39,58 @@ $q = 1-p$ independent) via inversion of the $2 \times 2$ Fisher matrix.
 This argument is intentionally restricted to the two-compartment limit; the
 full multi-compartment problem is treated numerically in the main text.
 
-% --- Fig S1: NUTS Convergence (Simulation) ---
+% --- Fig S1–S4: Individual estimated spectra for every ROI ---
+% fig1_v3 styling: per-ROI NUTS bars + posterior-std whiskers, coloured by the
+% within-ROI per-bin CV (purple = identifiability); tuned-MAP as a green x.
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/figS1_all_roi_pz_normal.pdf}
+\caption{%
+Individual estimated diffusivity spectra for all peripheral-zone normal ROIs
+(part 1 of 4). Each panel is one ROI: bars are the NUTS posterior-mean water
+fraction $R_j$ with posterior-standard-deviation whiskers, coloured by the
+per-bin within-ROI coefficient of variation (CV $=$ posterior std $/$ posterior
+mean) as a direct, un-averaged measure of identifiability (light $=$ well
+identified, dark purple $=$ poorly identified); the green $\times$ marks the
+tuned-MAP ($\lambda = 10^{-3}$) point estimate. Within each panel the eight bars
+are, left to right, $D = 0.25,\,0.5,\,0.75,\,1.0,\,1.5,\,2.0,\,3.0,\,20\;\umsmm$.
+Panel labels give an anonymised ROI index and, where available, the Gleason
+Grade Group.
+}
+\label{fig:all_roi_pz_normal}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/figS1_all_roi_pz_tumor.pdf}
+\caption{%
+Individual estimated diffusivity spectra for all peripheral-zone tumor ROIs
+(part 2 of 4). Encoding as in Figure~\ref{fig:all_roi_pz_normal}.
+}
+\label{fig:all_roi_pz_tumor}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/figS1_all_roi_tz_normal.pdf}
+\caption{%
+Individual estimated diffusivity spectra for all transition-zone normal ROIs
+(part 3 of 4). Encoding as in Figure~\ref{fig:all_roi_pz_normal}.
+}
+\label{fig:all_roi_tz_normal}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/figS1_all_roi_tz_tumor.pdf}
+\caption{%
+Individual estimated diffusivity spectra for all transition-zone tumor ROIs
+(part 4 of 4). Encoding as in Figure~\ref{fig:all_roi_pz_normal}.
+}
+\label{fig:all_roi_tz_tumor}
+\end{figure}
+
+% --- Fig S5: NUTS Convergence (Simulation) ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_trace_simulation.pdf}
@@ -56,7 +107,7 @@ confirm ill-posedness.
 \label{fig:trace_supp}
 \end{figure}
 
-% --- Fig S2: Robustness Across Spectral Shapes ---
+% --- Fig S6: Robustness Across Spectral Shapes ---
 \begin{figure}[p]
 \centering
 % TODO(figure-regen): larger fonts (~+50%). Recolor: NUTS posterior in

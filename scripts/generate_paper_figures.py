@@ -94,82 +94,88 @@ def bootstrap_auc_ci(y, y_pred, n_boot=2000, alpha=0.05):
 # Fig 1: Spectra + Identifiability Combined
 # =========================================================================
 def fig_spectra_combined(df):
-    # Local font bump (~+50% over the global rcParams) per Stephan's review.
+    # 2x2 grid: match the apparent font scale of the other 2x2 (Fig 3).
     with mpl.rc_context({
-        "font.size": 14, "axes.labelsize": 14, "axes.titlesize": 15,
-        "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12,
+        "axes.labelsize": 20, "axes.titlesize": 17,
+        "xtick.labelsize": 18, "ytick.labelsize": 18, "legend.fontsize": 17,
     }):
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        fig, axes = plt.subplots(2, 2, figsize=(14, 11), sharey=True)
 
-        zones = [("pz", "Peripheral Zone"), ("tz", "Transition Zone")]
+        zones = [("pz", "PZ"), ("tz", "TZ")]
         legend_handles = None
 
-        # Per-panel CV: mean across that panel's ROIs of (NUTS posterior std / mean).
-        # Computed inline from features.csv columns nuts_std_D_<d> and nuts_D_<d>.
+        map_cols = [f"map_{c}" for c in D_COLS]
+        nuts_cols = [f"nuts_{c}" for c in D_COLS]
         nuts_mean_cols = [f"nuts_{c}" for c in D_COLS]
         nuts_std_cols = [f"nuts_std_{c}" for c in D_COLS]
 
-        flier_style = dict(marker="o", markersize=4, markerfacecolor="none",
-                           markeredgecolor="black", markeredgewidth=0.8, alpha=0.85)
+        flier_style = dict(marker="o", markersize=3, markerfacecolor="none",
+                           markeredgecolor="0.5", markeredgewidth=0.6, alpha=0.55)
+        x = np.arange(len(DIFFUSIVITIES))
+        width = 0.38
 
         for col_idx, (zone, zone_title) in enumerate(zones):
             zdf = df[df["zone"] == zone]
 
-            for row_idx, (is_tumor, tissue_label) in enumerate([(False, "Normal"), (True, "Tumor")]):
+            for row_idx, (is_tumor, tissue_label) in enumerate([(False, "normal"), (True, "tumor")]):
                 ax = axes[row_idx, col_idx]
                 sub = zdf[zdf["is_tumor"] == is_tumor]
                 n = len(sub)
 
-                map_cols = [f"map_{c}" for c in D_COLS]
-                nuts_cols = [f"nuts_{c}" for c in D_COLS]
-
-                x = np.arange(len(DIFFUSIVITIES))
-                width = 0.35
-
-                # MAP boxplot
-                map_data = [sub[c].values for c in map_cols]
+                # MAP boxes: green + hatch so the estimator is distinguishable by
+                # STYLE, not colour alone (grayscale / colour-blind safe).
                 bp_map = ax.boxplot(
-                    map_data, positions=x - width/2, widths=width*0.85,
-                    patch_artist=True, medianprops=dict(color="black", linewidth=1.2),
-                    flierprops=flier_style, manage_ticks=False,
+                    [sub[c].values for c in map_cols],
+                    positions=x - width/2, widths=width*0.85,
+                    patch_artist=True, medianprops=dict(color="black", linewidth=1.0),
+                    flierprops=flier_style, manage_ticks=False, whis=1.5,
                 )
                 for patch in bp_map["boxes"]:
-                    patch.set_facecolor(MAP_COLOR); patch.set_alpha(0.5)
+                    patch.set_facecolor(MAP_COLOR); patch.set_alpha(0.55)
+                    patch.set_hatch("////")
+                    patch.set_edgecolor("black"); patch.set_linewidth(0.8)
 
-                # NUTS boxplot
-                nuts_data = [sub[c].values for c in nuts_cols]
+                # NUTS boxes: orange, solid.
                 bp_nuts = ax.boxplot(
-                    nuts_data, positions=x + width/2, widths=width*0.85,
-                    patch_artist=True, medianprops=dict(color="black", linewidth=1.2),
-                    flierprops=flier_style, manage_ticks=False,
+                    [sub[c].values for c in nuts_cols],
+                    positions=x + width/2, widths=width*0.85,
+                    patch_artist=True, medianprops=dict(color="black", linewidth=1.0),
+                    flierprops=flier_style, manage_ticks=False, whis=1.5,
                 )
                 for patch in bp_nuts["boxes"]:
-                    patch.set_facecolor(NUTS_COLOR); patch.set_alpha(0.5)
+                    patch.set_facecolor(NUTS_COLOR); patch.set_alpha(0.7)
+                    patch.set_edgecolor("black"); patch.set_linewidth(0.8)
 
                 ax.set_xticks(x)
                 ax.set_xticklabels(D_LABELS)
-                ax.set_xlabel("Diffusivity D (\u03bcm\u00b2/ms)")
-                ax.set_ylabel("Spectral Fraction")
-                ax.set_title(f"{tissue_label} {zone_title} (n={n})", fontweight="bold")
-                ax.set_ylim(-0.02, 0.85)
+                ax.set_xlim(-0.85, len(DIFFUSIVITIES) - 0.15)
+                if row_idx == 1:
+                    ax.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
+                if col_idx == 0:
+                    ax.set_ylabel(r"spectral fraction $R_j$")
+                ax.set_title(f"{tissue_label}, {zone_title} (n={n})")
+                ax.set_ylim(-0.02, 1.0)
+                ax.grid(axis="y", alpha=0.25, linewidth=0.5)
 
                 if legend_handles is None:
                     legend_handles = [bp_map["boxes"][0], bp_nuts["boxes"][0]]
 
-                # Per-panel CV (NUTS posterior CV averaged over this panel's ROIs).
+                # Light identifiability annotation: mean NUTS posterior CV per bin,
+                # averaged over this panel's ROIs. Neutral grey \u2014 the full
+                # identifiability story lives in Fig 4 + the supplementary spectra.
                 cv_panel = (sub[nuts_std_cols].values
                             / np.maximum(sub[nuts_mean_cols].values, 1e-12)).mean(axis=0)
+                ax.text(-0.78, 0.95, "CV", ha="left", va="center",
+                        fontsize=12, color="0.35", fontstyle="italic")
                 for i, cv in enumerate(cv_panel):
-                    color = MAP_COLOR if cv < 0.4 else TUMOR_COLOR if cv > 0.7 else NUTS_COLOR
-                    ax.text(i, 0.81, f"CV={cv:.2f}",
-                            ha="center", va="top", fontsize=9,
-                            color=color, fontweight="bold")
+                    ax.text(i, 0.95, f"{cv:.2f}", ha="center", va="center",
+                            fontsize=11, color="0.35")
 
-        fig.legend(legend_handles, ["MAP", "NUTS"],
-                   loc="upper center", ncol=2, frameon=True, framealpha=0.9,
-                   bbox_to_anchor=(0.5, 1.0))
-        fig.tight_layout(rect=(0, 0, 1, 0.965))
-        _save(fig, "fig_spectra_combined")
+        fig.legend(legend_handles, [r"MAP ($\lambda=10^{-3}$)", "NUTS (posterior)"],
+                   loc="upper center", ncol=2, frameon=True, framealpha=0.95,
+                   bbox_to_anchor=(0.5, 0.995))
+        fig.tight_layout(rect=(0, 0, 1, 0.90))
+        _save(fig, "fig1_v4")
 
 
 # =========================================================================
