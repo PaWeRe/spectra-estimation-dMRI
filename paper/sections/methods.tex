@@ -36,12 +36,14 @@ This cutoff was chosen to follow PI-RADS~v2.1 recommendations, which specify a m
 
 Tumor detection and Gleason grade classification were evaluated using $L_2$-regularized logistic regression with leave-one-out cross-validation (LOOCV).
 Three classification tasks were defined: (1)~tumor versus normal in PZ ($n = 81$), (2)~tumor versus normal in TZ ($n = 68$), and (3)~high-grade (GGG~$\geq 3$) versus low-grade (GGG~1--2) among tumor ROIs with available GGG labels ($n = 29$).
+Detection classifiers were trained separately by zone because normal peripheral- and transition-zone tissue differ systematically in baseline diffusion properties, so a single pooled tumor-versus-normal boundary would conflate zonal and pathological variation.
 
-For each task, three feature representations were compared: (a)~ADC alone (single feature), (b)~all eight MAP spectral fractions, and (c)~all eight NUTS posterior mean fractions.
-For single-feature models (ADC, individual components), the raw feature value was used directly as the classification score without training a classifier.
-For multi-feature models, standardized features were passed through logistic regression with regularization $C = 1.0$ (inverse regularization strength), with separate standardization and model fitting in each LOOCV fold to prevent data leakage.
+For each task, the following feature representations were compared through an identical leave-one-out cross-validation (LOOCV) pipeline: (a)~ADC alone; (b)~each individual spectral fraction alone; (c)~the two outer fractions $\{D = 0.25,\,3.0\;\umsmm\}$ jointly; and (d)~all eight fractions, using either MAP or NUTS posterior-mean estimates.
+Within each fold, features were standardized and an $L_2$-regularized logistic-regression classifier ($C = 1.0$, inverse regularization strength) was fit on the training ROIs and applied to the held-out ROI, with standardization and fitting confined to the training fold to prevent data leakage.
+Scoring single- and multi-feature models through the same held-out pipeline makes them directly comparable: a single monotonic feature incurs negligible overfitting, whereas a multivariate model pays a finite-sample penalty, so this avoids the optimistic bias that arises from scoring single features in-sample.
+For reference we additionally report the conventional in-sample ADC raw-rank AUC (Table~\ref{tab:auc}).
 Performance was measured by the area under the receiver operating characteristic curve (AUC).
-Standard errors for AUC were computed using the Hanley--McNeil method \citep{hanley1982meaning}; bootstrap confidence intervals reported in the Results for ROI-level correlations between ADC and the spectral discriminant are a separate computation described in the ADC Sensitivity Analysis subsection below.
+Ninety-five percent confidence intervals for all AUCs and for the ROI-level ADC--discriminant correlations were obtained by patient-level percentile bootstrap (2000 resamples) \citep{efron1993bootstrap}; paired comparisons between two AUCs computed on the same ROIs used DeLong's test \citep{delong1988comparing}.
 Sensitivity analyses at $C = 0.1$ and $C = 10.0$ confirmed that results were robust to regularization strength.
 
 \subsection{ADC Sensitivity Analysis}

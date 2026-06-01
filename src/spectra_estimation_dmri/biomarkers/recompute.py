@@ -322,15 +322,47 @@ def raw_rank_auc(feature: np.ndarray, y: np.ndarray) -> float:
     return max(auc, 1 - auc)  # handle inverse correlation
 
 
+def bootstrap_auc_ci(y: np.ndarray, score: np.ndarray, n_boot: int = 2000,
+                     alpha: float = 0.05, seed: int = 42) -> tuple[float, float]:
+    """Percentile bootstrap 95% CI for the AUC of a fixed score vector.
+
+    Resamples (label, score) pairs. This is the project-wide interval method
+    (matches Fig 2 / Fig 3, which also bootstrap); the older Hanley--McNeil
+    analytic SE is retired. Paired AUC comparisons use DeLong's test (see
+    scripts/two_feature_lr_vs_adc.py).
+    """
+    rng = np.random.RandomState(seed)
+    n = len(y)
+    aucs = []
+    for _ in range(n_boot):
+        idx = rng.choice(n, n, replace=True)
+        if len(np.unique(y[idx])) > 1:
+            aucs.append(roc_auc_score(y[idx], score[idx]))
+    if not aucs:
+        return np.nan, np.nan
+    return (float(np.percentile(aucs, 100 * alpha / 2)),
+            float(np.percentile(aucs, 100 * (1 - alpha / 2))))
+
+
 def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0],
                        ) -> pd.DataFrame:
     """Run all classification tasks and return AUC table.
 
     Tasks: PZ tumor detection, TZ tumor detection, GGG grading.
-    Methods: ADC (raw rank), ADC (LR), MAP Full LR, NUTS Full LR.
+    Methods: ADC (raw rank), ADC (LR), MAP Full LR, NUTS Full LR,
+             MAP 2-feat {D=0.25,3.0}, NUTS 2-feat {D=0.25,3.0}.
+
+    The 2-feature rows use only the two outer compartments (restricted
+    D=0.25 + free-water D=3.0); they test the "collapse" claim (Fig 2) that
+    detection needs only these two bins. AUCs carry percentile bootstrap 95%
+    CIs (auc_lo, auc_hi).
     """
     map_cols = [f"map_{c}" for c in D_COLS]
     nuts_cols = [f"nuts_{c}" for c in D_COLS]
+    # Outer-bin "collapse" pair: D=0.25 (restricted) and D=3.00 (free water).
+    outer_idx = [0, 6]
+    map_outer = [map_cols[i] for i in outer_idx]
+    nuts_outer = [nuts_cols[i] for i in outer_idx]
 
     results = []
 
@@ -359,33 +391,58 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
 
         print(f"\n  {task_name}: n={len(y)} (pos={n_pos}, neg={n_neg})")
 
-        # ADC raw rank AUC
+        # ADC raw rank AUC (directed score so the bootstrap CI is on the
+        # tumor-positive orientation: lower ADC -> tumor).
         adc_vals = task_df["adc"].values
-        adc_raw_auc = raw_rank_auc(adc_vals, y)
+        adc_score = adc_vals if roc_auc_score(y, adc_vals) >= 0.5 else -adc_vals
+        adc_raw_auc = roc_auc_score(y, adc_score)
+        lo, hi = bootstrap_auc_ci(y, adc_score)
         results.append({"task": task_name, "method": "ADC (raw rank)",
-                        "C": "-", "auc": adc_raw_auc, "n": len(y)})
-        print(f"    ADC raw rank:    {adc_raw_auc:.4f}")
+                        "C": "-", "auc": adc_raw_auc,
+                        "auc_lo": lo, "auc_hi": hi, "n": len(y)})
+        print(f"    ADC raw rank:    {adc_raw_auc:.4f} [{lo:.3f}, {hi:.3f}]")
 
         for C in C_values:
             # ADC via LR
-            auc_adc, _, _, _, _ = loocv_auc(adc_vals.reshape(-1, 1), y, C=C)
+            auc_adc, pred_adc, _, _, _ = loocv_auc(adc_vals.reshape(-1, 1), y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_adc)
             results.append({"task": task_name, "method": "ADC (LR)",
-                            "C": C, "auc": auc_adc, "n": len(y)})
+                            "C": C, "auc": auc_adc,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
             # MAP Full LR (8 features)
             X_map = task_df[map_cols].values
-            auc_map, _, coefs_map, _, _ = loocv_auc(X_map, y, C=C)
+            auc_map, pred_map, coefs_map, _, _ = loocv_auc(X_map, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_map)
             results.append({"task": task_name, "method": "MAP Full LR",
-                            "C": C, "auc": auc_map, "n": len(y)})
+                            "C": C, "auc": auc_map,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
             # NUTS Full LR (8 features)
             X_nuts = task_df[nuts_cols].values
-            auc_nuts, _, coefs_nuts, _, _ = loocv_auc(X_nuts, y, C=C)
+            auc_nuts, pred_nuts, coefs_nuts, _, _ = loocv_auc(X_nuts, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_nuts)
             results.append({"task": task_name, "method": "NUTS Full LR",
-                            "C": C, "auc": auc_nuts, "n": len(y)})
+                            "C": C, "auc": auc_nuts,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
+
+            # MAP 2-feature {D=0.25, 3.0} (the "collapse" classifier)
+            auc_map2, pred_map2, _, _, _ = loocv_auc(task_df[map_outer].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_map2)
+            results.append({"task": task_name, "method": "MAP 2-feat {0.25,3.0}",
+                            "C": C, "auc": auc_map2,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
+
+            # NUTS 2-feature {D=0.25, 3.0}
+            auc_nuts2, pred_nuts2, _, _, _ = loocv_auc(task_df[nuts_outer].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_nuts2)
+            results.append({"task": task_name, "method": "NUTS 2-feat {0.25,3.0}",
+                            "C": C, "auc": auc_nuts2,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
             print(f"    C={C:5.1f}  ADC LR={auc_adc:.4f}  "
-                  f"MAP={auc_map:.4f}  NUTS={auc_nuts:.4f}")
+                  f"MAP={auc_map:.4f} (2f {auc_map2:.4f})  "
+                  f"NUTS={auc_nuts:.4f} (2f {auc_nuts2:.4f})")
 
     return pd.DataFrame(results)
 

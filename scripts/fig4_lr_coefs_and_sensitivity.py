@@ -1,27 +1,40 @@
-"""Fig. 4 (main text) — LR coefficient profile per bin + ADC sensitivity overlay.
+"""Fig. 4 (main, centrepiece) -- per-bin anatomy of the spectral discriminant.
 
-Replaces the old Fig. 4 (ADC-sensitivity vs LR-coef as a single regularizer-
-dependent r = -0.98 plot). This version is the layered "why ADC works"
-evidence assembled from NUTS posteriors and corrected MAP solver output:
+Complement to Fig. 3 (Fig. 3 = "the spectral discriminant ranks ROIs like ADC";
+Fig. 4 = "here is the per-bin structure of that discriminant, where its weight
+actually lives, and how it relates to ADC").
 
-  Panel (a) — Per-bin LR coefficients (NUTS-features, tumor-vs-normal),
-              PZ and TZ side-by-side. Raw and standardized (per-SD) shown
-              as two sub-panels. Outer bins (D = 0.25, D = 3.0) carry the
-              strong opposing-sign weights; intermediates are small.
+Two panels (PZ, TZ). On a single unit-normalised axis (no dual-axis):
 
-  Panel (b) — Per-bin LR coefficient profile (NUTS w_std) overlaid against
-              the ADC sensitivity vector ∂ADC/∂R_j at the average-tumor
-              operating point per zone. ADC sensitivity is smooth and
-              roughly monotone in D; LR coefs are peakier at the outer
-              bins; they anti-correlate (PZ r ≈ -0.79, TZ r ≈ -0.88).
+  - Bars  = standardised tumor-vs-normal logistic-regression coefficient w_std
+            per diffusivity bin -- the SAME fit as Fig. 3 (NUTS posterior-mean
+            features, C=1, balanced, standardised) -- normalised to max|w| = 1,
+            with 95% bootstrap CIs (resample ROIs, refit). Bars are COLOURED +
+            HATCHED by the bin's within-ROI posterior CV (colourblind-safe,
+            shared with the S1 atlas via visualization.identifiability).
+  - Markers = -dADC/dR_j (charcoal diamonds, NO connecting line) at the average
+            tumour operating point, normalised to max|.| = 1 and negated so
+            positive = tumour direction. ALSO given 95% bootstrap CIs (resample
+            ROIs, recompute the operating point, recompute the gradient) so the
+            two quantities are compared on equal, honest footing.
+
+A slim strip below each panel shows the per-bin within-ROI CV as mean +/- std.
+
+KEY (bootstrap) RESULT this figure must convey: only the two OUTER bins
+(D = 0.25 with +weight, D = 3.0 with -weight) have coefficients whose 95% CI
+excludes zero -- in both zones, 100% sign-stable. Every PZ intermediate bin, and
+most TZ intermediate bins, have CIs straddling zero: the discriminant is
+statistically a TWO-BIN detector. This is the "why ADC works" collapse, and it
+is where ADC is most sensitive (matching, opposite sign). The intermediate bins'
+biological (grading) signal is a separate, univariate finding (Fig. 5), not a
+detection-coefficient claim.
 
 Inputs:
-  - results/biomarkers/lr_coef_decomp.csv   (per-bin LR weights, NUTS feats)
-  - results/biomarkers/adc_sensitivity.csv  (∂ADC/∂R_j, NUTS features rows)
+  - results/biomarkers/features.csv  (NUTS fractions + std -> LR, CV, sensitivity)
 
 Outputs:
-  - paper/figures/fig4_v1.png  (300 dpi)
-  - paper/figures/fig4_v1.pdf
+  - paper/figures/fig4_v3.png  (300 dpi)
+  - paper/figures/fig4_v3.pdf
 
 Usage:
     uv run python scripts/fig4_lr_coefs_and_sensitivity.py
@@ -29,223 +42,220 @@ Usage:
 
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 
+import matplotlib as mpl
+
+mpl.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
+from matplotlib.lines import Line2D
+from scipy import stats
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+
+from spectra_estimation_dmri.biomarkers.recompute import compute_sensitivity
+from spectra_estimation_dmri.visualization.identifiability import (
+    cv_color, cv_hatch, cv_legend_handles)
 
 # ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
-REPO_ROOT = Path(__file__).resolve().parents[1]
-LR_COEF_CSV = REPO_ROOT / "results" / "biomarkers" / "lr_coef_decomp.csv"
-ADC_SENS_CSV = REPO_ROOT / "results" / "biomarkers" / "adc_sensitivity.csv"
-OUT_DIR = REPO_ROOT / "paper" / "figures"
-OUT_PNG = OUT_DIR / "fig4_v1.png"
-OUT_PDF = OUT_DIR / "fig4_v1.pdf"
+REPO = Path(__file__).resolve().parents[1]
+FEATURES_CSV = REPO / "results" / "biomarkers" / "features.csv"
+OUT_DIR = REPO / "paper" / "figures"
+OUT_PNG = OUT_DIR / "fig4_v3.png"
+OUT_PDF = OUT_DIR / "fig4_v3.pdf"
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-DIFFUSIVITIES = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
-N_BINS = len(DIFFUSIVITIES)
-RAW_COLS = [f"w_raw_D_{d:.2f}" for d in DIFFUSIVITIES]
-STD_COLS = [f"w_std_D_{d:.2f}" for d in DIFFUSIVITIES]
+D = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
+DLAB = ["0.25", "0.5", "0.75", "1.0", "1.5", "2.0", "3.0", "20"]
+NUTS = [f"nuts_D_{d:.2f}" for d in D]
+NSTD = [f"nuts_std_D_{d:.2f}" for d in D]
+ZONES = [("pz", "PZ"), ("tz", "TZ")]
 
-# Zone palette (PZ blue, TZ orange — matches manuscript convention)
-ZONE_COLOR = {"pz": "#1f77b4", "tz": "#ff7f0e"}
-ZONE_LABEL = {"pz": "PZ (n=81)", "tz": "TZ (n=68)"}
-ZONE_ORDER = ["pz", "tz"]
+SENS_COLOR = "#3a3a3a"   # charcoal sensitivity markers
+N_BOOT = 2000
 
-# Sensitivity: red (tumor-direction; we plot -sens so that positive bars =
-# "ADC decreases when this bin grows" = tumor-direction)
-SENS_COLOR = "#d62728"
-
-# Style spec (per Patrick's request)
-FS_TITLE = 15
-FS_AXIS = 17
-FS_TICK = 17
-FS_LEGEND = 15
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-def parse_vec(s: str) -> np.ndarray:
-    return np.array(ast.literal_eval(s), dtype=float)
+mpl.rcParams.update({
+    "font.family": "DejaVu Sans",
+    "axes.labelsize": 18, "axes.titlesize": 16,
+    "xtick.labelsize": 16, "ytick.labelsize": 15, "legend.fontsize": 15.5,
+    "hatch.linewidth": 0.6,
+})
 
 
-def load_lr_coefs() -> dict[str, dict[str, np.ndarray]]:
-    """Return {zone: {'raw': w_raw_vec, 'std': w_std_vec}} for tumor-vs-normal."""
-    df = pd.read_csv(LR_COEF_CSV)
-    df = df[df["task"] == "tumor_vs_normal"].copy()
-    out: dict[str, dict[str, np.ndarray]] = {}
-    for zone in ZONE_ORDER:
-        row = df[df["zone"] == zone].iloc[0]
-        out[zone] = {
-            "raw": row[RAW_COLS].to_numpy(dtype=float),
-            "std": row[STD_COLS].to_numpy(dtype=float),
-            "n": int(row["n"]),
-            "n_pos": int(row["n_pos"]),
-            "n_neg": int(row["n_neg"]),
-        }
-    return out
+def std_lr_coef(X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Standardised tumor-vs-normal LR coefficient vector (Fig. 3's exact fit)."""
+    Xs = StandardScaler().fit_transform(X)
+    clf = LogisticRegression(C=1.0, class_weight="balanced", max_iter=2000,
+                             solver="lbfgs", random_state=42)
+    clf.fit(Xs, y.astype(int))
+    return clf.coef_[0]
 
 
-def load_adc_sensitivity() -> dict[str, dict[str, float | np.ndarray]]:
-    """Return {zone: {'sens_tumor':vec, 'sens_normal':vec, 'w_std':vec, r_p, r_s}}
-    for the NUTS-features row at C=1.0."""
-    df = pd.read_csv(ADC_SENS_CSV)
-    df = df[(df["features"] == "NUTS") & (df["C"] == 1.0)].copy()
-    df["sensitivity"] = df["sensitivity"].apply(parse_vec)
-    df["lr_coefs"] = df["lr_coefs"].apply(parse_vec)
-    out: dict[str, dict[str, float | np.ndarray]] = {}
-    for zone in ["PZ", "TZ"]:
-        sub = df[df["zone"] == zone]
-        t = sub[sub["operating_point"] == "tumor"].iloc[0]
-        n = sub[sub["operating_point"] == "normal"].iloc[0]
-        out[zone.lower()] = {
-            "sens_tumor": t["sensitivity"],
-            "sens_normal": n["sensitivity"],
-            "w_std": t["lr_coefs"],
-            "r_pearson_tumor": float(t["r_pearson"]),
-            "r_spearman_tumor": float(t["r_spearman"]),
-            "r_pearson_normal": float(n["r_pearson"]),
-            "r_spearman_normal": float(n["r_spearman"]),
-        }
-    return out
+def unit(v: np.ndarray) -> float:
+    m = np.max(np.abs(v))
+    return m if m > 0 else 1.0
 
 
-# ---------------------------------------------------------------------------
-# Plotting
-# ---------------------------------------------------------------------------
+def analyze_zone(feat: pd.DataFrame, zkey: str, rng: np.random.Generator) -> dict:
+    """Point estimates + 95% bootstrap CIs for LR coef and -dADC/dR, plus CV."""
+    sub = feat[feat["zone"] == zkey]
+    X = sub[NUTS].to_numpy(float)
+    y = sub["is_tumor"].to_numpy()
+    n = len(sub)
+
+    w0 = std_lr_coef(X, y)
+    g0 = compute_sensitivity(X[y == 1].mean(axis=0))   # dADC/dR at avg tumour
+    sens0 = -g0                                         # plotted (tumour dir.)
+
+    mean = X
+    std = sub[NSTD].to_numpy(float)
+    cv = np.divide(std, mean, out=np.full_like(mean, np.nan), where=mean > 1e-8)
+
+    # display normalisation (fixed by point estimate)
+    mw, ms = unit(w0), unit(sens0)
+    Wb, Sb, Rb = [], [], []
+    for _ in range(N_BOOT):
+        idx = rng.integers(0, n, n)
+        Xb, yb = X[idx], y[idx]
+        if yb.sum() < 2 or (~yb.astype(bool)).sum() < 2:
+            continue
+        wb = std_lr_coef(Xb, yb)
+        gb = compute_sensitivity(Xb[yb == 1].mean(axis=0))
+        Wb.append(wb); Sb.append(-gb); Rb.append(stats.pearsonr(wb, gb)[0])
+    Wb, Sb, Rb = np.array(Wb), np.array(Sb), np.array(Rb)
+
+    w_lo, w_hi = np.percentile(Wb / mw, [2.5, 97.5], axis=0)
+    s_lo, s_hi = np.percentile(Sb / ms, [2.5, 97.5], axis=0)
+    r0 = stats.pearsonr(w0, g0)[0]
+    r_lo, r_hi = np.percentile(Rb, [2.5, 97.5])
+
+    return {
+        "n": n,
+        "w_n": w0 / mw, "w_lo": w_lo, "w_hi": w_hi,
+        "s_n": sens0 / ms, "s_lo": s_lo, "s_hi": s_hi,
+        "sig": (w_lo > 0) | (w_hi < 0),               # CI excludes zero
+        "cv_mean": np.nanmean(cv, axis=0), "cv_std": np.nanstd(cv, axis=0),
+        "r0": r0, "r_lo": r_lo, "r_hi": r_hi,
+    }
+
+
 def main() -> None:
-    lr = load_lr_coefs()
-    sens = load_adc_sensitivity()
+    feat = pd.read_csv(FEATURES_CSV)
+    rng = np.random.default_rng(42)
+    x = np.arange(len(D))
+    data = {zk: analyze_zone(feat, zk, rng) for zk, _ in ZONES}
 
-    # ------- Layout: 2 rows × 2 cols.
-    # Row 1: panel (a) — left = raw, right = standardized.
-    # Row 2: panel (b) — left = PZ (overlay), right = TZ (overlay).
-    fig, axes = plt.subplots(2, 2, figsize=(17, 12))
-    plt.subplots_adjust(wspace=0.45, hspace=0.35)
+    fig = plt.figure(figsize=(15.0, 9.5))
+    gs = fig.add_gridspec(2, 2, height_ratios=[3.0, 1.0], hspace=0.07, wspace=0.16,
+                          left=0.075, right=0.985, top=0.85, bottom=0.115)
+    cv_ymax = max(np.nanmax(data[z]["cv_mean"] + data[z]["cv_std"])
+                  for z in ("pz", "tz")) * 1.12
+    # symmetric y so the (wide) D=0.25 coef CI + the significance markers are not
+    # clipped; pad above the largest CI extent across both panels.
+    ci_extent = np.concatenate([data[z][k] for z in ("pz", "tz")
+                                for k in ("w_lo", "w_hi", "s_lo", "s_hi")])
+    ymax = float(np.nanmax(np.abs(ci_extent))) * 1.18
+    bw = 0.34
+    dx = 0.18
 
-    x = np.arange(N_BINS)
-    xlabels = [f"{d:g}" for d in DIFFUSIVITIES]
-    bw = 0.36
+    for j, (zkey, zlabel) in enumerate(ZONES):
+        z = data[zkey]
+        ax = fig.add_subplot(gs[0, j])
+        axc = fig.add_subplot(gs[1, j], sharex=ax)
 
-    # ====================================================================
-    # Panel (a): per-bin LR coefficients, PZ vs TZ grouped, raw + std.
-    # ====================================================================
-    for ax, key, ylab, title in [
-        (axes[0, 0], "raw", r"LR coefficient $w_{\mathrm{raw}}$",
-         r"(a) Per-bin LR coefficient — raw"),
-        (axes[0, 1], "std", r"LR coefficient $w_{\mathrm{std}}$ (per-SD)",
-         r"(a) Per-bin LR coefficient — standardized"),
-    ]:
-        for i, zone in enumerate(ZONE_ORDER):
-            off = (i - 0.5) * bw
-            vals = lr[zone][key]
-            ax.bar(
-                x + off, vals, bw,
-                color=ZONE_COLOR[zone], edgecolor="black", linewidth=0.5,
-                label=ZONE_LABEL[zone],
-            )
-        ax.axhline(0, color="k", lw=0.7)
-        ax.set_xticks(x)
-        ax.set_xticklabels(xlabels, fontsize=FS_TICK, rotation=0)
-        ax.tick_params(axis="y", labelsize=FS_TICK)
-        ax.tick_params(axis="x", labelsize=FS_TICK)
-        ax.set_xlabel(r"Diffusivity $D$  ($\mu$m$^2$/ms)", fontsize=FS_AXIS)
-        ax.set_ylabel(ylab, fontsize=FS_AXIS)
-        ax.set_title(title, fontsize=FS_TITLE)
-        ax.grid(axis="y", alpha=0.25)
-        # Highlight outer bins (D=0.25 and D=3.0) with a soft tumor / normal tint.
-        ax.axvspan(-0.5, 0.5, color="#d62728", alpha=0.06, zorder=0)  # D=0.25 (tumor-dir)
-        ax.axvspan(5.5, 6.5, color="#1f77b4", alpha=0.06, zorder=0)   # D=3.0  (normal-dir)
-        # Legend outside.
-        ax.legend(
-            fontsize=FS_LEGEND, frameon=True,
-            loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0.0,
-        )
+        # outer "detection" bins, gently flagged
+        for xi in (0, 6):
+            ax.axvspan(xi - 0.5, xi + 0.5, color="0.5", alpha=0.07, zorder=0)
+            axc.axvspan(xi - 0.5, xi + 0.5, color="0.5", alpha=0.07, zorder=0)
 
-    # ====================================================================
-    # Panel (b): LR w_std vs ADC sensitivity overlay, per zone.
-    # ====================================================================
-    for ax, zone in zip([axes[1, 0], axes[1, 1]], ZONE_ORDER):
-        s = sens[zone]
-        w = s["w_std"]
-        # Sign convention: plot +(-sens) so positive = tumor-direction; this
-        # makes the anti-correlation visually obvious (bars align if perfectly
-        # anti-correlated).
-        sens_plot = -s["sens_tumor"]
-        r_p = s["r_pearson_tumor"]
-        r_s = s["r_spearman_tumor"]
+        # --- LR bars (colour+hatch = CV) with bootstrap CIs ---
+        for i in range(len(D)):
+            ax.bar(x[i] - dx, z["w_n"][i], width=bw,
+                   color=cv_color(z["cv_mean"][i]), hatch=cv_hatch(z["cv_mean"][i]),
+                   edgecolor="black", linewidth=0.6, zorder=2)
+        ax.errorbar(x - dx, z["w_n"],
+                    yerr=[z["w_n"] - z["w_lo"], z["w_hi"] - z["w_n"]],
+                    fmt="none", ecolor="black", elinewidth=1.0, capsize=2.5, zorder=3)
 
-        ax_l = ax
-        ax_r = ax.twinx()
+        # --- ADC sensitivity markers (NO line) with bootstrap CIs ---
+        ax.errorbar(x + dx, z["s_n"],
+                    yerr=[z["s_n"] - z["s_lo"], z["s_hi"] - z["s_n"]],
+                    fmt="D", ms=8, mfc="white", mec=SENS_COLOR, mew=1.8,
+                    ecolor=SENS_COLOR, elinewidth=1.4, capsize=3, zorder=4)
 
-        ax_l.bar(
-            x - bw / 2, w, bw,
-            color=ZONE_COLOR[zone], edgecolor="black", linewidth=0.4,
-            label=r"NUTS LR $w_{\mathrm{std}}$",
-        )
-        ax_r.bar(
-            x + bw / 2, sens_plot, bw,
-            color=SENS_COLOR, edgecolor="black", linewidth=0.4, alpha=0.85,
-            label=r"$-\,\partial\mathrm{ADC}/\partial R_j$ (tumor op.)",
-        )
-        ax_l.axhline(0, color="k", lw=0.7)
-        ax_l.set_xticks(x)
-        ax_l.set_xticklabels(xlabels, fontsize=FS_TICK)
-        ax_l.tick_params(axis="y", labelsize=FS_TICK, labelcolor=ZONE_COLOR[zone])
-        ax_r.tick_params(axis="y", labelsize=FS_TICK, labelcolor=SENS_COLOR)
-        ax_l.set_xlabel(r"Diffusivity $D$  ($\mu$m$^2$/ms)", fontsize=FS_AXIS)
-        ax_l.set_ylabel(r"LR $w_{\mathrm{std}}$ (NUTS)",
-                        fontsize=FS_AXIS, color=ZONE_COLOR[zone])
-        ax_r.set_ylabel(r"$-\,\partial\mathrm{ADC}/\partial R_j$",
-                        fontsize=FS_AXIS, color=SENS_COLOR)
-        ax_l.set_title(
-            f"(b) {zone.upper()}  —  Pearson r = {r_p:+.2f},  "
-            f"Spearman $\\rho$ = {r_s:+.2f}",
-            fontsize=FS_TITLE,
-        )
-        ax_l.grid(axis="y", alpha=0.25)
-        ax_l.axvspan(-0.5, 0.5, color="#d62728", alpha=0.06, zorder=0)
-        ax_l.axvspan(5.5, 6.5, color="#1f77b4", alpha=0.06, zorder=0)
+        # significance markers: star at the CI extremum of bins whose coef CI
+        # excludes zero (the two outer "stable detection weight" bins).
+        for i in range(len(D)):
+            if not z["sig"][i]:
+                continue
+            if z["w_n"][i] >= 0:
+                ystar, va = z["w_hi"][i] + 0.05 * ymax, "bottom"
+            else:
+                ystar, va = z["w_lo"][i] - 0.05 * ymax, "top"
+            ax.text(x[i] - dx, ystar, "*", ha="center", va=va,
+                    fontsize=17, fontweight="bold", zorder=6)
 
-        # Combined legend outside, to the right of the right-axis labels.
-        h1, l1 = ax_l.get_legend_handles_labels()
-        h2, l2 = ax_r.get_legend_handles_labels()
-        ax_r.legend(
-            h1 + h2, l1 + l2,
-            fontsize=FS_LEGEND, frameon=True,
-            loc="upper left", bbox_to_anchor=(1.15, 1.0), borderaxespad=0.0,
-        )
+        ax.axhline(0, color="k", lw=0.8)
+        ax.set_ylim(-ymax, ymax)
+        ax.set_xlim(-0.6, len(D) - 0.4)
+        ax.grid(axis="y", alpha=0.22, linewidth=0.5)
+        ax.tick_params(axis="x", labelbottom=False)
+        ax.set_title(f"{zlabel}   ($n = {z['n']}$) · NUTS", fontsize=17)
+        # r + CI as a compact in-panel annotation (keeps the title short).
+        ax.text(0.5, 0.965,
+                f"$r(w,\\,\\partial$ADC$/\\partial R) = {z['r0']:+.2f}$  "
+                f"$[{z['r_lo']:+.2f},\\,{z['r_hi']:+.2f}]$",
+                transform=ax.transAxes, ha="center", va="top", fontsize=15,
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8))
+        if j == 0:
+            ax.set_ylabel(r"normalised weight  ($\max|\cdot| = 1$)")
+
+        # --- CV strip ---
+        axc.errorbar(x, z["cv_mean"], yerr=z["cv_std"], fmt="none",
+                     ecolor="0.55", elinewidth=1.1, capsize=3, zorder=2)
+        axc.scatter(x, z["cv_mean"], s=70, zorder=3, edgecolor="black",
+                    linewidth=0.6, c=[cv_color(c) for c in z["cv_mean"]])
+        for thr in (0.4, 0.8):
+            axc.axhline(thr, color="0.7", lw=0.7, ls=":", zorder=1)
+        axc.set_ylim(0, cv_ymax)
+        axc.set_xticks(x)
+        axc.set_xticklabels(DLAB)
+        axc.set_xlabel(r"Diffusivity $D$  ($\mu$m$^2$/ms)")
+        axc.grid(axis="y", alpha=0.18, linewidth=0.5)
+        if j == 0:
+            axc.set_ylabel("within-ROI\nCV")
+
+    # --- shared top legend: row 1 = glyphs, row 2 = the 4 CV bands ---
+    handles = [
+        mpatches.Patch(facecolor="0.82", edgecolor="black",
+                       label=r"LR coef (bars, NUTS)"),
+        Line2D([0], [0], color=SENS_COLOR, marker="D", linestyle="None", ms=8,
+               mfc="white", mew=1.8, label=r"$-\,\partial$ADC$/\partial R$"),
+        Line2D([0], [0], color="black", marker="|", linestyle="None", ms=11,
+               markeredgewidth=1.4, label="95% boot CI"),
+        Line2D([0], [0], color="black", marker="*", linestyle="None", ms=12,
+               label="coef CI excludes 0"),
+    ] + cv_legend_handles()
+    # CV colour+hatch meaning is described in the caption (not as a legend title).
+    fig.legend(handles=handles, loc="upper center", ncol=4, frameon=True,
+               framealpha=0.95, bbox_to_anchor=(0.5, 0.995),
+               columnspacing=1.6, handletextpad=0.5, fontsize=15.5)
 
     fig.savefig(OUT_PNG, dpi=300, bbox_inches="tight")
     fig.savefig(OUT_PDF, bbox_inches="tight")
-    print(f"Wrote {OUT_PNG.relative_to(REPO_ROOT)}")
-    print(f"Wrote {OUT_PDF.relative_to(REPO_ROOT)}")
+    print(f"Wrote {OUT_PNG.relative_to(REPO)}")
+    print(f"Wrote {OUT_PDF.relative_to(REPO)}")
 
-    # -------- Console table for the report --------
-    print("\nPer-bin LR coefficients (NUTS features, tumor-vs-normal):")
-    header = "  D (um^2/ms) | " + " | ".join(f"{d:>6g}" for d in DIFFUSIVITIES)
-    print(header)
-    print("  " + "-" * (len(header) - 2))
-    for zone in ZONE_ORDER:
-        r = lr[zone]["raw"]
-        s = lr[zone]["std"]
-        print(f"  {zone.upper()} w_raw    | " + " | ".join(f"{v:+6.2f}" for v in r))
-        print(f"  {zone.upper()} w_std    | " + " | ".join(f"{v:+6.2f}" for v in s))
-    print()
-    for zone in ["pz", "tz"]:
-        p = sens[zone]
-        print(
-            f"  {zone.upper()}: Pearson(w_std, -sens_tumor) = "
-            f"{p['r_pearson_tumor']:+.3f},  "
-            f"Spearman = {p['r_spearman_tumor']:+.3f}"
-        )
+    # --- console summary ---
+    for zkey, zlabel in ZONES:
+        z = data[zkey]
+        print(f"\n{zlabel} (n={z['n']}): r={z['r0']:+.3f} "
+              f"[{z['r_lo']:+.3f}, {z['r_hi']:+.3f}]")
+        print("  " + "  ".join(
+            f"{d:>5g}{'*' if s else ' '}" for d, s in zip(D, z["sig"])))
+        print("  CI excludes 0 (*) marks the bins with stable detection weight.")
 
 
 if __name__ == "__main__":

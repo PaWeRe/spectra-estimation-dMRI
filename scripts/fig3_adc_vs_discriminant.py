@@ -19,9 +19,17 @@ v3 changes (2026-05-26):
   - MAP values pulled from regenerated features.csv (correct NNLS solver,
     written by biomarkers/recompute.py on 2026-05-26) rather than the stale
     map_lambda_bwh.csv from 2026-05-24.
-  - Font sizes bumped to match Fig 2 (xtick/ytick/axis labels=17, title=15,
-    legend=15).
-  - Shared legend placed outside the panel grid (bottom-centred).
+
+v4 changes (2026-05-31):
+  - Font sizes bumped to the fig_roc 2x2 scale (axis labels=20, ticks=18,
+    panel titles=17, legend=17) so Fig 3 reads at the same apparent size as
+    the other 2x2 grid in the manuscript.
+  - Shared legend moved to the TOP of the figure (above the panel grid).
+  - In-figure suptitle removed: the caption's first sentence is the title
+    (MRM convention), matching fig_roc (Fig 2) and fig1 (Fig 1). The
+    bootstrap methodology is described in the LaTeX caption.
+  - All four panels share common x (ADC, identical physical quantity) and y
+    (discriminant score) axes for a uniform grid.
 
 Layout: 2 rows (PZ, TZ) x 2 cols (NUTS, MAP @ lambda=1e-3) = 4 panels.
 
@@ -51,13 +59,13 @@ N_BOOT = 1000
 RNG = np.random.default_rng(42)
 LAMBDA_TUNED = 0.001
 
-# --- Stephan-strict typography (match Fig 2 conventions) ---
+# --- Stephan-strict typography (match the fig_roc 2x2 scale) ---
 mpl.rcParams.update({
-    "xtick.labelsize": 17,
-    "ytick.labelsize": 17,
-    "axes.labelsize": 17,
-    "axes.titlesize": 15,
-    "legend.fontsize": 15,
+    "xtick.labelsize": 18,
+    "ytick.labelsize": 18,
+    "axes.labelsize": 20,
+    "axes.titlesize": 17,
+    "legend.fontsize": 17,
     "font.family": "DejaVu Sans",
 })
 
@@ -140,7 +148,7 @@ def main():
 
     zones = [("pz", "PZ"), ("tz", "TZ")]
     methods = [("NUTS", "NUTS (posterior mean)"),
-               ("MAP_tuned", f"MAP @ λ={LAMBDA_TUNED}")]
+               ("MAP_tuned", r"MAP ($\lambda = 10^{-3}$)")]
 
     results = {}
     for zkey, zlabel in zones:
@@ -149,7 +157,7 @@ def main():
             sub = df[df["zone"] == zkey].copy()
             results[(zkey, mkey)] = per_panel(sub)
 
-    fig, axes = plt.subplots(2, 2, figsize=(12.5, 11.0))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 12), sharex=True, sharey=True)
     for i, (zkey, zlabel) in enumerate(zones):
         for j, (mkey, mlabel) in enumerate(methods):
             ax = axes[i, j]
@@ -174,32 +182,30 @@ def main():
                 f"{zlabel} — {mlabel}\n"
                 f"r = {r:+.3f}  [{lo:+.3f}, {hi:+.3f}],  n = {n}",
             )
-            ax.set_xlabel("ADC (μm²/ms)")
-            ax.set_ylabel("Spectral-discriminant score")
+            if i == 1:  # bottom row only (x shared across rows)
+                ax.set_xlabel("ADC (μm²/ms)")
+            if j == 0:  # left column only (y shared across columns)
+                ax.set_ylabel("Spectral-discriminant score")
             ax.grid(True, alpha=0.25, linewidth=0.5)
 
-    # Shared figure-level legend, OUTSIDE the panel grid (below).
+    # Shared figure-level legend, OUTSIDE the panel grid (at the TOP).
     legend_handles = [
-        Line2D([0], [0], marker="o", linestyle="None", markersize=10,
+        Line2D([0], [0], marker="o", linestyle="None", markersize=12,
                markerfacecolor=COLOR_TUMOR, markeredgecolor="white",
                label="Tumor"),
-        Line2D([0], [0], marker="o", linestyle="None", markersize=10,
+        Line2D([0], [0], marker="o", linestyle="None", markersize=12,
                markerfacecolor=COLOR_NORMAL, markeredgecolor="white",
                label="Normal"),
-        Line2D([0], [0], color=COLOR_FIT, lw=1.6, label="OLS fit"),
+        Line2D([0], [0], color=COLOR_FIT, lw=2.0, label="OLS fit"),
     ]
-    fig.legend(handles=legend_handles, loc="lower center",
+    fig.legend(handles=legend_handles, loc="upper center",
                ncol=3, frameon=True, framealpha=0.95,
-               bbox_to_anchor=(0.5, -0.005))
+               bbox_to_anchor=(0.5, 0.99), fontsize=17)
 
-    fig.suptitle(
-        "ADC vs. spectral-discriminant score: ROI-level rank-equivalence "
-        "across methods\n"
-        "Bootstrap Pearson r, 1000 resamples, percentile 95% CI",
-        fontsize=16,
-    )
-    # Leave room at top for suptitle and bottom for shared legend.
-    fig.tight_layout(rect=[0.0, 0.05, 1.0, 0.95])
+    # No in-figure title: per MRM the caption's first sentence is the title,
+    # matching fig_roc (Fig 2) and fig1 (Fig 1), which carry no suptitle.
+    # Leave room at the top for the shared legend above the panels.
+    fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.95])
 
     png_path = os.path.join(OUT_DIR, "fig3_v3.png")
     pdf_path = os.path.join(OUT_DIR, "fig3_v3.pdf")

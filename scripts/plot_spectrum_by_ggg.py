@@ -1,18 +1,29 @@
-"""Plot the average diffusivity spectrum per Gleason Grade Group (GGG).
+"""Fig 5 — Average diffusivity spectrum by Gleason Grade Group (two thresholds).
 
-Uses NUTS posterior-mean spectra (nuts_D_*) from results/biomarkers/features.csv.
-Groups: normal (is_tumor=False), then tumor ROIs by GGG ∈ {1,2,3,4,5}.
-Shows pooled (PZ+TZ) and PZ-only panels. Bands are 95% CI of the mean
-(t-based for n<30) across ROIs in each group.
+Two-panel overlay sharing a common y-axis, normal tissue as the gray baseline
+in both panels:
 
-GGG distribution (tumor ROIs, valid GGG only, n=29):
-    GGG=1 pz=7 tz=1   GGG=2 pz=10 tz=2   GGG=3 pz=2 tz=3
-    GGG=4 pz=1 tz=1   GGG=5 pz=1 tz=1
+  Panel A — tumor EMERGENCE boundary: Normal (n=109) | GGG=1 (n=8) | GGG>=2 (n=21).
+      The detection axis: the free-water/lumen bin (D=3.0) collapses the instant
+      tumor appears (even low grade), then barely moves.
 
-Note small-group caveat: GGG=4,5 have n=2 each, GGG=3 has n=5 total
-(2 PZ + 3 TZ). CIs will be wide.
+  Panel B — tumor AGGRESSIVENESS boundary: Normal | GGG<=2 (n=20) | GGG>=3 (n=9).
+      The grading axis: between favorable and unfavorable grade the lumen bin is
+      already saturated, while the restricted-cellular (D=0.25) and
+      glandular-epithelial (D=2.0) bins keep shifting.
 
-Outputs: results/biomarkers/spectrum_by_ggg.{png,pdf}
+Together the two thresholds show that detection signal fires once at onset
+(outer free-water bin) while grading signal continues to track the
+restricted + intermediate/lumen bins where ADC is least sensitive.
+
+Spectra are NUTS posterior-mean spectra (nuts_D_*) from
+results/biomarkers/features.csv. Bands are 95% CI of the group mean (t-based,
+df = n-1) across ROIs; they reflect between-ROI variability of the per-ROI
+posterior mean and do NOT include within-ROI posterior uncertainty.
+
+Outputs:
+    paper/figures/fig5_v3.{png,pdf}                  — paper-grade two-panel (main)
+    results/biomarkers/spectrum_by_ggg.{png,pdf}     — archival copy
 
 Usage:
     uv run python scripts/plot_spectrum_by_ggg.py
@@ -22,6 +33,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -29,22 +41,28 @@ from scipy import stats
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FEAT_CSV = REPO_ROOT / "results" / "biomarkers" / "features.csv"
+
+PAPER_PNG = REPO_ROOT / "paper" / "figures" / "fig5_v3.png"
+PAPER_PDF = REPO_ROOT / "paper" / "figures" / "fig5_v3.pdf"
 OUT_PNG = REPO_ROOT / "results" / "biomarkers" / "spectrum_by_ggg.png"
 OUT_PDF = REPO_ROOT / "results" / "biomarkers" / "spectrum_by_ggg.pdf"
-OUT_SPLIT_PNG = REPO_ROOT / "results" / "biomarkers" / "spectrum_by_ggg_split.png"
-OUT_SPLIT_PDF = REPO_ROOT / "results" / "biomarkers" / "spectrum_by_ggg_split.pdf"
 
 DIFFUSIVITIES = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
 NUTS_COLS = [f"nuts_D_{d:.2f}" for d in DIFFUSIVITIES]
 
-GROUP_COLORS = {
-    "normal": "#777777",
-    "GGG=1": "#1f77b4",
-    "GGG=2": "#2ca02c",
-    "GGG=3": "#ff7f0e",
-    "GGG=4": "#d62728",
-    "GGG=5": "#7f0000",
-}
+# Match Fig 2 / Fig 3 paper styling (apparent-size matched: this is a 1x2 grid).
+mpl.rcParams.update({
+    "xtick.labelsize": 18,
+    "ytick.labelsize": 18,
+    "axes.labelsize": 20,
+    "axes.titlesize": 17,
+    "legend.fontsize": 15,
+    "font.family": "DejaVu Sans",
+})
+
+GROUP_NORMAL = "#555555"   # neutral baseline (normal tissue)
+GROUP_LOW = "#1f77b4"      # cool — lower-grade tumor group
+GROUP_HIGH = "#d62728"     # warm — higher-grade tumor group
 
 
 def group_stats(spec: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -57,20 +75,36 @@ def group_stats(spec: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return mean, mean - t_crit * sem, mean + t_crit * sem
 
 
-def draw_curves(ax, x: np.ndarray, groups: list[tuple[str, pd.DataFrame, str]]) -> None:
+def draw_panel(
+    ax,
+    x: np.ndarray,
+    groups: list[tuple[str, pd.DataFrame, str]],
+    *,
+    title: str,
+    show_ylabel: bool,
+    band_alpha: float = 0.15,
+) -> None:
     for label, sub, color in groups:
         spec = sub[NUTS_COLS].to_numpy(dtype=float)
         mean, lo, hi = group_stats(spec)
-        ax.plot(x, mean, "-o", color=color, lw=2.2, ms=6, label=f"{label}  (n={len(sub)})")
+        ax.plot(
+            x, mean, "-o", color=color, lw=2.5, ms=7,
+            label=f"{label}  (n={len(sub)})",
+        )
         if len(sub) >= 2:
-            ax.fill_between(x, lo, hi, color=color, alpha=0.18)
+            ax.fill_between(x, lo, hi, color=color, alpha=band_alpha)
     ax.set_xticks(x)
     ax.set_xticklabels([f"{d:g}" for d in DIFFUSIVITIES])
     ax.set_xlabel(r"Diffusivity $D$  ($\mu$m$^2$/ms)")
-    ax.set_ylabel("NUTS posterior-mean spectrum mass  $R_j$")
+    if show_ylabel:
+        ax.set_ylabel("NUTS posterior-mean spectrum mass  $R_j$")
+    ax.set_title(title, pad=8)
     ax.grid(alpha=0.3)
     ax.axhline(0, color="k", lw=0.4)
-    ax.legend(fontsize=10, loc="upper right", framealpha=0.9)
+    # Legend on TOP of the panel (consistent with Figs 2 & 3), placed in the
+    # empty upper-left region (curves peak at the right, D=2-3).
+    ax.legend(loc="upper left", framealpha=0.95, handlelength=1.8,
+              borderaxespad=0.5)
 
 
 def main() -> None:
@@ -78,38 +112,35 @@ def main() -> None:
     df["ggg"] = pd.to_numeric(df["ggg"], errors="coerce")
 
     x = np.arange(len(DIFFUSIVITIES))
-    normal = ("normal", df[df["is_tumor"] == False], GROUP_COLORS["normal"])
-    ggg1 = ("GGG = 1", df[(df["is_tumor"] == True) & (df["ggg"] == 1)], "#1f77b4")
-    ggg_hi = ("GGG ≥ 2", df[(df["is_tumor"] == True) & (df["ggg"] >= 2)], "#d62728")
+    is_tumor = df["is_tumor"] == True  # noqa: E712
 
-    fig, ax = plt.subplots(figsize=(8.5, 5.5))
-    draw_curves(ax, x, [normal, ggg1, ggg_hi])
-    fig.suptitle(
-        "Average NUTS diffusivity spectrum: normal vs GGG=1 vs GGG≥2  ·  "
-        f"source: {FEAT_CSV.relative_to(REPO_ROOT)}  ·  bands = 95% CI of mean",
-        fontsize=10,
+    normal = ("Normal", df[~is_tumor], GROUP_NORMAL)
+    # Panel A — emergence boundary (low grade vs any clinically significant).
+    ggg1 = ("GGG = 1", df[is_tumor & (df["ggg"] == 1)], GROUP_LOW)
+    ggg_ge2 = ("GGG ≥ 2", df[is_tumor & (df["ggg"] >= 2)], GROUP_HIGH)
+    # Panel B — aggressiveness boundary (favorable vs unfavorable grade).
+    ggg_le2 = ("GGG ≤ 2", df[is_tumor & (df["ggg"] >= 1) & (df["ggg"] <= 2)], GROUP_LOW)
+    ggg_ge3 = ("GGG ≥ 3", df[is_tumor & (df["ggg"] >= 3)], GROUP_HIGH)
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6.4), sharey=True)
+    draw_panel(
+        axes[0], x, [normal, ggg1, ggg_ge2],
+        title="Tumor emergence  (GGG = 1 vs ≥ 2)", show_ylabel=True,
+    )
+    draw_panel(
+        axes[1], x, [normal, ggg_le2, ggg_ge3],
+        title="Tumor aggressiveness  (GGG ≤ 2 vs ≥ 3)", show_ylabel=False,
     )
     fig.tight_layout()
-    fig.savefig(OUT_PNG, dpi=150, bbox_inches="tight")
-    fig.savefig(OUT_PDF, bbox_inches="tight")
-    print(f"Wrote {OUT_PNG.relative_to(REPO_ROOT)}")
-    print(f"Wrote {OUT_PDF.relative_to(REPO_ROOT)}")
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.2), sharey=True)
-    draw_curves(axes[0], x, [normal, ggg1])
-    axes[0].set_title("GGG = 1 (low-grade tumor)")
-    draw_curves(axes[1], x, [normal, ggg_hi])
-    axes[1].set_title("GGG ≥ 2 (intermediate/high-grade tumor)")
-    fig.suptitle(
-        "Average NUTS diffusivity spectrum: GGG=1 vs GGG≥2 (normal reference)  ·  "
-        f"source: {FEAT_CSV.relative_to(REPO_ROOT)}  ·  bands = 95% CI of mean",
-        fontsize=10,
-    )
-    fig.tight_layout()
-    fig.savefig(OUT_SPLIT_PNG, dpi=150, bbox_inches="tight")
-    fig.savefig(OUT_SPLIT_PDF, bbox_inches="tight")
-    print(f"Wrote {OUT_SPLIT_PNG.relative_to(REPO_ROOT)}")
-    print(f"Wrote {OUT_SPLIT_PDF.relative_to(REPO_ROOT)}")
+    PAPER_PNG.parent.mkdir(parents=True, exist_ok=True)
+    for path in (PAPER_PNG, OUT_PNG):
+        fig.savefig(path, dpi=300, bbox_inches="tight")
+    for path in (PAPER_PDF, OUT_PDF):
+        fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    for path in (PAPER_PNG, PAPER_PDF, OUT_PNG, OUT_PDF):
+        print(f"Wrote {path.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,150 @@
+panel_title,roi_id,patient_id,anatomical_region,zone,tissue,gs,ggg,snr,adc,n_draws
+new62 · PZ normal,new62_pz_normal,new62,normal_pz_s2,pz,normal,3+3,1.0,687.4,0.00234,8000
+new26 · PZ normal,new26_pz_normal,new26,normal_pz_s2,pz,normal,,,483.2,0.0023,8000
+new55 · PZ normal,new55_pz_normal,new55,normal_pz_s2,pz,normal,4+4,4.0,733.9,0.00229,8000
+new03 · PZ normal,new03_pz_normal,new03,normal_pz_s2,pz,normal,4+3+5,5.0,641.9,0.00217,8000
+new01 · PZ normal,new01_pz_normal,new01,normal_pz_s2,pz,normal,4+3,3.0,278.1,0.00214,8000
+new34 · PZ normal,new34_pz_normal,new34,normal_pz_s2,pz,normal,3+4,2.0,553.7,0.00213,8000
+new29 · PZ normal,new29_pz_normal,new29,normal_pz_s2,pz,normal,,,549.9,0.00213,8000
+new39 · PZ normal,new39_pz_normal,new39,normal_pz_s2,pz,normal,2+3,1.0,307.0,0.00211,8000
+new14 · PZ normal,new14_pz_normal,new14,normal_pz_s2,pz,normal,0+0,0.0,572.4,0.0021,8000
+new28 · PZ normal,new28_pz_normal,new28,normal_pz_s2,pz,normal,3+5,4.0,318.2,0.00209,8000
+new07 · PZ normal,new07_pz_normal,new07,normal_pz_s2,pz,normal,3+3,1.0,521.0,0.00208,8000
+new21 · PZ normal,new21_pz_normal,new21,normal_pz_s2,pz,normal,3+4,2.0,527.7,0.00207,8000
+new32 · PZ normal,new32_pz_normal,new32,normal_pz_s2,pz,normal,4+3,3.0,696.5,0.00205,8000
+new04 · PZ normal,new04_pz_normal,new04,normal_pz_s2,pz,normal,3+4,2.0,543.4,0.00202,8000
+new44 · PZ normal,new44_pz_normal,new44,normal_pz_s2,pz,normal,3+4,2.0,459.3,0.002,8000
+new42 · PZ normal,new42_pz_normal,new42,normal_pz_s2,pz,normal,0+0,0.0,415.9,0.002,8000
+new24 · PZ normal,new24_pz_normal,new24,normal_pz_s2,pz,normal,0+0,0.0,422.6,0.00196,8000
+new09 · PZ normal,new09_pz_normal,new09,normal_pz_s2,pz,normal,0+0,0.0,429.2,0.00196,8000
+new23 · PZ normal,new23_pz_normal,new23,normal_pz_s2,pz,normal,0+0,0.0,409.1,0.00195,8000
+new36 · PZ normal,new36_pz_normal,new36,normal_pz_s2,pz,normal,4+3,3.0,514.2,0.00193,8000
+new40 · PZ normal,new40_pz_normal,new40,normal_pz_s2,pz,normal,3+3,1.0,432.5,0.00191,8000
+new58 · PZ normal,new58_pz_normal,new58,normal_pz_s2,pz,normal,3+3,1.0,526.3,0.00191,8000
+new52 · PZ normal,new52_pz_normal,new52,normal_pz_s2,pz,normal,,,251.6,0.00191,8000
+new10 · PZ normal,new10_pz_normal,new10,normal_pz_s2,pz,normal,3+3,1.0,454.7,0.0019,8000
+new22 · PZ normal,new22_pz_normal,new22,normal_pz_s2,pz,normal,0+0,0.0,474.3,0.00188,8000
+new51 · PZ normal,new51_pz_normal,new51,normal_pz_s2,pz,normal,3+3,1.0,465.4,0.00183,8000
+new35 · PZ normal,new35_pz_normal,new35,normal_pz_s2,pz,normal,3+4,2.0,434.1,0.00183,8000
+new41 · PZ normal,new41_pz_normal,new41,normal_pz_s2,pz,normal,hgpin,,523.7,0.00182,8000
+new46 · PZ normal,new46_pz_normal,new46,normal_pz_s2,pz,normal,0+0,0.0,380.6,0.0018,8000
+new53 · PZ normal,new53_pz_normal,new53,normal_pz_s2,pz,normal,,,400.4,0.0018,8000
+new11 · PZ normal,new11_pz_normal,new11,normal_pz_s2,pz,normal,0+0,0.0,511.4,0.00177,8000
+new18 · PZ normal,new18_pz_normal,new18,normal_pz_s2,pz,normal,4+3,3.0,295.3,0.00175,8000
+new47 · PZ normal,new47_pz_normal,new47,normal_pz_s2,pz,normal,3+4,2.0,318.2,0.00172,8000
+new30 · PZ normal,new30_pz_normal,new30,normal_pz_s2,pz,normal,3+4,2.0,335.4,0.0017,8000
+new25 · PZ normal,new25_pz_normal,new25,normal_pz_s2,pz,normal,0+0,0.0,280.6,0.00169,8000
+new27 · PZ normal,new27_pz_normal,new27,normal_pz_s2,pz,normal,,,355.8,0.00169,8000
+new37 · PZ normal,new37_pz_normal,new37,normal_pz_s2,pz,normal,,,456.2,0.00167,8000
+new50 · PZ normal,new50_pz_normal,new50,normal_pz_s2,pz,normal,3+4,2.0,361.6,0.00166,8000
+new16 · PZ normal,new16_pz_normal,new16,normal_pz_s2,pz,normal,3+4,2.0,380.6,0.00166,8000
+new12 · PZ normal,new12_pz_normal,new12,normal_pz_s2,pz,normal,hgpin,,435.7,0.00164,8000
+new33 · PZ normal,new33_pz_normal,new33,normal_pz_s2,pz,normal,3+3,1.0,548.6,0.00163,8000
+new63 · PZ normal,new63_pz_normal,new63,normal_pz_s2,pz,normal,3+4,2.0,438.9,0.00162,8000
+new61 · PZ normal,new61_pz_normal,new61,normal_pz_s2,pz,normal,3+3,1.0,369.3,0.00161,8000
+new45 · PZ normal,new45_pz_normal,new45,normal_pz_s2,pz,normal,4+3+5,5.0,355.8,0.0016,8000
+new59 · PZ normal,new59_pz_normal,new59,normal_pz_s2,pz,normal,3+4,2.0,376.9,0.00156,8000
+new02 · PZ normal,new02_pz_normal,new02,normal_pz_s2,pz,normal,4+3,3.0,257.1,0.00155,8000
+new05 · PZ normal,new05_pz_normal,new05,normal_pz_s2,pz,normal,4+3,3.0,503.1,0.00154,8000
+new20 · PZ normal,new20_pz_normal,new20,normal_pz_s2,pz,normal,3+3,1.0,367.4,0.00154,8000
+new60 · PZ normal,new60_pz_normal,new60,normal_pz_s2,pz,normal,3+3,1.0,457.7,0.00152,8000
+new38 · PZ normal,new38_pz_normal,new38,normal_pz_s2,pz,normal,3+4,2.0,376.9,0.00152,8000
+new49 · PZ normal,new49_pz_normal,new49,normal_pz_s2,pz,normal,3+4,2.0,429.2,0.00151,8000
+new56 · PZ normal,new56_pz_normal,new56,normal_pz_s2,pz,normal,3+3,1.0,553.7,0.00144,8000
+new54 · PZ normal,new54_pz_normal,new54,normal_pz_s2,pz,normal,3+3,1.0,265.2,0.0014,8000
+new17 · PZ normal,new17_pz_normal,new17,normal_pz_s2,pz,normal,0+0,0.0,420.9,0.00138,8000
+new62 · PZ tumor · 3+3 (GGG 1),new62_pz_tumor,new62,tumor_pz_s1,pz,tumor,3+3,1.0,292.9,0.00186,8000
+new52 · PZ tumor · ungraded,new52_pz_tumor,new52,tumor_pz_s1,pz,tumor,,,140.3,0.00182,8000
+new12 · PZ tumor · ungraded,new12_pz_tumor,new12,tumor_pz_s1,pz,tumor,hgpin,,429.2,0.00152,8000
+new07 · PZ tumor · 3+3 (GGG 1),new07_pz_tumor,new07,tumor_pz_s1,pz,tumor,3+3,1.0,331.2,0.00151,8000
+new34 · PZ tumor · 3+4 (GGG 2),new34_pz_tumor,new34,tumor_pz_s1,pz,tumor,3+4,2.0,405.6,0.0015,8000
+new38 · PZ tumor · 3+4 (GGG 2),new38_pz_tumor,new38,tumor_pz_s1,pz,tumor,3+4,2.0,335.4,0.00146,8000
+new61 · PZ tumor · 3+3 (GGG 1),new61_pz_tumor,new61,tumor_pz_s1,pz,tumor,3+3,1.0,578.5,0.00141,8000
+new22 · PZ tumor · ungraded,new22_pz_tumor,new22,tumor_pz_s1,pz,tumor,0+0,0.0,619.6,0.00138,8000
+new39 · PZ tumor · 2+3 (GGG 1),new39_pz_tumor,new39,tumor_pz_s1,pz,tumor,2+3,1.0,331.2,0.00136,8000
+new23 · PZ tumor · ungraded,new23_pz_tumor,new23,tumor_pz_s1,pz,tumor,0+0,0.0,254.3,0.00134,8000
+new24 · PZ tumor · ungraded,new24_pz_tumor,new24,tumor_pz_s1,pz,tumor,0+0,0.0,194.9,0.00134,8000
+new26 · PZ tumor · ungraded,new26_pz_tumor,new26,tumor_pz_s1,pz,tumor,,,331.2,0.00131,8000
+new16 · PZ tumor · 3+4 (GGG 2),new16_pz_tumor,new16,tumor_pz_s1,pz,tumor,3+4,2.0,333.3,0.00131,8000
+new54 · PZ tumor · 3+3 (GGG 1),new54_pz_tumor,new54,tumor_pz_s1,pz,tumor,3+3,1.0,191.2,0.0013,8000
+new18 · PZ tumor · 4+3 (GGG 3),new18_pz_tumor,new18,tumor_pz_s1,pz,tumor,4+3,3.0,329.1,0.0013,8000
+new30 · PZ tumor · 3+4 (GGG 2),new30_pz_tumor,new30,tumor_pz_s1,pz,tumor,3+4,2.0,318.2,0.00121,8000
+new59 · PZ tumor · 3+4 (GGG 2),new59_pz_tumor,new59,tumor_pz_s1,pz,tumor,3+4,2.0,225.0,0.00117,8000
+new63 · PZ tumor · 3+4 (GGG 2),new63_pz_tumor,new63,tumor_pz_s1,pz,tumor,3+4,2.0,331.2,0.00116,8000
+new51 · PZ tumor · 3+3 (GGG 1),new51_pz_tumor,new51,tumor_pz_s1,pz,tumor,3+3,1.0,245.9,0.00115,8000
+new49 · PZ tumor · 3+4 (GGG 2),new49_pz_tumor,new49,tumor_pz_s1,pz,tumor,3+4,2.0,254.3,0.0011,8000
+new02 · PZ tumor · 4+3 (GGG 3),new02_pz_tumor,new02,tumor_pz_s1,pz,tumor,4+3,3.0,369.3,0.0011,8000
+new04 · PZ tumor · 3+4 (GGG 2),new04_pz_tumor,new04,tumor_pz_s1,pz,tumor,3+4,2.0,221.9,0.00108,8000
+new21 · PZ tumor · 3+4 (GGG 2),new21_pz_tumor,new21,tumor_pz_s1,pz,tumor,3+4,2.0,472.9,0.00106,8000
+new50 · PZ tumor · 3+4 (GGG 2),new50_pz_tumor,new50,tumor_pz_s1,pz,tumor,3+4,2.0,187.5,0.00104,8000
+new03 · PZ tumor · 4+3+5 (GGG 5),new03_pz_tumor,new03,tumor_pz_s1,pz,tumor,4+3+5,5.0,566.2,0.00104,8000
+new33 · PZ tumor · 3+3 (GGG 1),new33_pz_tumor,new33,tumor_pz_s1,pz,tumor,3+3,1.0,632.0,0.00095,8000
+new55 · PZ tumor · 4+4 (GGG 4),new55_pz_tumor,new55,tumor_pz_s1,pz,tumor,4+4,4.0,1228.9,0.00066,8000
+new20 · TZ normal,new20_tz_normal,new20,normal_tz_s3,tz,normal,3+3,1.0,694.5,0.00199,8000
+new53 · TZ normal,new53_tz_normal,new53,normal_tz_s3,tz,normal,,,483.2,0.00199,8000
+new55 · TZ normal,new55_tz_normal,new55,normal_tz_s3,tz,normal,4+4,4.0,977.9,0.00179,8000
+new32 · TZ normal,new32_tz_normal,new32,normal_tz_s3,tz,normal,4+3,3.0,763.9,0.00177,8000
+new07 · TZ normal,new07_tz_normal,new07,normal_tz_s3,tz,normal,3+3,1.0,573.6,0.00176,8000
+new26 · TZ normal,new26_tz_normal,new26,normal_tz_s3,tz,normal,,,1273.9,0.00174,8000
+new52 · TZ normal,new52_tz_normal,new52,normal_tz_s3,tz,normal,,,881.8,0.00173,8000
+new39 · TZ normal,new39_tz_normal,new39,normal_tz_s3,tz,normal,2+3,1.0,786.6,0.00171,8000
+new29 · TZ normal,new29_tz_normal,new29,normal_tz_s3,tz,normal,,,582.2,0.00171,8000
+new17 · TZ normal,new17_tz_normal,new17,normal_tz_s3,tz,normal,0+0,0.0,536.9,0.00171,8000
+new62 · TZ normal,new62_tz_normal,new62,normal_tz_s3,tz,normal,3+3,1.0,860.9,0.00169,8000
+new09 · TZ normal,new09_tz_normal,new09,normal_tz_s3,tz,normal,0+0,0.0,1007.6,0.00169,8000
+new08 · TZ normal,new08_tz_normal,new08,normal_tz_s3,tz,normal,3+3,1.0,851.8,0.00168,8000
+new03 · TZ normal,new03_tz_normal,new03,normal_tz_s3,tz,normal,4+3+5,5.0,982.9,0.00168,8000
+new30 · TZ normal,new30_tz_normal,new30,normal_tz_s3,tz,normal,3+4,2.0,956.1,0.00166,8000
+new01 · TZ normal,new01_tz_normal,new01,normal_tz_s3,tz,normal,4+3,3.0,548.6,0.00164,8000
+new28 · TZ normal,new28_tz_normal,new28,normal_tz_s3,tz,normal,3+5,4.0,511.4,0.00163,8000
+new04 · TZ normal,new04_tz_normal,new04,normal_tz_s3,tz,normal,3+4,2.0,535.6,0.00163,8000
+new10 · TZ normal,new10_tz_normal,new10,normal_tz_s3,tz,normal,3+3,1.0,645.2,0.00163,8000
+new35 · TZ normal,new35_tz_normal,new35,normal_tz_s3,tz,normal,3+4,2.0,588.2,0.0016,8000
+new50 · TZ normal,new50_tz_normal,new50,normal_tz_s3,tz,normal,3+4,2.0,699.6,0.0016,8000
+new59 · TZ normal,new59_tz_normal,new59,normal_tz_s3,tz,normal,3+4,2.0,720.4,0.00158,8000
+new56 · TZ normal,new56_tz_normal,new56,normal_tz_s3,tz,normal,3+3,1.0,733.9,0.00157,8000
+new42 · TZ normal,new42_tz_normal,new42,normal_tz_s3,tz,normal,0+0,0.0,916.3,0.00157,8000
+new37 · TZ normal,new37_tz_normal,new37,normal_tz_s3,tz,normal,,,425.9,0.00156,8000
+new24 · TZ normal,new24_tz_normal,new24,normal_tz_s3,tz,normal,0+0,0.0,670.8,0.00155,8000
+new22 · TZ normal,new22_tz_normal,new22,normal_tz_s3,tz,normal,0+0,0.0,700.6,0.00155,8000
+new46 · TZ normal,new46_tz_normal,new46,normal_tz_s3,tz,normal,0+0,0.0,865.8,0.00155,8000
+new40 · TZ normal,new40_tz_normal,new40,normal_tz_s3,tz,normal,3+3,1.0,554.9,0.00154,8000
+new21 · TZ normal,new21_tz_normal,new21,normal_tz_s3,tz,normal,3+4,2.0,345.7,0.00154,8000
+new12 · TZ normal,new12_tz_normal,new12,normal_tz_s3,tz,normal,hgpin,,792.0,0.00153,8000
+new25 · TZ normal,new25_tz_normal,new25,normal_tz_s3,tz,normal,0+0,0.0,766.7,0.00152,8000
+new34 · TZ normal,new34_tz_normal,new34,normal_tz_s3,tz,normal,3+4,2.0,742.5,0.00152,8000
+new61 · TZ normal,new61_tz_normal,new61,normal_tz_s3,tz,normal,3+3,1.0,602.3,0.00152,8000
+new14 · TZ normal,new14_tz_normal,new14,normal_tz_s3,tz,normal,0+0,0.0,919.3,0.00152,8000
+new49 · TZ normal,new49_tz_normal,new49,normal_tz_s3,tz,normal,3+4,2.0,525.0,0.0015,8000
+new47 · TZ normal,new47_tz_normal,new47,normal_tz_s3,tz,normal,3+4,2.0,373.1,0.00149,8000
+new45 · TZ normal,new45_tz_normal,new45,normal_tz_s3,tz,normal,4+3+5,5.0,318.2,0.00147,8000
+new05 · TZ normal,new05_tz_normal,new05,normal_tz_s3,tz,normal,4+3,3.0,460.8,0.00147,8000
+new06 · TZ normal,new06_tz_normal,new06,normal_tz_s3,tz,normal,4+3,3.0,445.3,0.00147,8000
+new51 · TZ normal,new51_tz_normal,new51,normal_tz_s3,tz,normal,3+3,1.0,668.7,0.00147,8000
+new41 · TZ normal,new41_tz_normal,new41,normal_tz_s3,tz,normal,hgpin,,812.1,0.00146,8000
+new60 · TZ normal,new60_tz_normal,new60,normal_tz_s3,tz,normal,3+3,1.0,440.5,0.00146,8000
+new58 · TZ normal,new58_tz_normal,new58,normal_tz_s3,tz,normal,3+3,1.0,576.1,0.00145,8000
+new63 · TZ normal,new63_tz_normal,new63,normal_tz_s3,tz,normal,3+4,2.0,535.6,0.00144,8000
+new38 · TZ normal,new38_tz_normal,new38,normal_tz_s3,tz,normal,3+4,2.0,534.3,0.00144,8000
+new27 · TZ normal,new27_tz_normal,new27,normal_tz_s3,tz,normal,,,422.6,0.00143,8000
+new16 · TZ normal,new16_tz_normal,new16,normal_tz_s3,tz,normal,3+4,2.0,462.3,0.00143,8000
+new23 · TZ normal,new23_tz_normal,new23,normal_tz_s3,tz,normal,0+0,0.0,701.6,0.00143,8000
+new36 · TZ normal,new36_tz_normal,new36,normal_tz_s3,tz,normal,4+3,3.0,419.3,0.00142,8000
+new44 · TZ normal,new44_tz_normal,new44,normal_tz_s3,tz,normal,3+4,2.0,536.9,0.00138,8000
+new18 · TZ normal,new18_tz_normal,new18,normal_tz_s3,tz,normal,4+3,3.0,469.9,0.00136,8000
+new11 · TZ normal,new11_tz_normal,new11,normal_tz_s3,tz,normal,0+0,0.0,748.1,0.00134,8000
+new54 · TZ normal,new54_tz_normal,new54,normal_tz_s3,tz,normal,3+3,1.0,313.7,0.00133,8000
+new33 · TZ normal,new33_tz_normal,new33,normal_tz_s3,tz,normal,3+3,1.0,516.9,0.0013,8000
+new46 · TZ tumor · ungraded,new46_tz_tumor,new46,tumor_tz_s1,tz,tumor,0+0,0.0,503.1,0.00144,8000
+new14 · TZ tumor · ungraded,new14_tz_tumor,new14,tumor_tz_s1,tz,tumor,0+0,0.0,463.8,0.00141,8000
+new25 · TZ tumor · ungraded,new25_tz_tumor,new25,tumor_tz_s1,tz,tumor,0+0,0.0,163.5,0.00123,8000
+new05 · TZ tumor · 4+3 (GGG 3),new05_tz_tumor,new05,tumor_tz_s1,tz,tumor,4+3,3.0,414.2,0.00121,8000
+new47 · TZ tumor · 3+4 (GGG 2),new47_tz_tumor,new47,tumor_tz_s1,tz,tumor,3+4,2.0,462.3,0.00121,8000
+new20 · TZ tumor · 3+3 (GGG 1),new20_tz_tumor,new20,tumor_tz_s1,tz,tumor,3+3,1.0,343.7,0.00108,8000
+new44 · TZ tumor · 3+4 (GGG 2),new44_tz_tumor,new44,tumor_tz_s1,tz,tumor,3+4,2.0,466.9,0.00104,8000
+new01 · TZ tumor · 4+3 (GGG 3),new01_tz_tumor,new01,tumor_tz_s1,tz,tumor,4+3,3.0,434.1,0.00095,8000
+new45 · TZ tumor · 4+3+5 (GGG 5),new45_tz_tumor,new45,tumor_tz_s1,tz,tumor,4+3+5,5.0,477.3,0.00095,8000
+new53 · TZ tumor · ungraded,new53_tz_tumor,new53,tumor_tz_s1,tz,tumor,,,459.3,0.00091,8000
+new17 · TZ tumor · ungraded,new17_tz_tumor,new17,tumor_tz_s1,tz,tumor,0+0,0.0,507.3,0.00089,8000
+new36 · TZ tumor · 4+3 (GGG 3),new36_tz_tumor,new36,tumor_tz_s1,tz,tumor,4+3,3.0,285.6,0.0007,8000
+new28 · TZ tumor · 3+5 (GGG 4),new28_tz_tumor,new28,tumor_tz_s1,tz,tumor,3+5,4.0,497.5,0.00056,8000
