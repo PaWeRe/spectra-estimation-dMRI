@@ -7,6 +7,9 @@ multirun/
 results/
 wandb/
 
+# Claude Code agent scratch (worktrees, local settings)
+.claude/
+
 # Secrets and credentials (NEVER commit)
 secrets/
 .cursor/mcp.json

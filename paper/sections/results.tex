@@ -21,11 +21,11 @@ The mechanistic explanation for this pattern (intermediate-component collinearit
 
 \subsection{Classification Performance}
 
-Table~\ref{tab:auc} and Figure~\ref{fig:roc} summarize classification AUCs.
-ADC achieved the highest tumor detection AUCs in both zones (PZ: $0.951 \pm 0.030$; TZ: $0.979 \pm 0.028$ using raw rank, with standard errors computed by the Hanley--McNeil method; slightly lower via logistic regression at $0.940 \pm 0.033$ and $0.964 \pm 0.037$, respectively).
-The eight-component MAP and NUTS spectral classifiers achieved comparable but slightly lower AUCs (PZ: MAP $0.919 \pm 0.038$, NUTS $0.926 \pm 0.036$; TZ: MAP $0.945 \pm 0.045$, NUTS $0.923 \pm 0.053$).
-Among individual spectral components, $D = 0.25\;\umsmm$ was the strongest single predictor (PZ: 0.88, TZ: 0.91), consistent with its role as a marker of restricted diffusion in tumor tissue.
-For Gleason grade classification ($n = 29$), ADC again performed best ($0.811 \pm 0.052$ raw rank), though all methods showed limited discriminative power given the small sample size.
+Table~\ref{tab:auc} and Figure~\ref{fig:roc} summarize tumor-detection performance.
+ADC was the strongest detector in both zones (raw rank PZ $0.951$ [$0.89$, $1.00$]; TZ $0.979$ [$0.94$, $1.00$]), but the spectral classifiers were statistically indistinguishable from it, with bootstrap confidence intervals overlapping ADC's throughout: the eight-fraction logistic regression reached PZ $0.926$ [$0.85$, $0.98$] (NUTS) and $0.917$ [$0.84$, $0.98$] (MAP), and TZ $0.923$ [$0.81$, $1.00$] (NUTS) and $0.952$ [$0.88$, $1.00$] (MAP).
+Restricting the classifier to the two outer fractions $\{D = 0.25,\,3.0\;\umsmm\}$ did not reduce performance and, for some estimators, slightly improved it (NUTS PZ $0.933$ [$0.86$, $0.98$], TZ $0.937$ [$0.85$, $0.99$]; MAP TZ $0.965$ [$0.90$, $1.00$]): the remaining six fractions carried no tumor-detection signal beyond the two outer compartments, and the collapse held for both MAP and NUTS.
+Consistent with this, among the individual fractions only the two outer bins ($D = 0.25$ and $3.0\;\umsmm$) were strong single detectors, whereas the intermediate fractions were weak (Figure~\ref{fig:roc}).
+We do not report grade-classification AUCs: with only $n = 29$ graded tumors they are too imprecise to be informative (95\% intervals spanning $\sim$0.5--0.95); the grading analysis is instead presented as grade-dependent spectral shifts (Figure~\ref{fig:spectrum_ggg}) and rank correlations below.
 
 These results were robust to regularization: at $C = 0.1$ and $C = 10.0$, AUC values varied by less than 0.03 across all tasks.
 The consistent near-parity of ADC and spectral classifiers for tumor detection motivated the sensitivity analysis described below.
@@ -54,12 +54,20 @@ However, the ROI-level discrimination remains equivalent ($r = -0.98$) because t
 
 \subsection{Spectral Decomposition by Gleason Grade Group}
 
-Figure~\ref{fig:spectrum_ggg} stratifies the cohort's average NUTS posterior-mean spectrum by Gleason Grade Group: normal ROIs ($n = 109$), low-grade tumor (GGG\,$=\,1$, $n = 8$), and intermediate/high-grade tumor (GGG\,$\geq 2$, $n = 21$).
-Two grade-dependent shifts are visible relative to normal tissue.
-First, the free-diffusion bin at $D = 3.0\;\umsmm$ is suppressed in both tumor groups, decreasing from a group mean of $0.39$ in normal tissue to $0.21$ in GGG\,$=\,1$ and $0.16$ in GGG\,$\geq 2$.
-Second, the intermediate bin at $D = 2.0\;\umsmm$ is preserved in low-grade tumor (group mean $0.28$, comparable to the normal value of $0.26$) but reduced in higher-grade tumor ($0.20$); the displaced spectral mass redistributes primarily to the restricted-cellular bin at $D = 0.25\;\umsmm$, with the redistribution most pronounced in GGG\,$\geq 2$ (group means $0.07$ normal, $0.17$ GGG\,$=\,1$, $0.23$ GGG\,$\geq 2$).
-The remaining intermediate bins ($D = 0.5$--$1.5\;\umsmm$) show a mild elevation in GGG\,$\geq 2$ relative to normal and GGG\,$=\,1$, but the per-group 95\% confidence intervals at these grade-specific sample sizes overlap substantially and we report this only as a descriptive observation.
+Figure~\ref{fig:spectrum_ggg} stratifies the cohort's average NUTS posterior-mean spectrum against two Gleason-grade thresholds, with normal tissue ($n = 109$) as the shared baseline: a tumor-\emph{emergence} threshold (low-grade GGG\,$=\,1$, $n = 8$, versus all clinically significant tumor GGG\,$\geq 2$, $n = 21$; left panel) and a tumor-\emph{aggressiveness} threshold (favorable-grade GGG\,$\leq 2$, $n = 20$, versus unfavorable-grade GGG\,$\geq 3$, $n = 9$; right panel).
+The two thresholds dissociate a detection axis from a grading axis.
+The free-diffusion bin at $D = 3.0\;\umsmm$ (a proxy for intact gland lumen) is suppressed the moment tumor is present, falling from a group mean of $0.39$ in normal tissue to $0.21$ already in GGG\,$=\,1$, and then changes little with increasing grade ($0.16$ in GGG\,$\geq 2$; $0.18$ versus $0.16$ across the aggressiveness threshold): this outer compartment saturates at tumor onset and therefore separates tumor from normal but not low grade from high grade.
+By contrast, the restricted-cellular bin at $D = 0.25\;\umsmm$ rises monotonically with grade (group means $0.07$ normal, $0.17$ GGG\,$=\,1$, $0.23$ GGG\,$\geq 2$, $0.31$ GGG\,$\geq 3$), and the intermediate glandular-epithelial bin at $D = 2.0\;\umsmm$ is preserved in low-grade tumor ($0.28$ in GGG\,$=\,1$, comparable to the normal value of $0.26$) but is progressively depleted with grade ($0.20$ in GGG\,$\geq 2$, $0.17$ in GGG\,$\geq 3$): these restricted and intermediate compartments---the bins where ADC is least sensitive (Figure~\ref{fig:sensitivity})---track aggressiveness.
+The remaining intermediate bins ($D = 0.5$--$1.5\;\umsmm$) show a mild elevation with grade, but the per-group 95\% confidence intervals at these grade-specific sample sizes overlap substantially and we report this only as a descriptive observation.
 Method robustness: re-running the same group averaging on tuned-MAP ($\lambda = 10^{-3}$) posterior estimates rather than NUTS posterior means yielded indistinguishable group trajectories on all eight bins.
+
+% ======================================================================
+\subsection{Uncertainty-aware Classification}
+
+Because NUTS yields a full posterior over each ROI's spectrum, the trained tumor-versus-normal classifier (the same leave-one-out logistic regression used for detection) can be applied to every posterior draw rather than to the posterior mean alone, turning each prediction into a distribution over the cancer probability $P(\mathrm{tumor})$ rather than a single label (Figure~\ref{fig:uncertainty}).
+The resulting 90\% credible interval on $P(\mathrm{tumor})$ was on average $2.4\times$ wider for misclassified than for correctly classified ROIs (pooled across zones, mean width $0.39$ vs $0.16$; Welch $p = 0.003$), so the width of the propagated interval flags the ROIs the classifier is most likely to get wrong.
+The few exceptions---ROIs misclassified with high confidence and a narrow interval---were almost exclusively low-grade (GGG\,$=\,1$) or ungraded tumors whose spectra overlap those of normal tissue (Figure~\ref{fig:spectrum_ggg}).
+We present this analysis as an exploratory illustration of a capability unique to full posterior sampling; the closed-form MAP point estimate cannot produce these intervals.
 
 % ======================================================================
 \subsection{Pixel-wise Spectral Decomposition}

@@ -1,24 +1,40 @@
 % === TABLES ===
 % (counts toward the 10-item budget)
 
-% --- Table 1: Classification AUCs ---
+% --- Table 1: Tumor-detection AUCs ---
 \begin{table}[p]
 \centering
-\caption{Classification performance (AUC $\pm$ standard error) by leave-one-out cross-validation.
-ADC (raw rank) uses the raw feature value without classifier training.
-Multi-feature models use $L_2$-regularized logistic regression ($C = 1.0$) on
-all eight spectral fractions without feature selection.
-Standard errors computed by the Hanley--McNeil method \citep{hanley1982meaning}.}
+\caption{Tumor-detection performance: the spectral classifier matches ADC, and
+the two outer fractions alone suffice.
+Entries are leave-one-out cross-validated AUCs (95\% confidence interval) for
+tumor-versus-normal classification, evaluated through an identical pipeline so
+that single-feature and multi-feature models are directly comparable
+(Figure~\ref{fig:roc}).
+ADC (raw rank) ranks ROIs by the raw value; all other rows are
+$L_2$-regularized logistic regression ($C = 1.0$) on standardized features.
+``8 fractions'' uses all spectral bins; ``2 outer fractions'' uses only
+$D = 0.25$ and $3.0\;\umsmm$.
+Confidence intervals are percentile bootstrap over patients
+(2000 resamples) \citep{efron1993bootstrap}; paired AUC comparisons reported in
+the Results use DeLong's test \citep{delong1988comparing}.
+Grade-classification AUCs are omitted: with only $n = 29$ graded tumors they are
+too imprecise to be informative (95\% intervals spanning $\sim$0.5--0.95); the
+grading analysis is instead presented as grade-dependent spectral shifts
+(Figure~\ref{fig:spectrum_ggg}) and rank correlations (Results).}
 \label{tab:auc}
 \smallskip
-\begin{tabular}{lccc}
+\begin{tabular}{lcc}
 \toprule
-Method & PZ ($n=81$) & TZ ($n=68$) & GGG ($n=29$) \\
+Method & PZ ($n=81$) & TZ ($n=68$) \\
 \midrule
-ADC (raw rank)  & $\mathbf{0.951 \pm 0.030}$ & $\mathbf{0.979 \pm 0.028}$ & $\mathbf{0.811 \pm 0.052}$ \\
-ADC (LR)        & $0.940 \pm 0.033$         & $0.964 \pm 0.037$         & $0.778 \pm 0.055$         \\
-MAP Full LR     & $0.919 \pm 0.038$         & $0.945 \pm 0.045$         & $0.733 \pm 0.059$         \\
-NUTS Full LR    & $0.926 \pm 0.036$         & $0.923 \pm 0.053$         & $0.772 \pm 0.056$         \\
+ADC (raw rank)            & 0.951 [0.89, 1.00] & 0.979 [0.94, 1.00] \\
+ADC (logistic regression) & 0.940 [0.88, 0.99] & 0.964 [0.90, 1.00] \\
+\midrule
+Spectral LR, 8 fractions (MAP)        & 0.917 [0.84, 0.98] & 0.952 [0.88, 1.00] \\
+Spectral LR, 8 fractions (NUTS)       & 0.926 [0.85, 0.98] & 0.923 [0.81, 1.00] \\
+\midrule
+Spectral LR, 2 outer fractions (MAP)  & 0.925 [0.86, 0.98] & 0.965 [0.90, 1.00] \\
+Spectral LR, 2 outer fractions (NUTS) & 0.933 [0.86, 0.98] & 0.937 [0.85, 0.99] \\
 \bottomrule
 \end{tabular}
 \end{table}
