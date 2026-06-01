@@ -1,10 +1,10 @@
 # PROJECT_STATE — MRM submission
 
-**Single source of truth for the manuscript state. Read this file first every session. `MEETING_PREP_2026-05-25.md` is the archived Q&A from the 2026-05-25 coauthor meeting.**
+**Single source of truth for the manuscript state. Read this file first every session. `notes/archive/MEETING_PREP_2026-05-25.md` is the archived Q&A from the 2026-05-25 coauthor meeting.**
 
-- **Last update:** 2026-05-26 after coauthor meeting (Sandy + Stephan) and MAP solver fix.
-- **Target submission:** 2026-05-31 (Sunday).
-- **Status:** Narrative locked. MAP solver bug found by Sandy in meeting, fixed today, cohort + simulation re-run; downstream story preserved. Three figure agents in flight regenerating Fig 1, Fig 3, Fig 4, Fig 8. Eq. 5 rewritten as constrained QP. CRLB write-up ready to email Sandy.
+- **Last update:** 2026-06-01 — Fig 8 (method-validation) session: `fig8_v2` built via `scripts/fig8_validation.py` using the REAL pipeline classes + exact configs (no drift), style Patrick-approved. **BUT the Gibbs-vs-NUTS story is UNRESOLVED**: at 100k iters Gibbs converges and the recovery comparison is confounded (Gibbs handed true σ, NUTS infers it). Theory rewrite + figures.tex wiring are ON HOLD pending two experiments — (a) implement Sandy's inverse-gamma σ² Gibbs for a fair joint comparison, (b) reproduce Gibbs trapping on a bimodal config. See §6 Fig 8 row + §8 item 2. Prior entry: 2026-05-31 figure session — Fig 4 `fig4_v3` (bootstrap CIs; two-bin-detector finding F4c; DONE/Patrick-approved — `*` significance stars kept, caption clarifies star=cohort-coef-stability vs colour=per-ROI-identifiability as distinct axes, no sub-legends), S1 atlas colourblind-safe+hatch.
+- **Target submission:** next week (was 2026-05-31). Today's goal: finalized draft for Sandy + Stephan review.
+- **Status:** Figure scope locked (§6). Fig 3 + Fig 5 done and wired into the manuscript. Reworking remaining figures sequentially (Fig 1 → Fig 4 → ...), then manuscript text. Two-camps literature review running in background (→ `notes/lit_review_two_camps.md`). Old Fisher/CRLB Fig 8 dissolved into supplementary; new main Fig 8 = method-validation (spectrum recovery + joint noise inference).
 - **Locked claims** (no longer under revision):
   - F1 — Tuned MAP (λ=1e-3) recovers log-normal spectra ≥0.98 fraction, matching NUTS. Confirmed with corrected solver.
   - F4b — ADC-sensitivity ≈ inverted-LR-coef r ≈ −0.98 elegance was a regulariser artifact (drops to −0.80 at tuned MAP and NUTS). Comparison kept in revised form (per Stephan/Sandy 2026-05-25 meeting).
@@ -21,7 +21,7 @@
 
 **Title under consideration (already in repo, may need refresh):** "Why ADC Works: Bayesian Spectral Decomposition of Prostate Multi-b Diffusion MRI"
 
-**Scope honesty.** All quantitative results are at ROI level (149 ROIs). Pixel-wise heatmap (Fig 9) is MAP-only feasibility demo on one slice from one patient — *not* a delivered result. Per-voxel multi-compartment is already done by HM-MRI/VERDICT/rVERDICT/RSI/LWI with parametric constraints; **our novelty is model-free grid + Bayesian uncertainty + axis separation at the ROI level**, not per-voxel mapping.
+**Scope honesty.** All quantitative results are at ROI level (149 ROIs). Pixel-wise heatmap (Fig 9) is a single-slice feasibility demo (NUTS posterior-mean + per-voxel uncertainty) on one patient — *not* a delivered result. Per-voxel multi-compartment is already done by HM-MRI/VERDICT/rVERDICT/RSI/LWI with parametric constraints; **our novelty is model-free grid + Bayesian uncertainty + axis separation at the ROI level**, not per-voxel mapping.
 
 **Open: what does NUTS uniquely contribute?** With F1 + F4b, the case for NUTS over tuned MAP is narrower than the manuscript currently claims. Working answer (to confirm with Stephan): NUTS provides per-bin posterior σ_j that MAP at any λ cannot. The "MAP smears 35%" and "ADC sensitivity ≈ inverted LR coefs" narratives are largely λ-dependent and should be soft-pedalled.
 
@@ -89,6 +89,10 @@ Detection lives at outer bins (D=0.25, D=3.00); grading at intermediate (D=0.50)
 | **NUTS** | **−0.79** |
 
 Sanity check at λ=0.1 reproduces the paper's r=−0.979 exactly. The r ≈ −0.98 elegance holds *only* in a narrow band of moderately-high λ where MAP smears mass into intermediates, which makes the LR coefficient profile across D smoother and more monotonic-like. ADC sensitivity ∂ADC/∂R_j is by construction monotonic in D, so smoother LR profiles correlate more strongly. **At tuned λ and at NUTS, r ≈ −0.80** — still anti-correlated, still meaningful directionally, but not "near-perfect." **Distinct from** the ROI-level scalar ADC-vs-discriminant correlation (n=81/n=68, r ≈ −0.98 with bootstrap CI) that the abstract claims — the manuscript currently muddles the two.
+
+**F4c — Bootstrap on the per-bin LR coefficients confirms the discriminant is a TWO-BIN detector (2026-05-31, Patrick feedback on Fig 4).** Implemented in `scripts/fig4_lr_coefs_and_sensitivity.py` (`fig4_v3`): resample ROIs within zone w/ replacement (2000×), refit the standardised tumor-vs-normal LR (NUTS feats, C=1, balanced — same as Fig 3), per-bin 95% CI. **Only D=0.25 (positive) and D=3.0 (negative) have CIs excluding zero, in BOTH zones, 100% sign-stable.** PZ: every intermediate bin (0.5–2.0) + D=20 straddle zero. TZ: marginal exceptions D=0.75 (CI [0.03,0.81]) and D=1.0 (CI [0.13,1.03]) — small, in poorly-identified bins, 98–100% sign-stable (the "weird TZ uptick" Patrick flagged — marginally real, not pure artifact, but not to be leaned on). r(w,∂ADC/∂R) bootstrap CI: **PZ −0.79 [−0.89,−0.50]** (wide!), **TZ −0.88 [−0.95,−0.70]**. *Interpretation for prose:* the whole-profile r is carried by the two outer bins; intermediate detection coefficients are individually unstable (bin collinearity + poor identifiability) → **do NOT interpret intermediate-bin detection signs**. This sharpens F2 (no independent intermediate detection signal) and is consistent with F4 (don't headline LR-vector structure). The intermediate bins' grading signal is a SEPARATE, univariate finding (F3 / Fig 5), not a detection-coefficient claim — keep the two firmly distinct in the text.
+
+*Non-redundancy (Patrick worry 2026-05-31): Fig 4 ≠ Fig 2.* **Fig 2 = performance ablation** (2-fraction {0.25,3.0} LR ≈ full LR ≈ ADC — the ablation is ALREADY there, don't repeat it in Fig 4). **Fig 4 = per-bin mechanism/anatomy** (WHICH bins carry stable weight + how that maps to ADC sensitivity + identifiability). **Fig 3 = ROI-level score equivalence.** Results prose should lead Fig 4's paragraph with the mechanism and *reference* Fig 2 for performance, not re-prove it. Honesty point Patrick insisted on: do NOT call the middle "worthless" — TZ 0.75/1.0 marginally significant + grading signal = "some juice"; reason we report the full spectrum. v3 styling refined per feedback: short titles + in-panel r box, taller symmetric y (D=0.25 CI not clipped), `*` stars on CI-excludes-0 bins.
 
 **F5. Diagnostic equivalence is triangulated.** Four independent tests all agree: no spectral feature meaningfully lifts AUC over std-ADC at N=29 for grading.
 - Partial Spearman ρ(μ_D=0.50, GGG | std-ADC) = +0.42, p=0.026 *uncorrected*, does not survive Bonferroni. (`scripts/partial_corr_ggg.py`)
@@ -224,35 +228,45 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 
 ---
 
-## 6. Figure TODO list
+## 6. Figure plan — REWORKED 2026-05-31 (figure-scoping session)
 
-**Working assumption (subject to meeting):** rebuild figures around NUTS-for-uncertainty + MAP-tuned-for-point-estimates dual narrative, not NUTS-vs-MAP-divergence narrative.
+**Narrative pillars** (every figure must serve one):
+- **P1 — Why ADC works (the collapse).** Spectrum reduces to two well-identified outer compartments (D=0.25, D=3.0) moving together → one scalar (ADC) captures detection. Figs 1, 2, 3, 4. Cite Wang Y 2024 / Wang Q 2018 (MC≈ADC precedent); reconcile RSI/VERDICT via the PI-RADS-ADC-reference disambiguation (lit review running → `notes/lit_review_two_camps.md`).
+- **P2 — Beyond the outer bins (grading/biology).** Spectrum shifts with Gleason grade in intermediate+lumen bins (D=0.5, D=2.0) where ADC is least sensitive — real but identifiability-limited. Fig 5.
+- **P3 — Uncertainty-aware diagnostics (exploratory).** Propagate NUTS posterior through the classifier → calibrated cancer probability + uncertainty (Sandy's idea). Fig 6.
+- **Cross-cutting — identifiability.** NOT its own figure: woven into Fig 4 (bar colouring) + supplementary individual spectra (S1).
 
-| Fig | Status | What it shows | File |
-|---|---|---|---|
-| **1** | **v3 DONE 2026-05-26** | 8 representative ROIs (2 per zone×class), tuned MAP @ λ=1e-3 (NNLS-correct) vs NUTS bars side-by-side, CV-coloured. Big fonts. | `paper/figures/fig1_v3.{png,pdf}` |
-| **2** | PENDING | ROC: PZ + TZ only (GGG ROC dropped, N=29 too small). 3 curves per panel (ADC, MAP, NUTS). Legends outside. Big fonts. | `paper/figures/fig_roc.{png,pdf}` (rebuild) |
-| **3** | **v3 DONE 2026-05-26** | ADC vs spectral discriminant scatter, 2×2 grid (PZ/TZ × NUTS/tuned-MAP). r ≈ −0.97 to −0.98 robust across method × zone × λ. | `paper/figures/fig3_v3.{png,pdf}` |
-| **4** | IN FLIGHT (agent) | Replaces old vector-correlation figure. 2-panel: LR coefficient profile per bin (raw + standardised, PZ + TZ) + comparison to ∂ADC/∂R. Sensitivity-vector framing kept (Stephan + Sandy meeting) but no longer headline. | `paper/figures/fig4_v1.{png,pdf}` |
-| **5** | NEEDS PROMOTION | spectrum_by_ggg figure created in-meeting 2026-05-25. Overlay of Normal + GGG=1 + GGG≥2 spectra. Histology interpretation: lacunae loss + glandular preservation in GGG=1, full collapse in GGG≥2. Replaces old AUC-based GGG content. **STYLE PASS needed** to match Fig 1/2/3 fonts. | `results/biomarkers/spectrum_by_ggg.{png,pdf}` → move to `paper/figures/fig5_v1.*` |
-| **6** | PENDING | Per-ROI classifier uncertainty figure. Layout change: 2-on-top, 1-on-bottom. Legends outside. Bigger misclassified crosses with non-light colour. | `paper/figures/fig_uncertainty.{png,pdf}` (rebuild) |
-| **7** | NEEDS REWORK | Directional dependence. Use 1 representative patient from Stephan's tarball (all 10 patients) as figure + aggregate per-direction-variance stats in Results text. Clarify dots-vs-lines (Stephan's email). Possibly drop MAP if tuned MAP ≈ NUTS so visual is cleaner. | `paper/figures/fig_directions.{png,pdf}` (rebuild) |
-| **8** | IN FLIGHT (agent) | NEW: 2-panel main figure. (a) MAP-vs-NUTS recovery curves on simulated GTs as a function of λ; log-normal GTs highlighted. (b) Bayesian-CRLB-corrected 3-bar comparison per D-bin (unconstrained vs Bayesian CRLB vs NUTS empirical), SNR=303. Replaces old Fisher figure. | `paper/figures/fig8_v1.{png,pdf}` |
-| **9** | PENDING | Pixelwise heatmap. Drop subplot D (feature importance). 3×3 (or 4×3) layout: MAP, NUTS, ADC + spectral-discriminant + uncertainty variants. Anonymise patient ID. | `paper/figures/fig_pixelwise_v2.{png,pdf}` (rebuild) |
+**Main figures (9 + 1 table = 10, AT CAP):**
 
-**Figure-count check:** 9 main figs. MRM 10-figure cap OK.
+| Fig | Status | What it shows / decision |
+|---|---|---|
+| 1 | ✅ v4 (iterating) | `fig1_v4`: cohort box plots tumor/normal × PZ/TZ. MAP green-hatched / NUTS orange-solid (style + colour, grayscale-safe). Mean within-ROI NUTS CV as light grey annotation. PZ/TZ titles, legend top, no title, shared y. (Box-plot concept kept — NOT the fig1_v3 8-ROI concept.) |
+| 2 | ✅ DONE | `fig2_v1`: PZ + TZ detection ROC (GGG dropped). **All curves via the same LOOCV pipeline** (apples-to-apples fix — kills the in-sample raw-rank vs out-of-sample LR asymmetry that made raw singles look better). Thick: ADC (black), 8-fraction spectral LR (orange solid), 2-fraction {D=0.25,3.0} LR (orange dashed), NUTS features. Outer singles D=0.25 (teal) + D=3.0 (brown) highlighted; other 6 = faint grey bundle (D=20 is a degenerate near-empty-bin artifact, kept unlabelled). Top identity legend (2 rows of 3, not literally 1 row — 6 entries). **Empirics back the collapse:** ADC ≳ 2-feat ≳ 8-feat > outer singles ≫ grey; 2-feat AUCs (PZ 0.933 / TZ 0.937) reproduce abstract. AUC numbers → Table 1. Generator `scripts/fig2_roc_detection.py`. |
+| 3 | ✅ DONE | ADC vs discriminant, 2×2 (PZ/TZ × NUTS/MAP), shared axes, legend top, no title. `fig3_v3`. |
+| 4 | ✅ DONE (v3) | `fig4_v3`: 2 panels (PZ, TZ). Standardised LR coef bars (same fit as Fig 3, NUTS, C=1, balanced) norm to max\|w\|=1, **with 95% bootstrap CIs** (2000×); coloured+hatched by within-ROI CV (colourblind-safe, shared module `visualization/identifiability.py`). −∂ADC/∂R as charcoal **diamonds (NO line)** with their own bootstrap CIs (tight — sensitivity is precise). CV mean±std strip below. Estimator (NUTS) explicit. Short titles + in-panel r box (w/ bootstrap CI); taller symmetric y; **`*` star = coef CI excludes 0** (significance). **Reframed to "two-bin detector"** (F4c): PZ only D=0.25,3.0 starred; TZ also marginal 0.75/1.0 (kept as honest "some juice", not over-read). Caption clarifies star (cohort coef stability) vs colour (per-ROI identifiability) are **distinct axes**. NO sub-legends in subplots (single top fig.legend). Wired into figures.tex (`\label{fig:sensitivity}`). |
+| 5 | ✅ DONE (`fig5_v3`, 2026-06-01) | Spectrum by GGG, **2 panels** (full \textwidth, legends on top, Fig 2/3 styling): (left) emergence GGG=1 vs ≥2; (right) aggressiveness GGG≤2 vs ≥3, normal as shared gray baseline in both. **Tells the detection-vs-grading axis dissociation:** lumen D=3.0 collapses at tumor onset then saturates (detection axis); restricted D=0.25 ↑ monotonically + glandular D=2.0 collapses with grade (grading axis, the intermediate bins). Caption + Results subsection rewritten. Supersedes single-panel `fig5_v2`. |
+| 6 | ✅ v1 (first draft, may iterate) | `fig6_v1` (`scripts/fig6_uncertainty_classifier.py`). **Uncertainty-aware classifier** (Sandy's "probability of cancer" idea). **Recompute fixed:** old ISMRM fig drew error bars = mean per-bin posterior std ×2 (feature-space heuristic). Now PROPAGATES all 8000 NUTS draws of each held-out ROI's spectrum through the LOOCV LR (same Fig-2 pipeline, 8 NUTS feats, C=1) → posterior *distribution* over P(tumor) + real 90% CI. **GGG panel DROPPED** (consistency w/ Fig 2, N=29 too small). Layout = **2×2**: PZ + TZ sorted-prediction (top), correct-vs-misclassified CI-width box (bottom-left), **4th quadrant empty + minimal legend on TOP** (Patrick pref, matches Fig 2/3 convention). **Headline = misclassified CI 2.4× wider** (pooled, p=0.003; was 1.2–1.3×). **ρ(dist, CI width)=−0.94 DEMOTED** (largely logistic-link geometry — see decomposition below; caption now only says "intervals widest near boundary, partly link geometry", no ρ number). **Logit-space decomposition (the honest answer to "how much is geometric"):** in logit space (removes sigmoid P(1−P) slope), ρ(dist, spread) drops −0.94→−0.29 and misclassified ratio drops 2.4×→**1.3×** — so boundary-widening is mostly geometric, but misclassified excess is **partly genuine** (1.3× in logit space, amplified to 2.4× in prob space b/c errors cluster near boundary). This is now a "slight discussion point" in discussion.tex. **Confident-misclassified failure mode** = low-grade(GGG=1)/ungraded tumors spectrally ≈ normal (new62,new52 PZ; new14,new46 TZ) — contrast limit, ties to Fig 5, not miscalibration. **Wired in:** figures.tex (caption), discussion.tex (para incl. logit-geometry), **results.tex new `\subsection{Uncertainty-aware Classification}`** (first-draft Pillar-3 para — FOLD into the eventual §5e Pillar-3 restructure). |
+| 7 | REWORK (MAIN) | Direction independence (trace-averaging validation). 1 representative patient + aggregate per-direction stats in text. Needs Stephan's 10-patient tarball. |
+| 8 | ⚠️ DRAFT BUILT, framing UNRESOLVED (2026-06-01) | `fig8_v2` (`scripts/fig8_validation.py`). 2×3: (a-c) recovery on normal-like / tumour-like / δ@D=0.75 (truth=black marks, NUTS+Gibbs=box plots, tuned-MAP=green ×); (d) joint σ̂ over 25 reps vs true σ; (e) ESS/draw NUTS vs Gibbs on δ. Driven by the REAL pipeline classes (NUTSSampler/GibbsSamplerClean/compute_map_spectrum) w/ exact nuts.yaml+gibbs.yaml+ridge.yaml configs — no drift. **Style locked & Patrick-approved** (slate-blue Gibbs OK). **BUT the Gibbs-vs-NUTS scientific story is NOT settled — do NOT write Theory yet.** See §8 item 2 for the open issues + plan. **WIRED AS DRAFT 2026-06-01** into `figures.tex` as main Fig 8 (`fig:validation`, caption lists all configs + a visible red `\todo{}` WIP note). Old **Fisher figure MOVED to `supporting.tex`** (kept `\label{fig:fisher}` → the 7 in-text refs in theory/results/discussion resolve to a supp "Figure S‹n›", no breakage). Main = 9 figs + Table 1 = 10 (MRM cap). Full Fisher excision needs the Theory Fisher/CRLB-subsection rewrite (deferred). **Overleaf sync: figures.tex + supporting.tex + new asset `paper/figures/fig8_v2.pdf`.** |
+| 9 | ✅ DONE (2026-06-01) | `fig9_v1` (`scripts/fig9_pixelwise.py`). 3×3 NUTS heatmap grid: A anatomy / B,C restricted+free-water fractions / D ADC (grayscale, conventional tumor-dark) / E,F 2-bin + 8-bin discriminant scores (absolute, decision-boundary-centred) / G windowed 2-bin score / H,I 2-bin + 8-bin per-voxel score uncertainty. Old subplot D (LR coefs) + signal-decay QC dropped. NUTS throughout (Fig 2 recipe, C=1). **8-bin score uncertainty ≈1.8× the 2-bin** (it weights the unidentifiable intermediate bins); both scores reproduce ADC (r=−0.93/−0.96). **Per-voxel tumor-skew finding (§8).** Wired into figures.tex (A–I caption) + methods.tex (per-zone justification) + discussion.tex (limitation). Anonymised; **PZ classifier PROVISIONAL pending zone label (§8 @Stephan).** |
+| Table 1 | ✅ REWORKED | Detection-only AUC table (GGG column DROPPED — n=29 too imprecise; grading → Fig 5 + Spearman). 6 rows: ADC raw-rank, ADC LR, 8-fraction LR (MAP/NUTS), **2-fraction {0.25,3.0} LR (MAP/NUTS)** grouped by midrules. **Bootstrap 95% CIs** replace Hanley–McNeil SE (now the manuscript-wide interval convention; DeLong for paired AUC tests). Fixed 2 pre-existing bugs: stale MAP Full LR (was pre-MAP-fix 0.919/0.945 → 0.917/0.952) + GGG-column SEs understated ~2×. Source: `auc_table.csv` (regenerated; now has auc_lo/auc_hi + 2-feat rows). |
 
 **Supplementary:**
-- S1 — Posterior diagnostics (trace plots overlaid for representative ROIs, R-hat). Rebuild — current arviz-default version too small/illegible.
-- S2 — Spectrum recovery for individual simulated GTs (NUTS + tuned MAP overlay, truth=black). Restyle per Stephan TODO.
-- S3 — λ-sweep MSE/fraction-recovered detail (the smaller plot that complements main Fig 8 panel a).
+- S1 — ✅ **DONE (2026-05-31).** `scripts/figS1_all_roi_spectra.py` → `figS1_all_roi_spectra.pdf` (20 pages, 2 cols, **4 ROIs/page = taller panels / more y-resolution** per Patrick), embedded via `\includepdf` (needs `\usepackage{pdfpages}`). **Box plots of the NUTS posterior** per bin (median + IQR box + 5–95% whiskers, no fliers), box face coloured **+ hatched** by within-ROI CV (**colourblind-safe purple+hatch, shared module `visualization/identifiability.py` — identical scheme to Fig 4**), tuned-MAP green ×. Layout bug fixed (legend + y-axis label no longer clipped). Titles carry **public reproducibility IDs** (patient_id + zone/tissue + GS/GGG) — map to released signal_decays.json / metadata.csv; companion `figS1_roi_key.csv` lists anatomical_region + SNR. Posterior draws read live from `results/inference_bwh_backup/*.nc`. Caption in supporting.tex rewritten.
+- S2 — NUTS posterior diagnostics (trace, R̂). NEW DESIGN (current arviz default rejected).
+- S3 — MAP λ-tuning: fraction-of-mass recovered vs λ (DROP the redundant MSE panel).
+- S4 — Simulation recovery battery (easy bimodal / hard concentrated / log-normal), NUTS + tuned-MAP vs truth.
+- S5 — Fisher information matrix + intermediate-bin collinearity (old Fig 8a).
+- S6 — Bayesian CRLB (van Trees) vs unconstrained vs NUTS (old Fig 8b). TENTATIVE: supp figure or fold into text — revisit.
 
-**Outstanding cosmetic items (consistent across all figures, Stephan-perfectionist):**
-- Global font sizes: xtick/ytick/axis labels = 17, title = 15, legend = 15. (Set via mpl.rcParams.)
-- Legends OUT of plot panels (right side of grid or below).
-- Colour palette: NUTS = orange, tuned MAP = green, ADC = grey/black, tumor points = red, normal points = blue. CV bar colours: green CV<0.4, yellow 0.4–0.6, orange 0.6–0.8, red >0.8.
-- 300 dpi PNG + PDF for every figure.
-- Anonymise patient IDs anywhere they appear (Fig 9 currently the only candidate).
+**Cosmetic conventions (locked):**
+- Match APPARENT font size, not point size: single-panel figs render larger at \textwidth than 2×2 grids, so size via LaTeX width (e.g. Fig 5 at width=0.85\textwidth ≈ Fig 3 at full width). 2×2 grids use axis labels 20 / ticks 18 / panel titles 17 / legend 17.
+- NO in-figure titles — caption's first sentence is the title (MRM convention; matches fig_roc, fig1).
+- Colour palette: NUTS = orange, tuned MAP = green, ADC = grey/black, tumor = red, normal = blue.
+- **Identifiability / CV colour = PURPLE SEQUENTIAL** (light lavender CV<0.4 → dark purple CV>0.8). NOT green→red (clashes with tumor/normal + MAP/NUTS).
+- 300 dpi PNG + PDF; anonymise patient IDs.
+
+**Build order (2026-05-31):** Fig 1 → Fig 4 → Fig 6 → Fig 2 → Fig 7 → Fig 8(new) → Fig 9 → supplementary. Then manuscript text.
 
 ---
 
@@ -281,40 +295,79 @@ Match Conclusion language to revised Abstract. Soften "ADC is a near-optimal lin
 
 ---
 
-## 8. Open actions for the remaining 5 days
+## 8. Open actions (2026-05-31 session)
 
-**TODAY DONE (2026-05-26):**
-- MAP solver fix in prob_model.py + recompute.py (F9).
-- Cohort re-fit at λ=1e-3 (features.csv, auc_table.csv, adc_discriminant.csv etc. all regenerated).
-- Simulation re-run with corrected solver (F1 preserved).
-- CRLB analysis (F10) — `notes/CRLB_NOTE_FOR_SANDY.md`.
-- Eq. 5 rewritten in theory.tex.
-- Fig 1 v3, Fig 3 v3 regenerated. Fig 4, Fig 8 in flight.
-- Spectrum_by_ggg sent to Stephan for his grant.
+**Goal today:** finalized draft to send Sandy + Stephan for review next week. Submit next week.
 
-**TOMORROW (Wed 5/27):**
-- P1. Confirm Fig 4 + Fig 8 agent outputs. Style pass to match Fig 1/3.
-- P2. Promote spectrum_by_ggg to `paper/figures/fig5_v1.png` with style pass.
-- P3. Edit `scripts/generate_paper_figures.py:fig_roc` — drop GGG subplot, move legends outside, keep PZ + TZ.
-- P4. Rebuild Fig 6 (uncertainty): 2-on-top + 1-on-bottom, legends out, brighter misclassification colours, bigger fonts.
-- P5. **Send package to Stephan + Sandy:** updated figures + CRLB note + new Eq. 5. Ask for review by end of week.
+**Decided this session:**
+- Figure scope + pillars locked (§6). Old Fisher/CRLB Fig 8 → supplementary. New main Fig 8 = method validation (recovery + joint noise).
+- Fig 3 ✅ (2×2 shared axes, legend top, no title) and Fig 5 ✅ (GGG=1 vs ≥2, width 0.85) wired into figures.tex; Results/Discussion text synced.
+- Identifiability distributed (Fig 4 colour + supp S1), not a standalone figure.
+- Identifiability/CV colour → purple sequential (was green→red).
 
-**Thu 5/28:**
-- Fig 7 rework with all 10 patients from Stephan's tarball. 1 patient as figure + aggregate stats in Results.
-- Fig 9 pixelwise: drop subplot D, multi-method 3×3.
-- Supplementary trace plots S1.
+**Done 2026-05-31 (figure session, cont.):**
+- Supp S1 reworked to box-plot atlas (`fig4_v2` colour scheme), layout bug fixed, public reproducibility IDs in titles + key CSV. See §6 supplementary.
+- Fig 4 reworked → `fig4_v2` (LR bars coloured by CV + −∂ADC/∂R line on one normalised axis + CV mean±std strip). Wired into figures.tex with honest caption. See §6 Fig 4.
+- **Fig 2 reworked → `fig2_v1`** (detection ROC, apples-to-apples LOOCV, 2-feat collapse). See §6 Fig 2. Wired into figures.tex (caption rewritten, refs Table 1). **Table 1 reworked** (detection-only, bootstrap CIs, 2-feat MAP+NUTS rows; fixed stale MAP + wrong GGG SEs) — see §6 Table 1. **Manuscript-wide interval convention set: percentile bootstrap CIs + DeLong for paired AUC tests; Hanley–McNeil retired** (updated `methods.tex`, `results.tex` Classification Performance para, `tables.tex`; added `delong1988comparing` to references.bib). `recompute.py` extended (2-feat rows + auc_lo/auc_hi columns); `auc_table.csv` regenerated, all other frozen CSVs byte-identical. Per Patrick (2nd pass): tried a per-panel in-panel AUC box but **Patrick reverted it** (looked worse than clean) — AUC/CI numbers live only in Table 1. Caption sharpened to state the ranking explicitly (ADC ≳ 2-bin ≳ 8-bin, 2-bin ≥ 8-bin). **Abstract partially updated** (Methods → unified LOOCV pipeline; Results → 2-feature collapse + bootstrap detection numbers). **§5a abstract full rewrite STILL PENDING** (kept as action item per Patrick): abstract lines 16/20 still carry the F4b sensitivity ‖r‖>0.93 overclaim + F1 "MAP underestimation" — left for that rework. `figures.tex` Fig 9 subplot-D AUC=0.919 is stale (subplot D slated for deletion anyway).
+- **OPEN (Patrick flagged, deferred — possibly minor):** the faint grey "other single bins" curves dip **below the diagonal** (e.g. D=20 LOOCV AUC → 0.0/0.22). Diagnosed as a **single-feature LOOCV-LR instability artifact** on near-empty/weak bins, NOT real inverse signal — raw single-bin AUCs are all near chance (D=20 0.46–0.52; D=2.0 0.21–0.59). Reader may find sub-diagonal curves suspicious. Two options if revisited: (a) leave as-is (faint, unlabeled) + one caption clause; (b) plot single-component curves as standard **raw single-feature ROC in tumor-positive (max) orientation** (what the old `fig_roc` did — stable, no sub-diagonal, but introduces a thin=raw / thick=LOOCV split that the caption must note). Patrick leaning "minor"; not changed this session.
+- **Data-quality flag for Patrick (visible in published S1):** released `metadata.csv` Gleason scores include `2+3` (1×, primary-pattern-2 is obsolete clinically), `4+3+5` (2× — tertiary-pattern notation, recorded as GGG 5), and `hgpin` (2× — not cancer). These now print verbatim in S1 panel titles / key CSV. Decide before submission whether to normalise or footnote them.
 
-**Fri 5/29:**
-- All writing: Abstract + Conclusion rewrite (Task #12), Methods MAP-tuning paragraph (#13), Discussion histology speculation (#14), update Eq. 5 surrounding prose. Incorporate Sandy's Eq. 5 review if received.
-- Address remaining 7 @Stephan inline comments.
+**Done earlier this session:**
+- Two-camps literature review complete → `notes/lit_review_two_camps.md` (web-verified DOIs/PMIDs). **Reconciliation = detection vs grading:** fair PI-RADS ADC is hard to beat for DETECTION (Camp A — Fennessy & Maier 2023 Eur J Radiol is *Stephan's own* paper; He et al. 2025 = `assets/s00261...` is the cleanest fair head-to-head, ADC = MC for detection); cellular-compartment metrics (VERDICT fIC, DKI, MC restricted fractions) beat ADC for GRADING (Camp B), because grading signal lives in intracellular/intermediate diffusivities. **KEY CORRECTION:** the RSIrs detection gap (ADC AUC 0.48–0.54) is from an automated whole-gland *minimum* ADC vs radiologist-localized lesion ADC — NOT high-b vs PI-RADS b-values (all headline Camp B papers used b≤1000). Lead the Discussion reconciliation with Maier 2023.
+- Fig 1 rebuilt as `fig1_v4` (cohort box plots, MAP green-hatched / NUTS orange-solid, grey mean-CV annotation, PZ/TZ titles, legend top). Wired into figures.tex (caption rewritten, "ridge smoothing" softened to λ-dependent).
 
-**Sat 5/30:** Final review pass. Run latex build. Address any leftover.
+**Done 2026-06-01 (Fig 9 — pixel-wise feasibility, this session):**
+- Reworked → `fig9_v1` (`scripts/fig9_pixelwise.py`), 3×3 NUTS heatmap grid (see §6 Fig 9). Built entirely from cache (`results/pixelwise/nuts_results.npz` + `pixelwise_all_fast.npz`) — no re-inference. New figure files + script committed + pushed in `95d669f`; `.tex` wiring + this PROJECT_STATE update in the bulk commit.
+- **NEW FINDING (per-voxel tumor-skew) — candidate F12:** applying the ROI-trained detector voxel-wise yields scores that skew systematically tumor-like (median voxel logit +2.5 (2-bin) / +4.4 (8-bin) vs median *tumor*-ROI logit +1.3). Cause: a single voxel's much lower SNR inflates the restricted (D=0.25) bin — the high-b noise floor mimics slow decay. The old Fig E red/blue split was partly an artifact of the non-tuned MAP (λ=0.1) smearing that mass away (Patrick's hypothesis — partly confirmed). Implication: reinforces ROI-level scope; faithful per-voxel classification would need explicit voxel-noise modelling or spatial regularisation. Shown honestly via the "absolute" panels (E,F); panel G windows it to recover ADC-like contrast.
+- **▶ OPEN — @Stephan: confirm patient 8640's lesion zone (PZ vs TZ).** Fig 9 applies the **PZ** detector PROVISIONALLY. 8640 is NOT recoverable from the repo (absent from `metadata.csv` anon ids new01–new56, `signal_decays.json`, and the directional tarball, which holds 7 patients — 8804/8805/8864/9283/9322/9675/10203 — not 8640); the raw→anon ID mapping is not in-repo. On receipt of the zone: flip `ZONE` in `scripts/fig9_pixelwise.py`, the "peripheral-zone" wording + `% NOTE(provisional)` in the figures.tex caption. This is the long-standing pixel/direction provenance [ASK].
 
-**Sun 5/31:** Submit.
+**TODO — near-final literature deep-dive (one of the LAST steps, before submission):**
+- Extend the lit review beyond medical MR: general signal-reconstruction / inverse-problem literature + ML approaches (variational inference, amortized / learned inference for spectral or parameter estimation). Goal: position our fully-Bayesian *joint spectrum + noise* inference against the wider methods landscape. Do once main text + final figures are locked.
+
+**Figure reworks:** ~~Fig 1 (fig1_v4)~~ ✅, ~~supp S1 box-plot atlas~~ ✅ (2026-05-31), ~~Fig 4 (fig4_v2)~~ ✅ (2026-05-31), ~~Fig 2 (fig2_v1)~~ ✅ (2026-05-31), **Fig 8 (fig8_v2)** ⚠️ draft built + style approved 2026-06-01 — Gibbs framing UNRESOLVED, NOT wired, Theory NOT written (see §8 item 2), ~~Fig 6 (fig6_v1)~~ ✅ (2026-06-01, first draft wired into figures.tex + discussion.tex; may iterate), ~~Fig 9 (fig9_v1)~~ ✅ (2026-06-01, wired into figures.tex + methods.tex + discussion.tex; PZ provisional) → **Fig 7** → supplementary S2–S6.
+
+**▶ NEXT SESSION — Fig 4 (centrepiece) spec — LOCKED this session:**
+- Rework `scripts/fig4_lr_coefs_and_sensitivity.py` → output `fig4_v2`. 2 panels (PZ, TZ), mirroring Fig 3.
+- Per bin: standardised LR coefficient (bars) + $-\partial$ADC$/\partial R_j$ (charcoal line+markers) on a SINGLE unit-normalised axis — NO dual-axis (v1's offset problem). Drop the raw-vs-standardised duality (standardised only).
+- Bars COLOURED by identifiability = purple sequential, same bands as supp S1 (light CV<0.4 → dark CV>0.8). Consider annotating mean±std of per-ROI CV per bin (Patrick's idea — shows identifiability spread, not just the mean).
+- Colours: charcoal sensitivity line + purple CV bars. No red/blue/orange/green clashes.
+- **Story it must tell:** outer bins (D=0.25, 3.0) = high LR weight + ADC-aligned + well-identified = the DETECTION axis; intermediate bins = where LR and ADC diverge AND poorly identified — yet Fig 5 shows they still shift with grade = the GRADING axis. Complement to Fig 3 (Fig3 = "spectrum ≈ ADC"; Fig4 = per-bin anatomy + where/whether it breaks).
+- **Reconciliation framing** (`notes/lit_review_two_camps.md`): detection vs grading. Lead with Fennessy & Maier 2023 (Camp A = Stephan's own). RSIrs detection gap = whole-gland-min-ADC artifact, NOT b-values.
+- Data: LR fit per zone on the 8 features (features.csv, C=1.0, standardised, class_weight balanced — same as fig3); $\partial$ADC$/\partial R$ from `adc_sensitivity.csv` / `adc_sens_vs_lr_tuned_lambda.csv`; CV from `nuts_std_D_*` / `nuts_D_*`. Existing helpers: `scripts/{plot_lr_weights_per_bin,plot_lr_weights_vs_adc_sensitivity,adc_sensitivity_at_tuned_lambda}.py`.
+
+**▶ NEXT SESSION — also deferred (Patrick flagged 2026-05-31, do AFTER main figures):**
+
+*1. Supplementary all-ROI atlas (S1) — REWORK (Patrick not satisfied):*
+- Revert to **box plots of the posterior samples** per bin (as in the old `output/gibbs` Gibbs output), NOT the current bars + CV-colour. Box-plot shows the full within-ROI posterior distribution.
+- Fix PDF layout: the **top legend is cut off** and the **y-axis label is missing** in the rendered PDF — the current `\includepdf` / page layout is broken.
+- Reconsider showing a **patient number / index** after all — currently there is no way to trace a panel back to a patient. Use a non-identifying sequential id + a private key for the authors (traceability matters; reverses the earlier "no patient id").
+- Keep **2 columns** (Patrick reaffirmed 2, not 3).
+- Generator: `scripts/figS1_all_roi_spectra.py`.
+
+*2. Simulation/validation figure (main Fig 8) — DRAFT BUILT 2026-06-01, Gibbs framing UNRESOLVED:*
+- **Built:** `fig8_v2` via `scripts/fig8_validation.py` (cache `results/simulation/fig8_validation.npz`, .nc in `results/simulation/fig8_nc/`). Uses the REAL pipeline classes + exact configs (nuts.yaml: 2000 draws/200 tune/4 chains/target 0.95, σ~HalfCauchy(β=1/SNR) inferred, init=map; gibbs.yaml: **100k iters/10k burn/4 chains, σ FIXED=1/SNR**, truncated-normal conditionals, init=map; ridge.yaml strength 0.1→σ_R=3.162; tuned-MAP λ=1e-3). SNR=303. δ@D=0.75. Style approved (Fig-1 box style, slate-blue Gibbs, green-× MAP, discrete truth marks, boxed top legend, no in-panel legends, fonts = Fig 3).
+- **KEY FINDINGS (change the story):**
+  - At 100k iters **Gibbs CONVERGES** (R̂≈1.0–1.02). "Gibbs doesn't converge" is FALSE here. Only clean NUTS edge = per-draw efficiency (~200–260× on correlated bins D=0.5–1.0; Gibbs fine on near-independent D=20).
+  - **The comparison is CONFOUNDED:** Gibbs is handed true σ (fixed); NUTS infers σ. On δ NUTS overestimates σ (mean 1.6×, median 1.5× true) → wider/biased R posterior → Gibbs looks *tighter & slightly better* on δ. Not a fair fight.
+  - σ̂ is right-skewed (report median, not mean → small improvement) AND genuinely inflated on concentrated truths (misfit residual). On realistic spectra within ~1–11% (tumour ≈ unbiased). Honest F6-consistent limitation.
+  - NUTS is already converged at 2000 draws → running longer will NOT improve recovery (Patrick asked). The δ behaviour is the σ-inference confound, not undersampling.
+- **▶ OPEN — resolve BEFORE writing Theory (Patrick + me agreed 2026-06-01):**
+  - **(a) Fair fight:** implement Sandy's **inverse-gamma σ² conjugate update** so Gibbs ALSO infers σ (full joint Gibbs over R,σ²). Never been tried. Directly supports the §8-item-3 correction (closed-form conditionals for BOTH R and σ²). Only then do both solve the same problem.
+  - **(b) Reproduce Gibbs getting STUCK:** Patrick recalls a **bimodal** config trapping even at ~1M iters (genuine non-convergence, not just slow). Prime suspect: bimodal {0.25:_, 3.0:_} (two separated modes + correlated middle). If Gibbs traps where NUTS doesn't → THAT is the only legit "Gibbs fails" claim.
+  - **(c) Do NOT over-claim:** even if Gibbs is competitive, MAP is the fast diagnostic estimator; NUTS/Gibbs are exploratory full-posterior tools. Position NUTS as: jointly infers σ w/o specification + uniform mixing efficiency + (if (b)) robust where Gibbs stalls. Efficiency alone is a weak argument (both slow; neither real-time).
+- **Caption MUST list all configs** (Patrick: reproducibility). Draft config block ready (in this session's chat) — fold into `figures.tex` caption when wiring.
+
+*3. Manuscript CORRECTION (Gibbs) — current text is WRONG:*
+- The claim is at **`theory.tex:101`**: "Standard Gibbs sampling is ineffective for this model because the half-normal priors **are not conjugate to the Gaussian likelihood** and, more fundamentally, the strong correlations … mix extremely slowly." The "not conjugate" half is **WRONG** — half-normal × Gaussian → closed-form **truncated-normal** full conditionals (and σ² is inverse-gamma conjugate — Sandy's derivation); Sandy implemented Gibbs, Patrick ran it for months.
+- **Refined by 2026-06-01 data:** the failure is NOT non-convergence — at 100k iters Gibbs converges (R̂≈1.0). The honest correction = "Gibbs has closed-form conditionals but is **computationally crippled**: per-draw efficiency on the correlated bins is ~200× below NUTS, so it needs impractically many iterations." **Hold the rewrite until §8-item-2 (a)+(b) resolve** — if (b) shows Gibbs trapping on bimodal, the wording can be stronger ("stalls / fails to reach the target on some configurations").
+- Keep the "mix extremely slowly from adjacent-bin correlation" half (it's correct + Fig 8e shows it). Add a short Gibbs→NUTS-progression paragraph tied to Fig 8.
+
+**Then manuscript:** Results around the three pillars; Discussion two-camps reconciliation (await lit review); Abstract + Conclusion; resolve remaining @Stephan inline comments (§7); Methods MAP-tuning + joint-σ paragraphs; Gibbs correction + paragraph (item 3 above).
 
 **Blocked / dependencies:**
-- Eq. 5 final wording — waiting on Sandy's review of draft in theory.tex (Patrick will email today). Draft is good enough to submit as-is if Sandy is silent.
-- Fig 7 — needs Patrick to load Stephan's full 10-patient tarball, not the 1-patient subset previously used.
+- Fig 7 — needs Stephan's full 10-patient tarball (per-direction data).
+- Discussion reconciliation paragraph — awaits background lit review.
+- Eq. 5 final wording — Sandy review (draft good enough to submit if silent).
 
 **Parked:** see §9 below; no changes there.
 
