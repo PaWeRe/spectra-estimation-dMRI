@@ -252,7 +252,7 @@ def main():
           vmin=-abs_k, vmax=abs_k, cbar_label="discriminant score\n(logit; 0 = boundary)")
 
     panel(ax[2, 0], b0, M["s2w"], "RdBu_r", "2-bin score, windowed", "G",
-          vmin=-win_k, vmax=win_k, cbar_label="spectral score\n(within-slice)")
+          vmin=-win_k, vmax=win_k, cbar_label="within-slice score")
     panel(ax[2, 1], b0, M["u2"], CMAP_UNC, "2-bin score uncertainty", "H",
           vmin=0, vmax=unc_max, add_cbar=False)
     panel(ax[2, 2], b0, M["u8"], CMAP_UNC, "8-bin score uncertainty", "I",

@@ -84,6 +84,8 @@ CACHE_NPZ = "results/simulation/fig8_validation.npz"
 NC_DIR = "results/simulation/fig8_nc"
 OUT_PNG = "paper/figures/fig8_v2.png"
 OUT_PDF = "paper/figures/fig8_v2.pdf"
+OUT_PNG_V3 = "paper/figures/fig8_v3.png"
+OUT_PDF_V3 = "paper/figures/fig8_v3.pdf"
 
 # Reuse the EXACT colours/markers from Fig 1 and the supplementary S1 atlas so
 # we don't introduce new style elements:
@@ -386,11 +388,118 @@ def plot():
     plt.close(fig)
 
 
+# ----------------------------------------------------------------- plotting (v3: trimmed 2x2)
+def _recovery_panel_v3(ax, d, key, title, show_ylabel):
+    """Recovery panel for the trimmed figure: NUTS posterior box + tuned-MAP
+    point estimate vs ground truth. NO Gibbs."""
+    x = np.arange(N_D)
+    bw = 0.5
+    # NUTS posterior box (orange), centred on each bin — same box style as Fig 1.
+    ax.bxp(_bxp_dicts(d, key, "nuts"), positions=x, widths=bw,
+           showfliers=False, showmeans=False, patch_artist=True,
+           medianprops=dict(color="black", lw=1.1),
+           whiskerprops=dict(color="0.4", lw=0.9),
+           capprops=dict(color="0.4", lw=0.9),
+           boxprops=dict(facecolor=C_NUTS, edgecolor="black",
+                         linewidth=0.6, alpha=0.7),
+           zorder=3)
+    # ground truth: discrete per-bin level marks (NOT a connected line)
+    ax.hlines(d[f"{key}_R_true"], x - 0.44, x + 0.44, color=C_TRUTH, lw=2.6,
+              zorder=5)
+    # tuned-MAP point estimate: green "x"
+    ax.scatter(x, d[f"{key}_map_R"], marker="x", s=80, c=C_MAP, linewidths=2.0,
+               zorder=6)
+    ax.set_xticks(x); ax.set_xticklabels(D_LABELS)
+    ax.set_xlim(-0.65, N_D - 0.35)
+    ax.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
+    if show_ylabel:
+        ax.set_ylabel("spectral fraction")
+    ax.set_title(title, loc="left", fontweight="bold", pad=8)
+    ax.grid(True, axis="y", alpha=0.25)
+
+
+def plot_v3():
+    """Trimmed 2x2 figure: (a,b,c) recovery (NUTS + tuned-MAP only, no Gibbs)
+    and (d) joint noise recovery. Re-plotted entirely from the cache."""
+    d = dict(np.load(CACHE_NPZ, allow_pickle=True))
+    true_sigma = float(d["true_sigma"])
+
+    mpl.rcParams.update({
+        "xtick.labelsize": 18, "ytick.labelsize": 18,
+        "axes.labelsize": 20, "axes.titlesize": 17, "legend.fontsize": 17,
+        "axes.spines.top": False, "axes.spines.right": False,
+    })
+
+    fig = plt.figure(figsize=(14, 13.2))
+    gs = fig.add_gridspec(2, 2, hspace=0.34, wspace=0.30,
+                          left=0.095, right=0.985, top=0.90, bottom=0.075)
+    ax_a = fig.add_subplot(gs[0, 0])
+    ax_b = fig.add_subplot(gs[0, 1])
+    ax_c = fig.add_subplot(gs[1, 0])
+    ax_d = fig.add_subplot(gs[1, 1])
+
+    # ---- (a,b,c) recovery (NUTS posterior + tuned-MAP vs truth) ----
+    _recovery_panel_v3(ax_a, d, "normal", "(a)  normal-like spectrum", True)
+    _recovery_panel_v3(ax_b, d, "tumor", "(b)  tumour-like spectrum", True)
+    _recovery_panel_v3(ax_c, d, "delta",
+                       r"(c)  $\delta$ stress test (concentrated)", True)
+    ymax_real = max(d["normal_nuts_whishi"].max(), d["normal_R_true"].max(),
+                    d["tumor_nuts_whishi"].max(), d["tumor_R_true"].max())
+    ax_a.set_ylim(0, ymax_real * 1.12); ax_b.set_ylim(0, ymax_real * 1.12)
+    ax_c.set_ylim(0, 1.06)
+
+    # shared top legend: NUTS=orange, MAP=green, truth=black only.
+    rec_handles = [
+        Line2D([0], [0], color=C_TRUTH, lw=2.6, label="ground truth"),
+        Patch(facecolor=C_NUTS, edgecolor="black", alpha=0.7,
+              label="NUTS posterior"),
+        Line2D([0], [0], color=C_MAP, marker="x", ms=11, lw=0, mew=2.2,
+               label=r"tuned MAP ($\lambda=10^{-3}$)"),
+    ]
+    fig.legend(handles=rec_handles, loc="upper center",
+               bbox_to_anchor=(0.5, 0.985), ncol=3, frameon=True, fontsize=17)
+
+    # ---- (d) joint noise recovery ----
+    keys = ["normal", "tumor", "delta"]
+    labels = ["normal-\nlike", "tumour-\nlike", r"$\delta$ stress"]
+    data = [d[f"{k}_sigma_hats"] for k in keys]
+    pos = np.arange(len(keys))
+    parts = ax_d.violinplot(data, positions=pos, showmeans=False,
+                            showextrema=False, widths=0.7)
+    for pc in parts["bodies"]:
+        pc.set_facecolor(C_NUTS); pc.set_edgecolor("black")
+        pc.set_alpha(0.40); pc.set_linewidth(0.7)
+    for i, vals in enumerate(data):
+        jit = (np.random.default_rng(i).random(len(vals)) - 0.5) * 0.16
+        ax_d.scatter(pos[i] + jit, vals, s=22, color=C_NUTS, edgecolor="black",
+                     linewidth=0.3, zorder=3, alpha=0.85)
+    ax_d.axhline(true_sigma, color=C_TRUTH, ls="--", lw=2.0, zorder=2)
+    ax_d.text(len(keys) - 0.5, true_sigma, r"  true $\sigma=1/\mathrm{SNR}$",
+              ha="right", va="bottom", fontsize=15, color=C_TRUTH,
+              style="italic")
+    ax_d.set_xticks(pos); ax_d.set_xticklabels(labels)
+    ax_d.set_ylabel(r"inferred noise $\hat{\sigma}$")
+    ax_d.set_xlabel("ground-truth spectrum")
+    ax_d.set_title("(d)  joint noise recovery (SNR=303)", loc="left",
+                   fontweight="bold", pad=8)
+    ax_d.grid(True, axis="y", alpha=0.25)
+
+    fig.savefig(OUT_PNG_V3, dpi=300, bbox_inches="tight")
+    fig.savefig(OUT_PDF_V3, bbox_inches="tight")
+    print(f"Wrote {OUT_PNG_V3}\nWrote {OUT_PDF_V3}")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--regen", action="store_true")
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--v3", action="store_true",
+                    help="re-plot the trimmed 2x2 figure (fig8_v3) from cache")
     args = ap.parse_args()
     if args.regen:
         generate(quick=args.quick)
-    plot()
+    if args.v3:
+        plot_v3()
+    else:
+        plot()

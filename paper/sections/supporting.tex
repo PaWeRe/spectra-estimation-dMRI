@@ -43,7 +43,7 @@ full multi-compartment problem is treated numerically in the main text.
 % Multi-page atlas embedded with \includepdf.
 % REQUIRES \usepackage{pdfpages} in the main preamble.
 % Fallback if pdfpages is unavailable: include pages individually with
-%   \includegraphics[page=<n>]{figures/figS1_all_roi_spectra.pdf}  (n = 1..17).
+%   \includegraphics[page=<n>]{figures/figS1_all_roi_spectra.pdf}  (n = 1..20).
 \clearpage
 \noindent\textbf{Supplementary Atlas: individual estimated spectra for all
 149 ROIs.}
@@ -68,55 +68,14 @@ Grade Group. A companion key file (\texttt{figS1\_roi\_key.csv}) lists the exact
 anatomical region and SNR for each panel.
 \includepdf[pages=-]{figures/figS1_all_roi_spectra.pdf}
 
-% --- Fig S1: NUTS Convergence (Simulation) ---
-\begin{figure}[p]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_trace_simulation.pdf}
-\caption{%
-NUTS convergence on simulated data.
-Posterior densities (left) and trace plots (right) for all eight spectral
-components and the noise parameter $\sigma$ from a synthetic signal
-(uniform spectrum, SNR = 500, $\lambda = 0.1$, 4 chains, 2000 draws).
-Max $\hat{R} = 1.003$, confirming convergence.
-Tight posteriors for $D = 0.25\;\umsmm$ and $D = 3.0$--$20.0\;\umsmm$
-confirm identifiability; broad posteriors for $D = 0.50$--$1.50\;\umsmm$
-confirm ill-posedness.
-}
-\label{fig:trace_supp}
-\end{figure}
-
-% --- Fig S2: Robustness Across Spectral Shapes ---
-\begin{figure}[p]
-\centering
-% TODO(figure-regen): larger fonts (~+50%). Recolor: NUTS posterior in
-% orange (matching Fig 1), ground truth in black; optionally add MAP
-% recovery in green for direct comparison.
-% TODO(figure-regen, stability): Patrick is unhappy with the current
-% robustness figure; the older simulation plots looked better and were
-% more informative. In particular, the old "Mode vs Mean Stability
-% Analysis" panel (N=10 noise realizations of a fixed truth, MAP boxes
-% vs Bayesian-posterior-mean boxes side by side, with the truth as a
-% reference line) makes the variance-reduction story visible in a way
-% the current shape-recovery layout does not. Discuss trade-offs in the
-% next collaborative session: keep the shape sweep, replace it with
-% the stability comparison, or merge both. Reference example:
-% old/testing/simulation_results_old25.pdf page 3 in the
-% "spectra-estimation-dMRI/code copy" tree.
-\includegraphics[width=\textwidth]{figures/fig_robustness.png}
-\caption{%
-@Stephan comment: Fonts still too small. Would it make sense to show MAP results as well? Green would be the color for MAP. I suggest you use your standard NUTS color orange and black for true. You have not changed the color yet.
-NUTS spectrum recovery across diverse spectral shapes and SNR levels.
-Ground-truth spectra (black) versus NUTS-recovered posteriors (orange, with
-credible intervals) for six synthetic spectral shapes at the lowest
-(SNR = 50, left) and highest (SNR = 1000, right) tested noise levels.
-Recovery error (RMSE) decreases with SNR for all shapes.
-Intermediate components ($D = 0.50$--$1.00\;\umsmm$) consistently show the
-widest credible intervals, consistent with the identifiability analysis on
-patient data.
-Fast-mode sampler settings shown (2 chains, 500 draws).
-}
-\label{fig:robustness_supp}
-\end{figure}
+% --- REMOVED 2026-06-02 ---
+% Fig S1 (NUTS multi-chain trace plots, fig_trace_simulation.pdf): dropped --
+% unreadable and uninformative to readers; convergence is reported in Methods
+% (split-Rhat < 1.05 for all 149 ROIs).
+% Fig S2 (robustness across spectral shapes, fig_robustness.png): dropped --
+% redundant with the recovery panels of main Figure~\ref{fig:validation}, and
+% carried unresolved font/colour TODOs. A broader simulation recovery battery
+% can be added back to the SI later if desired.
 
 % --- Fig S: Fisher Information Analysis (relocated from the main text 2026-06-01;
 %     keeps \label{fig:fisher} so the in-text references in theory/results/discussion

@@ -21,7 +21,7 @@ Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (2
 
 For each ROI, the trace signal decay was decomposed into eight diffusivity components ($D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$) using both MAP and fully Bayesian estimation as described in Theory.
 
-MAP spectra were computed via Eq.~\ref{eq:map} with ridge strength $\lambda = 0.1$, then normalized to sum to one (fractional representation); computation was instantaneous ($< 1\;\text{s}$ for all 149 ROIs).
+MAP spectra were computed via Eq.~\ref{eq:map} with ridge strength $\lambda = 10^{-3}$, tuned to optimize spectral recovery on simulated data, then normalized to sum to one (fractional representation); computation was instantaneous ($< 1\;\text{s}$ for all 149 ROIs).
 The Bayesian posterior (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) was sampled independently for each of the 149 ROIs using NUTS via PyMC, with 2000 post-tuning draws, 200 tuning steps, 4 independent chains, and target acceptance rate 0.95.
 Convergence was assessed using the split-$\hat{R}$ statistic \citep{vehtari2021rank}; all 149 ROIs converged ($\hat{R} < 1.05$).
 Posterior means of the spectral fractions (normalized to sum to one) were used as NUTS point estimates; posterior standard deviations quantify per-component uncertainty.
@@ -36,7 +36,7 @@ This cutoff was chosen to follow PI-RADS~v2.1 recommendations, which specify a m
 
 Tumor detection and Gleason grade classification were evaluated using $L_2$-regularized logistic regression with leave-one-out cross-validation (LOOCV).
 Three classification tasks were defined: (1)~tumor versus normal in PZ ($n = 81$), (2)~tumor versus normal in TZ ($n = 68$), and (3)~high-grade (GGG~$\geq 3$) versus low-grade (GGG~1--2) among tumor ROIs with available GGG labels ($n = 29$).
-Detection classifiers were trained separately by zone because normal peripheral- and transition-zone tissue differ systematically in baseline diffusion properties, so a single pooled tumor-versus-normal boundary would conflate zonal and pathological variation.
+Detection classifiers were trained separately by zone because the diffusion contrast between zones is largely a property of \emph{normal} tissue---normal peripheral- and transition-zone tissue differ systematically in baseline diffusion, whereas tumor tissue is comparatively similar across zones---so a single pooled tumor-versus-normal boundary would conflate zonal and pathological variation.
 
 For each task, the following feature representations were compared through an identical leave-one-out cross-validation (LOOCV) pipeline: (a)~ADC alone; (b)~each individual spectral fraction alone; (c)~the two outer fractions $\{D = 0.25,\,3.0\;\umsmm\}$ jointly; and (d)~all eight fractions, using either MAP or NUTS posterior-mean estimates.
 Within each fold, features were standardized and an $L_2$-regularized logistic-regression classifier ($C = 1.0$, inverse regularization strength) was fit on the training ROIs and applied to the held-out ROI, with standardization and fitting confined to the training fold to prevent data leakage.
@@ -56,13 +56,11 @@ Bootstrap 95\% confidence intervals for ROI-level correlations between ADC and t
 % ======================================================================
 \subsection{Pixel-wise and Direction-wise Spectral Estimation}
 
-To demonstrate the framework at the voxel level and to verify the trace-averaging assumption used at ROI level, pixel-wise and direction-wise spectral decomposition was performed on a single axial slice from one patient dataset acquired outside the patient cohort described above.
-The protocol was similar to the main acquisition but retained the per-direction signal intensities, allowing the spectral model to be fit independently per encoding direction.
-The prostate was manually segmented prior to analysis.
-
+To demonstrate the framework at the voxel level, pixel-wise spectral decomposition was performed on a single axial slice from one patient acquired outside the patient cohort described above, with the prostate manually segmented prior to analysis.
 For each voxel, the multi-b signal decay $\svec = [S(b_1), \ldots, S(b_{15})]^T$ was normalized by the $b = 0$ signal and decomposed using both MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the same parameters as the ROI-level analysis.
-A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra.
-For the Bayesian estimates, uncertainty in the discriminant was propagated by drawing 500 Monte Carlo samples from the per-voxel posterior and passing each through the discriminant function.
+A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra; for the Bayesian estimates, uncertainty in the discriminant was propagated by drawing 500 Monte Carlo samples from the per-voxel posterior and passing each through the discriminant function.
+
+To verify the trace-averaging assumption used at the ROI level, a separate acquisition that retained the per-encoding-direction signal---13 ROIs across 7 patients, with the same 15 b-values along three orthogonal directions---was decomposed independently for each direction with the MAP estimator and compared to the trace-averaged spectrum (Figure~\ref{fig:directions}).
 
 Code, configuration files, and the de-identified per-ROI signal decays used in this study are openly available at \url{https://github.com/PaWeRe/spectra-estimation-dMRI}.
 The repository also packages the inference methods (closed-form ridge MAP and PyMC NUTS) so that the full pipeline can be re-run end-to-end on either the released data or new datasets.

@@ -138,12 +138,18 @@ def build_zone(df_zone):
 def plot_panel(ax, res, title):
     n = res["n"]
 
-    # --- the 6 non-outer single components: faint grey bundle ---
-    # (D=0.5, 0.75, 1.0, 1.5, 2.0, 20.0). Shows transparently that single
-    # intermediate / free-water bins are unreliable detectors, without the
-    # 8-line spaghetti and without legending the degenerate D=20 artifact.
+    # --- the 5 intermediate single components: faint grey bundle ---
+    # (D=0.5, 0.75, 1.0, 1.5, 2.0). Shows transparently that single
+    # intermediate bins are unreliable detectors, without the 8-line
+    # spaghetti. The degenerate free-water bin D=20 is DROPPED from the
+    # bundle entirely: it carries essentially zero tumor signal, so the
+    # LOOCV-LR orients it near-randomly per fold, yielding an AUC that
+    # sits at the bottom-right (AUC<<0.5) and reads as a spurious red
+    # flag. It is excluded from the plot only; the 8-feature classifier
+    # is still trained on all bins including D=20.
+    D20_IDX = len(DIFFUSIVITIES) - 1  # index 7 -> D=20 free-water artifact
     for i, c in enumerate(res["comp"]):
-        if i in OUTER_IDX:
+        if i in OUTER_IDX or i == D20_IDX:
             continue
         ax.plot(c["fpr"], c["tpr"], color=COLOR_OTHER,
                 linewidth=1.1, alpha=0.5, zorder=2)
@@ -197,6 +203,23 @@ def main():
             lo, hi = c["ci"]
             print(f"    {name:<26s} {c['auc']:.3f}   [{lo:.3f}, {hi:.3f}]")
 
+    # ---------- red-flag check: minimum *plotted* grey-curve AUC ----------
+    # The grey bundle now excludes the outer pair (OUTER_IDX) and the
+    # degenerate D=20 free-water bin. Confirm no remaining grey curve is
+    # below ~0.40.
+    D20_IDX = len(DIFFUSIVITIES) - 1
+    print("\n=== Min plotted grey (intermediate single-bin) AUC per zone ===")
+    print("    (grey bundle excludes outer pair D=0.25/3.0 and D=20)")
+    for zkey, zlabel in zones:
+        r = results[zkey]
+        grey = [(D_LABELS[i], r["comp"][i]["auc"])
+                for i in range(len(DIFFUSIVITIES))
+                if i not in OUTER_IDX and i != D20_IDX]
+        mlabel, mauc = min(grey, key=lambda kv: kv[1])
+        flag = "OK" if mauc >= 0.40 else "WARNING (< 0.40)"
+        print(f"    {zlabel:<22s}  min grey AUC = {mauc:.3f} "
+              f"(D={mlabel})  [{flag}]")
+
     # ---------- figure ----------
     fig, axes = plt.subplots(1, 2, figsize=(14, 6.6), sharex=True, sharey=True)
     for ax, (zkey, zlabel) in zip(axes, zones):
@@ -221,8 +244,8 @@ def main():
                fontsize=14, columnspacing=1.6, handlelength=2.4)
 
     fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.88])
-    png = os.path.join(OUT_DIR, "fig2_v1.png")
-    pdf = os.path.join(OUT_DIR, "fig2_v1.pdf")
+    png = os.path.join(OUT_DIR, "fig2_v2.png")
+    pdf = os.path.join(OUT_DIR, "fig2_v2.pdf")
     fig.savefig(png, dpi=300, bbox_inches="tight")
     fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)

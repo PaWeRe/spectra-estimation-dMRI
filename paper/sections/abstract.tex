@@ -1,23 +1,23 @@
 \begin{abstract}
 
 \noindent\textbf{Purpose:}
-To investigate, both theoretically and on patient data, how reliably each component of the diffusivity spectrum can be recovered from extended b-value prostate diffusion-weighted MRI, and to characterize the relationship between the conventional apparent diffusion coefficient (ADC) and the optimal multi-component spectral classifier for tumor detection.
+The apparent diffusion coefficient (ADC) is the de facto biomarker of prostate diffusion MRI, and compartment-volume models explain why it works but are not measured directly. We use Bayesian spectral decomposition of extended b-value prostate DWI to quantify which diffusion compartments are reliably recoverable and to explain ADC's near-optimality for tumor detection at the region-of-interest level.
 
 \noindent\textbf{Methods:}
-Multi-b DWI ($b = 0$--$3500\;\text{s/mm}^2$, 15 b-values) from 56 patients (149 ROIs: 40 tumor, 109 normal) was decomposed into eight diffusivity components using both maximum a~posteriori (MAP, ridge non-negative least squares) and fully Bayesian No-U-Turn Sampler (NUTS) inference.
-Per-component identifiability was assessed both theoretically through the Cram\'er-Rao lower bound on the Fisher information matrix and practically through the NUTS posterior coefficient of variation.
-Tumor detection in the peripheral and transition zones was evaluated through a single leave-one-out cross-validation pipeline applied identically to ADC, to individual spectral fractions, to the two outer fractions ($D = 0.25$ and $3.0\;\umsmm$), and to all eight fractions, using $L_2$-regularized logistic regression, with 95\% confidence intervals from a patient-level bootstrap.
-Associations with Gleason grade were assessed as grade-dependent spectral shifts and rank correlations rather than by classification, given the small number of graded tumors ($n = 29$).
+Multi-b DWI ($b = 0$--$3500\;\text{s/mm}^2$, 15 b-values) from 56 patients (149 ROIs: 40 tumor, 109 normal) was decomposed into eight diffusivity components using both maximum a~posteriori (MAP, constrained ridge non-negative least squares) and fully Bayesian No-U-Turn Sampler (NUTS) inference, the latter providing per-component posterior uncertainty.
+Per-component identifiability was summarized by the NUTS posterior coefficient of variation (CV).
+Tumor detection in the peripheral and transition zones was evaluated through a single leave-one-out cross-validation pipeline applied identically to ADC, to individual spectral fractions, to the two outer fractions ($D = 0.25$ and $3.0\;\umsmm$), and to all eight fractions, using $L_2$-regularized logistic regression with 95\% confidence intervals from a patient-level bootstrap.
+Associations with Gleason grade were assessed as grade-dependent spectral shifts rather than by classification, given the small number of graded tumors ($n = 29$).
 A pixel-wise demonstration was performed on a separate patient dataset.
 
 \noindent\textbf{Results:}
-Only restricted diffusion ($D = 0.25\;\umsmm$, mean posterior CV = 0.20) and free water ($D = 3.0\;\umsmm$, mean CV = 0.32) were well identified; intermediate components ($D = 0.50$--$1.00\;\umsmm$) had CV $> 0.80$, consistent with mutual Fisher correlation $> 0.99$ at the SNR realized in this cohort (median 303).
-Non-negativity constraints and Bayesian priors reduced effective estimation error by 100--8000$\times$ relative to the unconstrained Cram\'er-Rao bound.
-For tumor detection the spectral classifier was statistically indistinguishable from ADC in both zones, and a minimal two-fraction classifier using only the restricted ($D = 0.25\;\umsmm$) and free-water ($D = 3.0\;\umsmm$) compartments was as accurate as the full eight-fraction model (two-fraction NUTS AUC PZ $0.93$ [$0.86$, $0.98$], TZ $0.94$ [$0.85$, $0.99$]; ADC raw rank PZ $0.95$, TZ $0.98$); detection signal was concentrated in these two outer compartments.
-Across patients, ADC scores anti-correlated with the optimal spectral discriminant at $r \approx -0.98$ (95\% bootstrap CI within $[-0.99,\,-0.97]$ in both zones), and the ADC sensitivity vector aligned with the learned classification direction at $|r| > 0.93$, providing a mechanistic explanation for ADC's near-optimality.
+Only restricted diffusion ($D = 0.25\;\umsmm$, mean posterior CV = 0.20) and free water ($D = 3.0\;\umsmm$, mean CV = 0.32) were well identified; the intermediate components ($D = 0.50$--$1.00\;\umsmm$) had CV $> 0.80$, a data limit robust to the prior width.
+For tumor detection the spectral classifier was statistically indistinguishable from ADC in both zones, and a minimal two-fraction classifier using only the restricted ($D = 0.25\;\umsmm$) and free-water ($D = 3.0\;\umsmm$) compartments was as accurate as the full eight-fraction model (two-fraction NUTS AUC PZ $0.93$ [$0.86$, $0.98$], TZ $0.94$ [$0.85$, $0.99$]; ADC raw rank PZ $0.95$, TZ $0.98$): tumor-detection signal collapses onto the two outer compartments.
+Consistently, ADC scores anti-correlated with the spectral discriminant at $r \approx -0.98$ (95\% bootstrap CI within $[-0.99,\,-0.96]$ in both zones, for both MAP and NUTS features), so ADC rank-orders ROIs almost identically to the optimal spectral classifier.
+Grade-dependent spectral shifts dissociated a detection axis (the free-water fraction collapsing at tumor onset) from a grading axis (the restricted and glandular fractions tracking grade), in the intermediate bins where ADC is least sensitive.
 
 \noindent\textbf{Conclusion:}
-ADC is a near-optimal linear projection of the prostate diffusivity spectrum for tumor detection.
-Bayesian spectral decomposition does not obsolete ADC but explains it, while additionally quantifying which spectral compartments are reliably recoverable, identifying a systematic MAP underestimation of the acinar-lumen fraction, and providing per-voxel uncertainty for pixel-wise tissue characterization.
+At the ROI level the diffusivity spectrum is diagnostically equivalent to ADC, and the collapse of tumor-detection signal onto two outer compartments---which ADC implicitly averages---explains why a single scalar is so hard to improve upon.
+Bayesian spectral decomposition does not obsolete ADC but mechanistically explains it, while additionally quantifying which compartments are reliably recoverable and providing per-component posterior uncertainty; tuned MAP and NUTS yield equivalent spectra on realistic tissue, so the Bayesian gain is calibrated uncertainty rather than better point estimates.
 
 \end{abstract}

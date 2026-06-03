@@ -34,8 +34,8 @@ The Cram\'er-Rao lower bound (CRLB) provides the minimum achievable variance for
 For our measurement configuration, the Fisher matrix has condition number $\kappa(\mathbf{F}) \approx 7.7 \times 10^{10}$, indicating that the unconstrained estimation problem is severely ill-conditioned.
 
 The off-diagonal structure of $\mathbf{F}$ reveals why: adjacent diffusivity components produce nearly identical signal contributions.
-The Fisher correlation matrix $C_{jk} = F_{jk} / \sqrt{F_{jj} F_{kk}}$ shows that components at $D = 0.50$, $0.75$, and $1.00\;\umsmm$ are correlated above $r = 0.99$ @Stephan comment: You cannot have out-of-order figures. (Figure~\ref{fig:fisher}a), making them fundamentally indistinguishable from the 15 b-value measurements considered here.
-In contrast, $D = 0.25\;\umsmm$ (restricted diffusion) contributes detectable signal across all 15 b-values, while fast-diffusing components ($D \geq 3.0$) decay below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c). @Stephan comment: You cannot have out-of-order figures. So this may have to become Fig. 1.
+The Fisher correlation matrix $C_{jk} = F_{jk} / \sqrt{F_{jj} F_{kk}}$ shows that components at $D = 0.50$, $0.75$, and $1.00\;\umsmm$ are correlated above $r = 0.99$ (Figure~\ref{fig:fisher}a), making them fundamentally indistinguishable from the 15 b-value measurements considered here.
+In contrast, $D = 0.25\;\umsmm$ (restricted diffusion) contributes detectable signal across all 15 b-values, while fast-diffusing components ($D \geq 3.0$) decay below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
 
 This resolving limitation can be quantified analytically for a two-compartment toy model.
 Consider adjacent diffusivities $D$ and $D + \Delta D$ contributing fractions $p$ and $1-p$.
@@ -98,8 +98,8 @@ The half-normal prior on $\Rvec$ naturally enforces non-negativity while providi
 The half-Cauchy prior on the noise level $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that allows the noise to be inferred jointly with the spectrum, rather than fixed a priori.
 
 The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
-Standard Gibbs sampling is ineffective for this model because the half-normal priors are not conjugate to the Gaussian likelihood and, more fundamentally, the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry where coordinate-wise updates mix extremely slowly.
-NUTS, as an adaptive variant of HMC \citep{neal2011mcmc}, exploits gradient information to propose joint moves across all components simultaneously, and automatically adapts the trajectory length to the local curvature of the posterior, making it well suited to the correlated, constrained geometry of this problem.
+A coordinate-wise Gibbs sampler (truncated-normal full conditionals for $\Rvec$, with a conjugate inverse-gamma update for $\sigma^2$) targets the same posterior; we use NUTS because the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry in which such coordinate-wise updates mix extremely slowly.
+NUTS, as an adaptive variant of HMC \citep{neal2011mcmc}, exploits gradient information to propose joint moves across all components simultaneously and adapts the trajectory length to the local curvature of the posterior, making it well suited to the correlated, constrained geometry of this problem.
 
 Posterior summaries (mean, standard deviation) for each $R_j$ provide both a point estimate and a measure of identifiability: components with posterior coefficient of variation (CV = posterior std / posterior mean) much less than one are well constrained, while those with CV near or above one are effectively undetermined by the data.
 

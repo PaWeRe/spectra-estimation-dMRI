@@ -1,28 +1,32 @@
-"""Fig 5 — Average diffusivity spectrum by Gleason Grade Group (two thresholds).
+"""Fig 5 — Grade-ordered ladder of average diffusivity spectra.
 
-Two-panel overlay sharing a common y-axis, normal tissue as the gray baseline
-in both panels:
+Single full-width panel: four mean NUTS posterior-mean spectra over the 8
+diffusivity bins (D = 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0 um^2/ms),
+ordered by increasing Gleason Grade Group:
 
-  Panel A — tumor EMERGENCE boundary: Normal (n=109) | GGG=1 (n=8) | GGG>=2 (n=21).
-      The detection axis: the free-water/lumen bin (D=3.0) collapses the instant
-      tumor appears (even low grade), then barely moves.
+  * Normal     (n=109) — gray shared baseline (benign tissue).
+  * GGG = 1    (n=8)   — resolved grade group 1.
+  * GGG = 2    (n=12)  — resolved grade group 2.
+  * GGG >= 3   (n=9)   — cumulative grade groups 3-5 (resolved high grades have
+                          tiny n: GGG3=5, GGG4=2, GGG5=2).
 
-  Panel B — tumor AGGRESSIVENESS boundary: Normal | GGG<=2 (n=20) | GGG>=3 (n=9).
-      The grading axis: between favorable and unfavorable grade the lumen bin is
-      already saturated, while the restricted-cellular (D=0.25) and
-      glandular-epithelial (D=2.0) bins keep shifting.
+The three tumor groups use a grade-ordered sequential ramp (light -> dark
+green/teal), deliberately avoiding the tumor-red / normal-blue and
+MAP-green / NUTS-orange conventions used elsewhere in the paper. Normal is
+neutral gray.
 
-Together the two thresholds show that detection signal fires once at onset
-(outer free-water bin) while grading signal continues to track the
-restricted + intermediate/lumen bins where ADC is least sensitive.
+Bands are 95% CI of the group mean (Student-t, df = n-1) across ROIs; they
+reflect between-ROI variability of the per-ROI posterior mean and do NOT
+include within-ROI posterior uncertainty.
+
+Tumor ROIs with GGG = 0 (n=7) or ungraded / missing GGG (n=4) — 11 ROIs total —
+are excluded from this figure.
 
 Spectra are NUTS posterior-mean spectra (nuts_D_*) from
-results/biomarkers/features.csv. Bands are 95% CI of the group mean (t-based,
-df = n-1) across ROIs; they reflect between-ROI variability of the per-ROI
-posterior mean and do NOT include within-ROI posterior uncertainty.
+results/biomarkers/features.csv.
 
 Outputs:
-    paper/figures/fig5_v3.{png,pdf}                  — paper-grade two-panel (main)
+    paper/figures/fig5_v4.{png,pdf}                  — paper-grade single panel (main)
     results/biomarkers/spectrum_by_ggg.{png,pdf}     — archival copy
 
 Usage:
@@ -42,27 +46,31 @@ from scipy import stats
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FEAT_CSV = REPO_ROOT / "results" / "biomarkers" / "features.csv"
 
-PAPER_PNG = REPO_ROOT / "paper" / "figures" / "fig5_v3.png"
-PAPER_PDF = REPO_ROOT / "paper" / "figures" / "fig5_v3.pdf"
+PAPER_PNG = REPO_ROOT / "paper" / "figures" / "fig5_v4.png"
+PAPER_PDF = REPO_ROOT / "paper" / "figures" / "fig5_v4.pdf"
 OUT_PNG = REPO_ROOT / "results" / "biomarkers" / "spectrum_by_ggg.png"
 OUT_PDF = REPO_ROOT / "results" / "biomarkers" / "spectrum_by_ggg.pdf"
 
 DIFFUSIVITIES = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
 NUTS_COLS = [f"nuts_D_{d:.2f}" for d in DIFFUSIVITIES]
 
-# Match Fig 2 / Fig 3 paper styling (apparent-size matched: this is a 1x2 grid).
+# Single-panel full-width: fonts large but a touch below the 1x2 grid sizes
+# (single panel renders bigger at \textwidth, so don't over-size). Reference is
+# "same size as Fig 2".
 mpl.rcParams.update({
-    "xtick.labelsize": 18,
-    "ytick.labelsize": 18,
-    "axes.labelsize": 20,
-    "axes.titlesize": 17,
+    "xtick.labelsize": 16,
+    "ytick.labelsize": 16,
+    "axes.labelsize": 19,
     "legend.fontsize": 15,
     "font.family": "DejaVu Sans",
 })
 
-GROUP_NORMAL = "#555555"   # neutral baseline (normal tissue)
-GROUP_LOW = "#1f77b4"      # cool — lower-grade tumor group
-GROUP_HIGH = "#d62728"     # warm — higher-grade tumor group
+# Normal = neutral gray. Tumor grades = sequential teal->dark-green ramp,
+# colorblind-safe and distinct from red/blue and green/orange conventions.
+GROUP_NORMAL = "#7f7f7f"   # neutral gray baseline (benign)
+GGG1_COLOR = "#66c2a4"   # light teal
+GGG2_COLOR = "#2ca25f"   # mid green
+GGG3_COLOR = "#005824"   # dark green
 
 
 def group_stats(spec: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -75,38 +83,6 @@ def group_stats(spec: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return mean, mean - t_crit * sem, mean + t_crit * sem
 
 
-def draw_panel(
-    ax,
-    x: np.ndarray,
-    groups: list[tuple[str, pd.DataFrame, str]],
-    *,
-    title: str,
-    show_ylabel: bool,
-    band_alpha: float = 0.15,
-) -> None:
-    for label, sub, color in groups:
-        spec = sub[NUTS_COLS].to_numpy(dtype=float)
-        mean, lo, hi = group_stats(spec)
-        ax.plot(
-            x, mean, "-o", color=color, lw=2.5, ms=7,
-            label=f"{label}  (n={len(sub)})",
-        )
-        if len(sub) >= 2:
-            ax.fill_between(x, lo, hi, color=color, alpha=band_alpha)
-    ax.set_xticks(x)
-    ax.set_xticklabels([f"{d:g}" for d in DIFFUSIVITIES])
-    ax.set_xlabel(r"Diffusivity $D$  ($\mu$m$^2$/ms)")
-    if show_ylabel:
-        ax.set_ylabel("NUTS posterior-mean spectrum mass  $R_j$")
-    ax.set_title(title, pad=8)
-    ax.grid(alpha=0.3)
-    ax.axhline(0, color="k", lw=0.4)
-    # Legend on TOP of the panel (consistent with Figs 2 & 3), placed in the
-    # empty upper-left region (curves peak at the right, D=2-3).
-    ax.legend(loc="upper left", framealpha=0.95, handlelength=1.8,
-              borderaxespad=0.5)
-
-
 def main() -> None:
     df = pd.read_csv(FEAT_CSV)
     df["ggg"] = pd.to_numeric(df["ggg"], errors="coerce")
@@ -114,23 +90,40 @@ def main() -> None:
     x = np.arange(len(DIFFUSIVITIES))
     is_tumor = df["is_tumor"] == True  # noqa: E712
 
-    normal = ("Normal", df[~is_tumor], GROUP_NORMAL)
-    # Panel A — emergence boundary (low grade vs any clinically significant).
-    ggg1 = ("GGG = 1", df[is_tumor & (df["ggg"] == 1)], GROUP_LOW)
-    ggg_ge2 = ("GGG ≥ 2", df[is_tumor & (df["ggg"] >= 2)], GROUP_HIGH)
-    # Panel B — aggressiveness boundary (favorable vs unfavorable grade).
-    ggg_le2 = ("GGG ≤ 2", df[is_tumor & (df["ggg"] >= 1) & (df["ggg"] <= 2)], GROUP_LOW)
-    ggg_ge3 = ("GGG ≥ 3", df[is_tumor & (df["ggg"] >= 3)], GROUP_HIGH)
+    groups: list[tuple[str, pd.DataFrame, str]] = [
+        ("Normal", df[~is_tumor], GROUP_NORMAL),
+        ("GGG = 1", df[is_tumor & (df["ggg"] == 1)], GGG1_COLOR),
+        ("GGG = 2", df[is_tumor & (df["ggg"] == 2)], GGG2_COLOR),
+        ("GGG ≥ 3", df[is_tumor & (df["ggg"] >= 3)], GGG3_COLOR),
+    ]
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6.4), sharey=True)
-    draw_panel(
-        axes[0], x, [normal, ggg1, ggg_ge2],
-        title="Tumor emergence  (GGG = 1 vs ≥ 2)", show_ylabel=True,
+    fig, ax = plt.subplots(figsize=(11, 6.2))
+    for label, sub, color in groups:
+        spec = sub[NUTS_COLS].to_numpy(dtype=float)
+        mean, lo, hi = group_stats(spec)
+        ax.plot(
+            x, mean, "-o", color=color, lw=2.6, ms=7,
+            label=f"{label}  (n={len(sub)})",
+        )
+        if len(sub) >= 2:
+            ax.fill_between(x, lo, hi, color=color, alpha=0.15)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{d:g}" for d in DIFFUSIVITIES])
+    ax.set_xlabel(r"Diffusivity $D$  ($\mu$m$^2$/ms)")
+    ax.set_ylabel("NUTS posterior-mean spectrum mass  $R_j$")
+    ax.grid(alpha=0.3)
+    ax.axhline(0, color="k", lw=0.4)
+    ax.margins(x=0.02)
+
+    # Legend ON TOP, above the axes, in one row. No in-figure title (caption
+    # carries the title — MRM convention).
+    ax.legend(
+        loc="lower center", bbox_to_anchor=(0.5, 1.01),
+        ncol=4, frameon=False, handlelength=1.8,
+        columnspacing=1.4, borderaxespad=0.0,
     )
-    draw_panel(
-        axes[1], x, [normal, ggg_le2, ggg_ge3],
-        title="Tumor aggressiveness  (GGG ≤ 2 vs ≥ 3)", show_ylabel=False,
-    )
+
     fig.tight_layout()
 
     PAPER_PNG.parent.mkdir(parents=True, exist_ok=True)
@@ -141,6 +134,28 @@ def main() -> None:
     plt.close(fig)
     for path in (PAPER_PNG, PAPER_PDF, OUT_PNG, OUT_PDF):
         print(f"Wrote {path.relative_to(REPO_ROOT)}")
+
+    # ---- Honest reporting table for the caption ----
+    print("\nPer-group mean fraction R_j by diffusivity bin (NUTS posterior mean):")
+    header = "  group       n  " + "".join(f"{d:>8g}" for d in DIFFUSIVITIES)
+    print(header)
+    print("  " + "-" * (len(header) - 2))
+    for label, sub, _ in groups:
+        spec = sub[NUTS_COLS].to_numpy(dtype=float)
+        mean = spec.mean(axis=0)
+        row = f"  {label:<10s} {len(sub):>3d}  " + "".join(f"{v:>8.3f}" for v in mean)
+        print(row)
+
+    n_ggg0 = int((is_tumor & (df["ggg"] == 0)).sum())
+    n_ungraded = int((is_tumor & df["ggg"].isna()).sum())
+    print(
+        f"\nExcluded tumor ROIs: {n_ggg0 + n_ungraded} total "
+        f"({n_ggg0} with GGG=0, {n_ungraded} ungraded/missing GGG)."
+    )
+    print(f"Tumor total = {int(is_tumor.sum())}; "
+          f"included in figure = {8 + 12 + 9} (re-derived below).")
+    incl = sum(len(s) for l, s, c in groups if l != "Normal")
+    print(f"Included tumor ROIs (sum of GGG=1,2,>=3) = {incl}.")
 
 
 if __name__ == "__main__":
