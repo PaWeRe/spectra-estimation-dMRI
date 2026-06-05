@@ -128,7 +128,7 @@ def fig_spectra_combined(df):
                     [sub[c].values for c in map_cols],
                     positions=x - width/2, widths=width*0.85,
                     patch_artist=True, medianprops=dict(color="black", linewidth=1.0),
-                    flierprops=flier_style, manage_ticks=False, whis=1.5,
+                    showfliers=False, manage_ticks=False, whis=1.5,
                 )
                 for patch in bp_map["boxes"]:
                     patch.set_facecolor(MAP_COLOR); patch.set_alpha(0.55)
@@ -140,7 +140,7 @@ def fig_spectra_combined(df):
                     [sub[c].values for c in nuts_cols],
                     positions=x + width/2, widths=width*0.85,
                     patch_artist=True, medianprops=dict(color="black", linewidth=1.0),
-                    flierprops=flier_style, manage_ticks=False, whis=1.5,
+                    showfliers=False, manage_ticks=False, whis=1.5,
                 )
                 for patch in bp_nuts["boxes"]:
                     patch.set_facecolor(NUTS_COLOR); patch.set_alpha(0.7)
@@ -160,21 +160,17 @@ def fig_spectra_combined(df):
                 if legend_handles is None:
                     legend_handles = [bp_map["boxes"][0], bp_nuts["boxes"][0]]
 
-                # Light identifiability annotation: mean NUTS posterior CV per bin,
-                # averaged over this panel's ROIs. Neutral grey \u2014 the full
-                # identifiability story lives in Fig 4 + the supplementary spectra.
-                cv_panel = (sub[nuts_std_cols].values
-                            / np.maximum(sub[nuts_mean_cols].values, 1e-12)).mean(axis=0)
-                ax.text(-0.78, 0.95, "CV", ha="left", va="center",
-                        fontsize=12, color="0.35", fontstyle="italic")
-                for i, cv in enumerate(cv_panel):
-                    ax.text(i, 0.95, f"{cv:.2f}", ha="center", va="center",
-                            fontsize=11, color="0.35")
+                # NOTE (Stefan 2026-06-03): per-bin CV annotation removed from
+                # Fig 1 -- identifiability is now told only in Fig 4 (bar colour)
+                # and the supplementary atlas, to avoid duplicating it here.
 
-        fig.legend(legend_handles, [r"MAP ($\lambda=10^{-3}$)", "NUTS (posterior)"],
+        # Spacing recipe (Patrick 2026-06-04): legend->row1 gap == row1->row2 gap.
+        # Mirrored by Fig 3 and Fig 7 (directional) for cross-figure consistency.
+        fig.subplots_adjust(top=0.85, bottom=0.07, left=0.08, right=0.97,
+                            hspace=0.34, wspace=0.10)
+        fig.legend(legend_handles, [r"MAP ($\lambda=10^{-3}$)", "NUTS (posterior mean)"],
                    loc="upper center", ncol=2, frameon=True, framealpha=0.95,
-                   bbox_to_anchor=(0.5, 0.995))
-        fig.tight_layout(rect=(0, 0, 1, 0.90))
+                   bbox_to_anchor=(0.5, 0.975))
         _save(fig, "fig1_v4")
 
 

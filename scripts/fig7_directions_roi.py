@@ -54,6 +54,8 @@ from __future__ import annotations
 import os
 import sys
 import glob
+import argparse
+import re
 from pathlib import Path
 
 import numpy as np
@@ -69,6 +71,14 @@ from spectra_estimation_dmri.biomarkers.recompute import (  # noqa: E402
     build_design_matrix,
     compute_map_spectrum,
     RIDGE_STRENGTH,
+)
+from spectra_estimation_dmri.visualization.paper_style import (  # noqa: E402
+    apply_style,
+    COLORS,
+    DLABELS,
+    set_diff_xaxis,
+    top_legend,
+    DIRECTION_COLORS,
 )
 
 # ---------------------------------------------------------------------------
@@ -87,6 +97,58 @@ N_BVALUES = 15
 PATIENT = "9283-Series12-Slice6"
 NORMAL_ROI_FILE = f"{PATIENT}-NormalPZ.dat"
 TUMOR_ROI_FILE = f"{PATIENT}-TumorPZ.dat"
+
+# --- v3 (supplementary) selection: 4 patients x 2 ROIs, 2x4 grid -------------
+# Stefan + Patrick picks. Columns = the 4 patients (relabelled 1-4; real IDs are
+# arbitrary picks so they are NOT shown). Row 1 = first ROI of each pair, row 2
+# = second ROI. Each entry is (.dat-file stem, zone, tissue-word-for-title).
+V3_PATIENTS = [
+    {  # column 1
+        "row1": ("9675-Series9-Slice3-NormalPZ", "PZ", "normal"),
+        "row2": ("9675-Series9-Slice3-TumorTZ", "TZ", "tumour"),
+    },
+    {  # column 2
+        "row1": ("9322-Series11-Slice7-NormalPZ", "PZ", "normal"),
+        "row2": ("9322-Series11-Slice7-TumorTZ", "TZ", "tumour"),
+    },
+    {  # column 3
+        "row1": ("9283-Series12-Slice6-NormalTZ", "TZ", "normal"),
+        "row2": ("9283-Series12-Slice6-TumorPZ", "PZ", "tumour"),
+    },
+    {  # column 4
+        "row1": ("10203-Series9-Slice6-NormalPZ", "PZ", "normal"),
+        "row2": ("10203-Series9-Slice6-TumorTZ", "TZ", "tumour"),
+    },
+]
+V3_DIR_LABELS = ["Direction 1", "Direction 2", "Direction 3"]
+
+# --- v4 (supplementary) selection: 4 patients x 2 zones, 4x2 grid ------------
+# Same 8 ROIs as v3, but relaid out to enforce the manuscript-wide PZ-LEFT /
+# TZ-RIGHT convention (matching Fig 1 + Fig 3). ROWS = the 4 patients (1-4),
+# COLUMNS = zone (left = PZ, right = TZ). Each entry is the (.dat-file stem,
+# tissue-word-for-title) for that patient's selected ROI in that zone; the
+# tissue (normal/tumour) varies per cell and is shown in the panel title.
+# Note patient 3 (9283) is reversed vs the others: tumour PZ / normal TZ.
+V4_PATIENTS = [
+    {  # row 1 -- patient 1 (9675): normal PZ, tumour TZ
+        "PZ": ("9675-Series9-Slice3-NormalPZ", "normal"),
+        "TZ": ("9675-Series9-Slice3-TumorTZ", "tumour"),
+    },
+    {  # row 2 -- patient 2 (9322): normal PZ, tumour TZ
+        "PZ": ("9322-Series11-Slice7-NormalPZ", "normal"),
+        "TZ": ("9322-Series11-Slice7-TumorTZ", "tumour"),
+    },
+    {  # row 3 -- patient 3 (9283): tumour PZ, normal TZ  (REVERSED)
+        "PZ": ("9283-Series12-Slice6-TumorPZ", "tumour"),
+        "TZ": ("9283-Series12-Slice6-NormalTZ", "normal"),
+    },
+    {  # row 4 -- patient 4 (10203): normal PZ, tumour TZ
+        "PZ": ("10203-Series9-Slice6-NormalPZ", "normal"),
+        "TZ": ("10203-Series9-Slice6-TumorTZ", "tumour"),
+    },
+]
+V4_ZONES = ["PZ", "TZ"]  # column order: PZ left, TZ right
+V4_DIR_LABELS = ["Direction 1", "Direction 2", "Direction 3"]
 
 # Style: match Fig 1 / Fig 2 conventions.
 mpl.rcParams.update({
@@ -217,6 +279,140 @@ def make_figure(normal, tumor, out_stem):
 
 
 # ---------------------------------------------------------------------------
+# v3 supplementary figure: 2 rows x 4 columns (4 patients x 2 ROIs)
+# ---------------------------------------------------------------------------
+def make_figure_v3(U, out_stem):
+    """2x4 grid of per-direction MAP spectra + trace-averaged reference.
+
+    Columns = 4 patients (relabelled 1-4). Row 1 = first ROI of each pair,
+    row 2 = second ROI. Style follows the shared paper_style contract (Fig-1
+    consistent): no angled tick labels (DLABELS), top legend, DIRECTION_COLORS
+    for the 3 encoding directions, COLORS['truth'] for the trace-averaged
+    reference. No corner CV annotation, no figure suptitle.
+
+    Returns a list of (column_index, roi_stem, missing_or_ok) for reporting.
+    """
+    x = np.arange(len(DIFFUSIVITIES))
+    nrows, ncols = 2, 4
+    fig, axes = plt.subplots(nrows, ncols, figsize=(6.0 * ncols, 4.4 * nrows),
+                             sharey=True)
+
+    status = []
+    for c, patient in enumerate(V3_PATIENTS):
+        for r, row_key in enumerate(("row1", "row2")):
+            ax = axes[r, c]
+            stem, zone, tissue = patient[row_key]
+            path = DAT_DIR / f"{stem}.dat"
+            try:
+                _, _, dir_spectra, trace_spectrum = map_spectra_for_roi(path, U)
+                status.append((c + 1, stem, "ok"))
+            except (ValueError, FileNotFoundError) as exc:
+                ax.text(0.5, 0.5, f"{stem}\nMISSING:\n{exc}", transform=ax.transAxes,
+                        ha="center", va="center", fontsize=10, color="#b22222")
+                ax.set_title(f"Patient {c + 1} — {tissue} {zone}")
+                status.append((c + 1, stem, f"FAILED: {exc}"))
+                continue
+
+            for d in range(N_DIRECTIONS):
+                ax.plot(x, dir_spectra[d], "o-", color=DIRECTION_COLORS[d], lw=2,
+                        ms=6, alpha=0.9, label=V3_DIR_LABELS[d])
+            ax.plot(x, trace_spectrum, "s-", color=COLORS["truth"], lw=2.6, ms=7,
+                    label="Trace-averaged", zorder=5)
+
+            set_diff_xaxis(ax, label=(r == nrows - 1), rotation=0)
+            ax.set_title(f"Patient {c + 1} — {tissue} {zone}")
+            ax.grid(axis="y", alpha=0.3)
+
+    for r in range(nrows):
+        axes[r, 0].set_ylabel("spectral fraction")
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    top_legend(fig, handles, labels, ncol=4, y=1.0)
+
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    png = f"{out_stem}.png"
+    pdf = f"{out_stem}.pdf"
+    fig.savefig(png, dpi=300, bbox_inches="tight")
+    fig.savefig(pdf, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[INFO] Saved figure: {png}")
+    print(f"[INFO] Saved figure: {pdf}")
+    return status
+
+
+# ---------------------------------------------------------------------------
+# v4 supplementary figure: 4 rows x 2 columns (4 patients x 2 zones)
+# ---------------------------------------------------------------------------
+def make_figure_v4(U, out_stem):
+    """4x2 grid of per-direction MAP spectra + trace-averaged reference.
+
+    ROWS = the 4 patients (relabelled 1-4). COLUMNS = zone (left = peripheral
+    zone PZ, right = transition zone TZ), enforcing the manuscript-wide
+    PZ-LEFT / TZ-RIGHT convention (Fig 1 + Fig 3). The tissue (normal/tumour)
+    varies per cell and is reported in the panel title, e.g. "Patient 1 --
+    normal PZ" / "Patient 1 -- tumour TZ".
+
+    Style follows the shared paper_style contract: no angled tick labels
+    (DLABELS), single top legend, DIRECTION_COLORS for the 3 encoding
+    directions, COLORS['truth'] for the trace-averaged reference. No corner CV
+    annotation, no figure suptitle. Spacing mirrors Fig 1 (small legend->row1
+    gap, even row-to-row gaps); the figure is tall (4 rows) and is destined for
+    the SI.
+
+    Returns a list of (patient_index, zone, roi_stem, status) for reporting.
+    """
+    x = np.arange(len(DIFFUSIVITIES))
+    nrows, ncols = 4, 2
+    fig, axes = plt.subplots(nrows, ncols, figsize=(12.0, 16.0), sharey=True)
+
+    status = []
+    for r, patient in enumerate(V4_PATIENTS):
+        for c, zone in enumerate(V4_ZONES):
+            ax = axes[r, c]
+            stem, tissue = patient[zone]
+            path = DAT_DIR / f"{stem}.dat"
+            try:
+                _, _, dir_spectra, trace_spectrum = map_spectra_for_roi(path, U)
+                status.append((r + 1, zone, stem, "ok"))
+            except (ValueError, FileNotFoundError) as exc:
+                ax.text(0.5, 0.5, f"{stem}\nMISSING:\n{exc}", transform=ax.transAxes,
+                        ha="center", va="center", fontsize=10, color="#b22222")
+                ax.set_title(f"Patient {r + 1} — {tissue} {zone}")
+                status.append((r + 1, zone, stem, f"FAILED: {exc}"))
+                continue
+
+            for d in range(N_DIRECTIONS):
+                ax.plot(x, dir_spectra[d], "o-", color=DIRECTION_COLORS[d], lw=2,
+                        ms=6, alpha=0.9, label=V4_DIR_LABELS[d])
+            ax.plot(x, trace_spectrum, "s-", color=COLORS["truth"], lw=2.6, ms=7,
+                    label="Trace-averaged", zorder=5)
+
+            set_diff_xaxis(ax, label=(r == nrows - 1), rotation=0)
+            ax.set_title(f"Patient {r + 1} — {tissue} {zone}")
+            ax.grid(axis="y", alpha=0.3)
+
+    for r in range(nrows):
+        axes[r, 0].set_ylabel("spectral fraction")
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    top_legend(fig, handles, labels, ncol=4, y=0.985)
+
+    # Mirror Fig 1's visual feel: small gap from the top legend to row 1, even
+    # row-to-row gaps. Tall 4-row figure so values differ from Fig 1's 2-row;
+    # leave headroom so the legend clears the row-1 panel titles.
+    fig.subplots_adjust(top=0.915, bottom=0.05, left=0.09, right=0.97,
+                        hspace=0.45, wspace=0.18)
+    png = f"{out_stem}.png"
+    pdf = f"{out_stem}.pdf"
+    fig.savefig(png, dpi=300)
+    fig.savefig(pdf)
+    plt.close(fig)
+    print(f"[INFO] Saved figure: {png}")
+    print(f"[INFO] Saved figure: {pdf}")
+    return status
+
+
+# ---------------------------------------------------------------------------
 # Aggregate per-bin direction-CV over ALL ROIs
 # ---------------------------------------------------------------------------
 def aggregate_direction_cv(U):
@@ -265,6 +461,252 @@ def aggregate_direction_cv(U):
 
 
 # ---------------------------------------------------------------------------
+# Exploration helpers: verify the directional decode + list ALL ROIs
+# ---------------------------------------------------------------------------
+def parse_roi_label(name: str) -> dict:
+    """Pull patient / zone / tissue out of a .dat basename.
+
+    e.g. '9283-Series12-Slice6-TumorPZ' -> {patient:'9283', tissue:'Tumor',
+    zone:'PZ', short:'9283 Tumor PZ'}.
+    """
+    patient = name.split("-")[0]
+    m = re.search(r"(Normal|Tumor)(PZ|TZ)$", name)
+    tissue = m.group(1) if m else "?"
+    zone = m.group(2) if m else "?"
+    return {
+        "patient": patient,
+        "tissue": tissue,
+        "zone": zone,
+        "short": f"{patient} {tissue} {zone}",
+    }
+
+
+def verify_all_rois(U):
+    """Sanity-check the directional decode for EVERY .dat ROI.
+
+    For each ROI prints:
+      * n MEAN rows (must be 46) and the 3x15 block split,
+      * whether each per-direction block is monotonic in b (raw ascending =
+        b descending, the assumed layout),
+      * the spread of the three b=0 estimates (last entry of each raw block;
+        these are nominally the same image, so a small spread is a decode
+        sanity check),
+      * the trace ADC (b<=1000) as a physical-plausibility check,
+      * trace-decay correlation of the forward vs reversed ordering is implied
+        by monotonicity (reversed gives a decreasing S(b), the physical one).
+    """
+    files = sorted(glob.glob(str(DAT_DIR / "*.dat")))
+    print("\n" + "=" * 104)
+    print("DIRECTIONAL DECODE VERIFICATION (all ROIs)")
+    print("=" * 104)
+    print(f"{'ROI':<34}{'#rows':<7}{'trend rho':<11}{'ADC rev':<10}"
+          f"{'ADC fwd':<10}{'b0 spread%':<12}{'dir-CV%':<9}")
+    print("-" * 104)
+    from spectra_estimation_dmri.biomarkers.recompute import compute_adc
+
+    summary = []
+    for path in files:
+        name = os.path.basename(path).replace(".dat", "")
+        try:
+            arr = load_dat_mean_column(path)
+        except ValueError as exc:
+            print(f"{name:<34}FAILED: {exc}")
+            continue
+        rest = arr[1:]
+        blocks = rest.reshape(N_DIRECTIONS, N_BVALUES)  # raw, b assumed descending
+        # Trend: raw block should rank-increase (b descending). rho ~ +1 confirms
+        # an ordered ramp up to noise (robust to single-step dips).
+        order = np.arange(N_BVALUES)
+        rhos = []
+        for d in range(N_DIRECTIONS):
+            ranks = np.argsort(np.argsort(blocks[d]))
+            rhos.append(np.corrcoef(order, ranks)[0, 1])
+        rho_min = min(rhos)
+        # b=0 = last entry of each raw block; spread across directions (should be small).
+        b0s = blocks[:, -1]
+        b0_spread = (b0s.max() - b0s.min()) / b0s.mean() * 100.0
+        dir_decays = blocks[:, ::-1]                    # reversed -> b ascending (physical)
+        trace_decay = dir_decays.mean(axis=0)
+        adc_rev = compute_adc(trace_decay) * 1000.0          # -> um^2/ms (physical)
+        adc_fwd = compute_adc(blocks.mean(axis=0)) * 1000.0  # un-reversed -> should be < 0
+
+        dir_spectra = np.zeros((N_DIRECTIONS, len(DIFFUSIVITIES)))
+        for d in range(N_DIRECTIONS):
+            sp = compute_map_spectrum(dir_decays[d], U)
+            tot = sp.sum()
+            dir_spectra[d] = sp / tot if tot > 0 else sp
+        m = dir_spectra.mean(axis=0)
+        s = dir_spectra.std(axis=0)
+        cv = np.divide(s, m, out=np.full_like(m, np.nan), where=m > 1e-3) * 100.0
+        mean_cv = np.nanmean(cv)
+
+        warn = "  <-- big b0 spread" if b0_spread > 15 else ""
+        print(f"{name:<34}{int(arr.size):<7}{rho_min:<11.3f}{adc_rev:<10.3f}"
+              f"{adc_fwd:<+10.3f}{b0_spread:<12.1f}{mean_cv:<9.1f}{warn}")
+        info = parse_roi_label(name)
+        info.update(name=name, rho_min=rho_min, adc_rev=adc_rev, adc_fwd=adc_fwd,
+                    b0_spread=b0_spread, mean_cv=mean_cv)
+        summary.append(info)
+    print("-" * 104)
+    print("trend rho = min over 3 dirs of rank-corr(b-position, signal) for the raw block;")
+    print("            ~+1 => clean ramp, confirming the 3x15 contiguous-block layout.")
+    print("ADC rev   = monoexp ADC (b<=1000) of the REVERSED (physical) trace, um^2/ms (PZ normal ~1.5-2).")
+    print("ADC fwd   = ADC of the UN-reversed ordering; NEGATIVE confirms b is stored descending.")
+    print("b0 spread = (max-min)/mean of the 3 per-direction b=0 estimates, % (should be small).")
+    print("dir-CV    = mean over bins of std/mean of the 3 per-direction MAP fractions.")
+    return summary
+
+
+def make_all_roi_grid(U, out_stem):
+    """Grid of EVERY ROI: 3 per-direction MAP spectra + trace, one panel each.
+
+    Lets Patrick eyeball all candidates and choose the representative ROI(s)
+    for the final Fig 7. Panels are ordered Normal-first then Tumour, PZ before
+    TZ, grouped by patient, and titled with patient/tissue/zone + mean dir-CV.
+    """
+    files = sorted(glob.glob(str(DAT_DIR / "*.dat")))
+    items = []
+    for path in files:
+        name = os.path.basename(path).replace(".dat", "")
+        info = parse_roi_label(name)
+        info["path"] = path
+        items.append(info)
+    # Normal before Tumour, PZ before TZ, then patient.
+    items.sort(key=lambda i: (i["tissue"] != "Normal", i["zone"], i["patient"]))
+
+    x = np.arange(len(DIFFUSIVITIES))
+    ncols = 4
+    nrows = (len(items) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.6 * ncols, 3.7 * nrows),
+                             sharey=True)
+    axes_flat = np.atleast_1d(axes).flatten()
+
+    for idx, info in enumerate(items):
+        ax = axes_flat[idx]
+        dir_decays, trace_decay = decode_roi_directions(info["path"])
+        dir_spectra = np.zeros((N_DIRECTIONS, len(DIFFUSIVITIES)))
+        for d in range(N_DIRECTIONS):
+            sp = compute_map_spectrum(dir_decays[d], U)
+            tot = sp.sum()
+            dir_spectra[d] = sp / tot if tot > 0 else sp
+        sp_tr = compute_map_spectrum(trace_decay, U)
+        tot = sp_tr.sum()
+        trace_spectrum = sp_tr / tot if tot > 0 else sp_tr
+
+        m = dir_spectra.mean(axis=0)
+        s = dir_spectra.std(axis=0)
+        cv = np.divide(s, m, out=np.full_like(m, np.nan), where=m > 1e-3) * 100.0
+        mean_cv = np.nanmean(cv)
+
+        for d in range(N_DIRECTIONS):
+            ax.plot(x, dir_spectra[d], "o-", color=DIR_COLORS[d], lw=1.6, ms=5,
+                    alpha=0.9, label=DIR_LABELS[d])
+        ax.plot(x, trace_spectrum, "s-", color=TRACE_COLOR, lw=2.2, ms=6,
+                label="Trace-averaged", zorder=5)
+        ax.set_xticks(x)
+        ax.set_xticklabels([f"{d:g}" for d in DIFFUSIVITIES], rotation=45, fontsize=11)
+        tissue_color = "#b22222" if info["tissue"] == "Tumor" else "#1a5fb4"
+        ax.set_title(f"{info['short']}", fontsize=13, color=tissue_color,
+                     fontweight="bold")
+        ax.text(0.97, 0.97, f"dir-CV {mean_cv:.0f}%", transform=ax.transAxes,
+                ha="right", va="top", fontsize=10, color="#555")
+        ax.grid(axis="y", alpha=0.3)
+
+    for j in range(len(items), len(axes_flat)):
+        axes_flat[j].axis("off")
+
+    for r in range(nrows):
+        axes_flat[r * ncols].set_ylabel("Spectral fraction")
+    for c in range(ncols):
+        bottom = (nrows - 1) * ncols + c
+        if bottom < len(axes_flat):
+            axes_flat[bottom].set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)")
+
+    handles, labels = axes_flat[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False,
+               bbox_to_anchor=(0.5, 1.005), fontsize=14)
+    fig.suptitle("All directional ROIs — per-direction MAP spectra + trace "
+                 "(red title = tumour, blue = normal)", fontsize=15, y=1.03)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.savefig(f"{out_stem}.png", dpi=200, bbox_inches="tight")
+    fig.savefig(f"{out_stem}.pdf", bbox_inches="tight")
+    plt.close(fig)
+    print(f"\n[INFO] Saved all-ROI spectrum grid: {out_stem}.png / .pdf")
+
+
+def make_all_roi_decay_grid(U, out_stem):
+    """Grid of EVERY ROI: the 3 per-direction NORMALISED signal decays + trace.
+
+    This is the most direct visual check that the directional encoding decoded
+    correctly: the three decays should overlap tightly and fall monotonically
+    from 1.0 at b=0. Any block mis-assignment shows up as a decay that does not
+    decrease or that sits far from the other two.
+    """
+    from spectra_estimation_dmri.biomarkers.recompute import B_VALUES_S_MM2
+    b = B_VALUES_S_MM2
+    files = sorted(glob.glob(str(DAT_DIR / "*.dat")))
+    items = []
+    for path in files:
+        name = os.path.basename(path).replace(".dat", "")
+        info = parse_roi_label(name)
+        info["path"] = path
+        items.append(info)
+    items.sort(key=lambda i: (i["tissue"] != "Normal", i["zone"], i["patient"]))
+
+    ncols = 4
+    nrows = (len(items) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.6 * ncols, 3.7 * nrows),
+                             sharey=True)
+    axes_flat = np.atleast_1d(axes).flatten()
+
+    for idx, info in enumerate(items):
+        ax = axes_flat[idx]
+        dir_decays, trace_decay = decode_roi_directions(info["path"])
+        for d in range(N_DIRECTIONS):
+            ax.semilogy(b, normalize_by_b0(dir_decays[d]), "o-", color=DIR_COLORS[d],
+                        lw=1.4, ms=4, alpha=0.85, label=DIR_LABELS[d])
+        ax.semilogy(b, normalize_by_b0(trace_decay), "s-", color=TRACE_COLOR,
+                    lw=2.0, ms=5, label="Trace-averaged", zorder=5)
+        tissue_color = "#b22222" if info["tissue"] == "Tumor" else "#1a5fb4"
+        ax.set_title(f"{info['short']}", fontsize=13, color=tissue_color,
+                     fontweight="bold")
+        ax.grid(alpha=0.3, which="both")
+
+    for j in range(len(items), len(axes_flat)):
+        axes_flat[j].axis("off")
+    for r in range(nrows):
+        axes_flat[r * ncols].set_ylabel(r"$S/S_0$")
+    for c in range(ncols):
+        bottom = (nrows - 1) * ncols + c
+        if bottom < len(axes_flat):
+            axes_flat[bottom].set_xlabel(r"$b$ (s/mm$^2$)")
+
+    handles, labels = axes_flat[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False,
+               bbox_to_anchor=(0.5, 1.005), fontsize=14)
+    fig.suptitle("All directional ROIs — per-direction signal decays + trace "
+                 "(tight overlap + monotonic fall = correct decode)",
+                 fontsize=15, y=1.03)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.savefig(f"{out_stem}.png", dpi=200, bbox_inches="tight")
+    fig.savefig(f"{out_stem}.pdf", bbox_inches="tight")
+    plt.close(fig)
+    print(f"[INFO] Saved all-ROI decay grid: {out_stem}.png / .pdf")
+
+
+def explore_main():
+    """Verify the decode for every ROI and emit the all-ROI grids."""
+    print("=" * 72)
+    print("FIGURE 7 — EXPLORE: verify decode + list ALL ROIs")
+    print("=" * 72)
+    U = build_design_matrix()
+    verify_all_rois(U)
+    make_all_roi_grid(U, str(OUT_FIG_DIR / "fig7_explore_all_rois_spectra"))
+    make_all_roi_decay_grid(U, str(OUT_FIG_DIR / "fig7_explore_all_rois_decays"))
+    print("\nDone. Inspect the two grids to choose the representative ROI(s).")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
@@ -287,6 +729,26 @@ def main():
     tumor = {"dir_spectra": tsp, "trace_spectrum": ttsp}
 
     make_figure(normal, tumor, str(OUT_FIG_DIR / "fig_directions_v2"))
+
+    # --- v3 supplementary 2x4 figure (4 patients x 2 ROIs) ---
+    # Apply the shared paper_style contract (Fig-1 consistent) for v3.
+    print("\n[v3] supplementary 2x4 directional figure (4 patients x 2 ROIs)")
+    apply_style("grid")
+    v3_status = make_figure_v3(U, str(OUT_FIG_DIR / "fig_directions_v3"))
+    print("[v3] panel decode status:")
+    for col, stem, st in v3_status:
+        print(f"     col {col}: {stem:<34} {st}")
+    n_ok = sum(1 for _, _, st in v3_status if st == "ok")
+    print(f"[v3] {n_ok}/{len(v3_status)} ROIs decoded successfully.")
+
+    # --- v4 supplementary 4x2 figure (4 patients x 2 zones, PZ-left/TZ-right) ---
+    print("\n[v4] supplementary 4x2 directional figure (PZ-left / TZ-right)")
+    v4_status = make_figure_v4(U, str(OUT_FIG_DIR / "fig_directions_v4"))
+    print("[v4] panel decode status:")
+    for pat, zone, stem, st in v4_status:
+        print(f"     patient {pat} {zone}: {stem:<34} {st}")
+    n_ok4 = sum(1 for _, _, _, st in v4_status if st == "ok")
+    print(f"[v4] {n_ok4}/{len(v4_status)} ROIs decoded successfully.")
 
     # --- aggregate per-bin direction-CV over all ROIs ---
     print("\n[Aggregate] per-bin direction-CV across all ROIs (MAP)")
@@ -313,4 +775,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--explore", action="store_true",
+                        help="Verify the decode for every ROI and emit all-ROI "
+                             "grids (selection aid) instead of the final 2-panel "
+                             "Fig 7.")
+    cli = parser.parse_args()
+    if cli.explore:
+        explore_main()
+    else:
+        main()

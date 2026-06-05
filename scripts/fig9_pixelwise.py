@@ -32,17 +32,18 @@ Display decisions (Patrick, 2026-06-01):
     StandardScaler, C=1) for the 2-bin {D=0.25, 3.0} and 8-bin models.
   - ADC grayscale, conventional orientation (low ADC = dark = tumor).
 
-Layout: 3 x 3 (col 1 = ADC-comparison column).
+Layout: 3 x 3 (col 1 = ADC-comparison column). Panel G (windowed 2-bin score)
+removed (Stefan 2026-06-03); that slot is left blank.
   A anatomy(b=0)         B restricted frac D=0.25   C free-water frac D=3.0
   D ADC                  E 2-bin score (absolute)   F 8-bin score (absolute)
-  G 2-bin score (windowed) H 2-bin score SD         I 8-bin score SD
+  [blank]                H 2-bin score SD           I 8-bin score SD
 
 PROVISIONAL: applies the PZ-trained classifier. Patient 8640's lesion zone is
 not recoverable from the repo. Flip ZONE to "tz" once the label is supplied.
 
 Output:
-  paper/figures/fig9_v1.png
-  paper/figures/fig9_v1.pdf
+  paper/figures/fig9_v2.png
+  paper/figures/fig9_v2.pdf
 """
 
 import os
@@ -67,6 +68,12 @@ from src.spectra_estimation_dmri.data.loaders import (
     group_images_b0_plus_directions,
 )
 from src.spectra_estimation_dmri.pixelwise import assemble_map
+from src.spectra_estimation_dmri.visualization.paper_style import (
+    apply_style,
+    COLORS,
+    SCORE_CMAP,
+    UNCERTAINTY_CMAP,
+)
 
 DATA_FOLDER = os.path.join(REPO_ROOT, "src/spectra_estimation_dmri/data/8640-sl6-bin")
 FEATURES_CSV = os.path.join(REPO_ROOT, "results/biomarkers/features.csv")
@@ -82,14 +89,22 @@ LR_C = 1.0
 N_MC = 500
 SEED = 42
 
+apply_style("grid")
 mpl.rcParams.update({
     "axes.titlesize": 18,
-    "font.family": "DejaVu Sans",
 })
 
-CMAP_UNC = "Purples"
-CB_LABEL_FS = 17
-CB_TICK_FS = 14
+# Lead-author style pass (2026-06-05):
+#   - Uncertainty maps H,I: "plasma" (purple->yellow, MAXIMUM contrast; viridis
+#     read too blue-green). Local override -- paper_style.py is shared/read-only.
+#   - Score maps E,F: "BrBG" diverging (teal-green <-> brown), boundary-centred.
+#     NOT red/blue (B,C fractions) / purple-yellow (H,I plasma) / PuOr (old).
+#     "PiYG" is the fallback if BrBG's light centre washes out against anatomy.
+CMAP_UNC = "plasma"           # H,I uncertainty: purple->yellow, max contrast
+CMAP_SCORE = "BrBG"           # E,F score: diverging teal-green <-> brown
+# Colourbar labels/ticks bumped to match panel titles (axes.titlesize = 18).
+CB_LABEL_FS = 18
+CB_TICK_FS = 18
 LETTER_FS = 19
 
 
@@ -196,12 +211,10 @@ def main():
 
     score8, sd8 = voxel_score_and_sd(spec_mean, spec_std, list(range(8)), sc8, clf8)
     score2, sd2 = voxel_score_and_sd(spec_mean, spec_std, OUTER_IDX, sc2, clf2)
-    s2_win = robust_z(score2)            # windowed view of the 2-bin score
     frac_restricted, frac_freewater = spec_mean[:, 0], spec_mean[:, 6]
 
     # --- shared scales -------------------------------------------------------
     abs_k = np.percentile(np.abs(np.concatenate([score2, score8])), 98)   # E,F
-    win_k = np.percentile(np.abs(s2_win), 98)                              # G
     unc_max = np.nanpercentile(np.concatenate([sd2, sd8]), 98)            # H,I
     adc_lo, adc_hi = np.nanpercentile(adc, [2, 98])
     fr_hi = np.nanpercentile(frac_restricted, 98)
@@ -211,7 +224,7 @@ def main():
     def amap(v):
         return assemble_map(v, coords, shape)
     M = dict(adc=amap(adc), fr=amap(frac_restricted), fw=amap(frac_freewater),
-             s2=amap(score2), s8=amap(score8), s2w=amap(s2_win),
+             s2=amap(score2), s8=amap(score8),
              u2=amap(sd2), u8=amap(sd8))
     rr, cc = np.where(mask)
     pad = 6
@@ -246,21 +259,26 @@ def main():
 
     panel(ax[1, 0], b0, M["adc"], "gray", "ADC", "D", vmin=adc_lo, vmax=adc_hi,
           cbar_label=r"ADC ($\mu$m$^2$/ms)", alpha=1.0)
-    panel(ax[1, 1], b0, M["s2"], "RdBu_r", "2-bin score, absolute", "E",
-          vmin=-abs_k, vmax=abs_k, add_cbar=False)
-    panel(ax[1, 2], b0, M["s8"], "RdBu_r", "8-bin score, absolute", "F",
-          vmin=-abs_k, vmax=abs_k, cbar_label="discriminant score\n(logit; 0 = boundary)")
+    # Score maps E,F: BrBG (diverging, teal-green <-> brown), boundary-centred.
+    # NOT red/blue (B,C fractions) nor purple-yellow (H,I plasma). Parentheses
+    # dropped from titles (logit / boundary explanation moves to the caption).
+    panel(ax[1, 1], b0, M["s2"], CMAP_SCORE, "2-bin score", "E",
+          vmin=-abs_k, vmax=abs_k, cbar_label="discriminant score")
+    panel(ax[1, 2], b0, M["s8"], CMAP_SCORE, "8-bin score", "F",
+          vmin=-abs_k, vmax=abs_k, cbar_label="discriminant score")
 
-    panel(ax[2, 0], b0, M["s2w"], "RdBu_r", "2-bin score, windowed", "G",
-          vmin=-win_k, vmax=win_k, cbar_label="within-slice score")
+    # Panel G (windowed 2-bin score) deleted (Stefan 2026-06-03): leave the
+    # 3x3 slot blank, keep H,I in place. Uncertainty maps use plasma
+    # (purple->yellow, max contrast) on a SHARED scale (vmax = unc_max).
+    ax[2, 0].axis("off")
     panel(ax[2, 1], b0, M["u2"], CMAP_UNC, "2-bin score uncertainty", "H",
-          vmin=0, vmax=unc_max, add_cbar=False)
+          vmin=0, vmax=unc_max, cbar_label="posterior SD")
     panel(ax[2, 2], b0, M["u8"], CMAP_UNC, "8-bin score uncertainty", "I",
           vmin=0, vmax=unc_max, cbar_label="posterior SD")
 
     fig.tight_layout()
-    png = os.path.join(OUT_DIR, "fig9_v1.png")
-    pdf = os.path.join(OUT_DIR, "fig9_v1.pdf")
+    png = os.path.join(OUT_DIR, "fig9_v2.png")
+    pdf = os.path.join(OUT_DIR, "fig9_v2.pdf")
     fig.savefig(png, dpi=300, bbox_inches="tight")
     fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)

@@ -35,15 +35,14 @@ propagated uncertainty vs distance from the decision boundary, pooled across
 zones, with misclassified ROIs highlighted.
 
 Output:
-  paper/figures/fig6_v1.png
-  paper/figures/fig6_v1.pdf
+  paper/figures/fig6_v2.png
+  paper/figures/fig6_v2.pdf
 """
 
 import os
 import sys
 import numpy as np
 import pandas as pd
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from scipy import stats
@@ -60,6 +59,9 @@ from spectra_estimation_dmri.biomarkers.recompute import (  # noqa: E402
     load_dataset, compute_spectra_id, DIFFUSIVITIES, NC_DIR, SIGNAL_JSON,
     METADATA_CSV,
 )
+from spectra_estimation_dmri.visualization.paper_style import (  # noqa: E402
+    apply_style, COLORS,
+)
 
 REPO_ROOT = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI"
 FEATURES_CSV = os.path.join(REPO_ROOT, "results/biomarkers/features.csv")
@@ -70,21 +72,35 @@ LR_C = 1.0
 CI_LO, CI_HI = 5.0, 95.0           # 90% credible interval on P(tumor)
 RNG = np.random.RandomState(42)
 
-# --- Typography: match fig2 / fig3 2-up scale ---
-mpl.rcParams.update({
-    "xtick.labelsize": 18,
-    "ytick.labelsize": 18,
-    "axes.labelsize": 20,
-    "axes.titlesize": 17,
-    "legend.fontsize": 15,
-    "font.family": "DejaVu Sans",
+# --- Shared manuscript typography (locks legend == title size, labels 20 /
+# ticks 18 / title 17 / legend 17). Replaces the script's own rcParams. ---
+# This figure OVERRIDES apply_style so that axis labels do NOT exceed the
+# title/legend size: lead author wants label == title == legend == FONT_SIZE
+# (the grid default ships labels at 20 > title 17, which crowded the panels).
+apply_style("grid")
+FONT_SIZE = 17
+plt.rcParams.update({
+    "axes.labelsize": FONT_SIZE,
+    "axes.titlesize": FONT_SIZE,
+    "legend.fontsize": FONT_SIZE,
+    # ticks slightly smaller so the harmonised label/title/legend size reads as
+    # the dominant typography (kept below FONT_SIZE).
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
 })
 
-# --- Palette (project convention) ---
-COLOR_TUMOR = "#d62728"    # red
-COLOR_NORMAL = "#1f77b4"   # blue
-COLOR_MISS = "#000000"     # black ring around misclassified
-GRAY = "#888888"
+# --- Palette (lead-author redesign 2026-06-05, contrast pushed harder) ---
+# VERY pale low-saturation pastel = correctly classified (recedes into the
+# background); FULLY saturated + DARKER distinct shade = MISCLASSIFIED, drawn
+# LARGER with a dark/black edge so misclassified ROIs unmistakably pop. Hue
+# family is preserved (normal = blue, tumor = red) within each correctness
+# class; the light/bold + size + edge separation carries the miss flag.
+COLOR_NORMAL = "#cfe8f5"        # very pale blue   : correct normal
+COLOR_TUMOR = "#fcd0cf"         # very pale red    : correct tumor
+COLOR_NORMAL_MISS = COLORS["normal_dark"]  # deep navy (#0b3d61) : misclassified normal
+COLOR_TUMOR_MISS = COLORS["tumor_dark"]    # deep maroon (#7f1416): misclassified tumor
+MISS_EDGE = "#000000"           # black ring on misclassified markers
+GRAY = "#666666"
 
 
 def load_draws(rois, nc_dir):
@@ -216,8 +232,18 @@ def report_misclassified(pooled):
     return miss
 
 
-def plot_sorted_panel(ax, res, title):
-    """Sorted-prediction panel with propagated 90% CIs as error bars."""
+def plot_sorted_panel(ax, res, zone_label, xlabel=True):
+    """Sorted-prediction panel with propagated 90% CIs as error bars.
+
+    Colour encodes BOTH true tissue (hue) and correctness (pale vs bold):
+      VERY pale blue/red  = correctly classified normal/tumor (recede)
+      deep navy/maroon    = misclassified  normal/tumor  (pop)
+    Misclassified markers are drawn LARGER with a black edge so they pop hard
+    against the pale correct cloud (lead author 2026-06-05).
+
+    The title carries the case-count breakdown for the zone; the x-label is
+    only drawn when ``xlabel`` is True (bottom panel only).
+    """
     r = res.sort_values("p_point").reset_index(drop=True)
     x = np.arange(len(r))
     y = r["y"].values
@@ -228,81 +254,48 @@ def plot_sorted_panel(ax, res, title):
 
     yerr = np.vstack([np.maximum(p - lo, 0), np.maximum(hi - p, 0)])
 
-    for cls, color, marker, lbl in [(0, COLOR_NORMAL, "o", "Normal"),
-                                    (1, COLOR_TUMOR, "s", "Tumor")]:
-        m = y == cls
+    # 4 visual classes: (true tissue) x (correct / misclassified).
+    # Correct: small, pale, white edge, recede (zorder 2-3).
+    # Misclassified: LARGE, fully saturated dark, BLACK edge, pop (zorder 5).
+    groups = [
+        (0, True, COLOR_NORMAL, "o"),        # correct normal  (very pale blue)
+        (1, True, COLOR_TUMOR, "s"),         # correct tumor   (very pale red)
+        (0, False, COLOR_NORMAL_MISS, "o"),  # miss normal (deep navy)
+        (1, False, COLOR_TUMOR_MISS, "s"),   # miss tumor  (deep maroon)
+    ]
+    for cls, want_correct, color, marker in groups:
+        m = (y == cls) & (correct == want_correct)
         if m.sum() == 0:
             continue
-        ax.errorbar(x[m], p[m], yerr=yerr[:, m], fmt=marker, color=color,
-                    ecolor=color, elinewidth=1.3, capsize=2.5, markersize=7,
-                    alpha=0.9, markeredgecolor="white", markeredgewidth=0.6,
-                    linestyle="none", zorder=3)
+        if want_correct:
+            ax.errorbar(x[m], p[m], yerr=yerr[:, m], fmt=marker, color=color,
+                        ecolor=color, elinewidth=1.3, capsize=2.5,
+                        markersize=7, alpha=0.95, markeredgecolor="white",
+                        markeredgewidth=0.6, linestyle="none", zorder=3)
+        else:
+            ax.errorbar(x[m], p[m], yerr=yerr[:, m], fmt=marker, color=color,
+                        ecolor=color, elinewidth=2.2, capsize=4.0,
+                        markersize=14, alpha=1.0, markeredgecolor=MISS_EDGE,
+                        markeredgewidth=1.6, linestyle="none", zorder=5)
 
-    # misclassified: open black ring overlaid
-    mm = ~correct
-    if mm.sum() > 0:
-        ax.scatter(x[mm], p[mm], s=190, facecolors="none",
-                   edgecolors=COLOR_MISS, linewidths=1.8, zorder=4)
-
-    ax.axhline(0.5, color=GRAY, linestyle="--", linewidth=1.2, alpha=0.8)
-    ax.set_xlabel("ROI (sorted by predicted probability)")
+    ax.axhline(0.5, color=GRAY, linestyle="--", linewidth=1.3, alpha=0.85)
+    if xlabel:
+        ax.set_xlabel("ROI (sorted by predicted probability)")
     ax.set_ylabel("P(tumor)")
-    ax.set_title(f"{title}  (n = {len(r)})")
+
+    # --- case-count breakdown, one concise line per panel ---
+    n = len(r)
+    n_norm = int((y == 0).sum())
+    n_tum = int((y == 1).sum())
+    n_corr = int(correct.sum())
+    n_miss = int((~correct).sum())
+    ax.set_title(
+        f"{zone_label} (n={n}): normal {n_norm}, tumor {n_tum} "
+        f"— {n_corr} correct, {n_miss} misclassified")
+    # pad x so the first/last points are not jammed against the spine.
+    ax.set_xlim(-0.8, len(r) - 0.2)
     ax.set_ylim(-0.05, 1.05)
     ax.grid(True, alpha=0.25, linewidth=0.5)
-
-
-def plot_misclassified_panel(ax, pooled, rng=RNG):
-    """Pooled: 90% CI width of P(tumor), correct vs misclassified ROIs.
-
-    This is the figure's non-circular headline result: the propagated
-    probability interval is systematically wider for the ROIs the classifier
-    gets wrong. (Boundary-widening -- partly logistic-link geometry -- is shown
-    directly by the fanning error bars in the PZ/TZ panels and quantified in the
-    caption; we do not re-plot it here as a scatter.)
-    """
-    groups = [("Correct", pooled[pooled["correct"]]),
-              ("Misclassified", pooled[~pooled["correct"]])]
-    positions = [0, 1]
-
-    data = [g["ci_width"].values for _, g in groups]
-    bp = ax.boxplot(data, positions=positions, widths=0.5, patch_artist=True,
-                    showfliers=False, medianprops=dict(color="0.15", linewidth=2),
-                    whiskerprops=dict(color="0.4"), capprops=dict(color="0.4"),
-                    boxprops=dict(facecolor="0.92", edgecolor="0.4"), zorder=2)
-
-    # jittered points colored by true tissue
-    for pos, (_, g) in zip(positions, groups):
-        for cls, color, marker in [(0, COLOR_NORMAL, "o"), (1, COLOR_TUMOR, "s")]:
-            sub = g[g["y"] == cls]
-            if len(sub) == 0:
-                continue
-            jit = rng.uniform(-0.16, 0.16, len(sub))
-            ax.scatter(pos + jit, sub["ci_width"].values, c=color, marker=marker,
-                       s=42, alpha=0.85, edgecolors="white", linewidths=0.5,
-                       zorder=3)
-
-    unc_c = groups[0][1]["ci_width"]
-    unc_m = groups[1][1]["ci_width"]
-    ratio = unc_m.mean() / unc_c.mean()
-    _, pval = stats.ttest_ind(unc_m, unc_c, equal_var=False)
-    star = "" if pval >= 0.05 else ("*" if pval >= 1e-2 else "**")
-
-    # annotate the ratio with a bracket
-    ytop = pooled["ci_width"].max()
-    ax.plot([0, 0, 1, 1], [ytop * 1.04, ytop * 1.10, ytop * 1.10, ytop * 1.04],
-            color="0.2", linewidth=1.3)
-    ax.text(0.5, ytop * 1.13, f"{ratio:.1f}×{star}", ha="center", va="bottom",
-            fontsize=16, color="0.15")
-
-    ax.set_xticks(positions)
-    ax.set_xticklabels([f"Correct\n(n = {len(unc_c)})",
-                        f"Misclassified\n(n = {len(unc_m)})"])
-    ax.set_ylabel("90% CI width of P(tumor)")
-    ax.set_title("Pooled PZ + TZ")
-    ax.set_xlim(-0.6, 1.6)
-    ax.set_ylim(-0.02, ytop * 1.28)
-    ax.grid(True, axis="y", alpha=0.25, linewidth=0.5)
 
 
 def main():
@@ -327,39 +320,44 @@ def main():
     diagnostics(pooled, "POOLED PZ + TZ")
     report_misclassified(pooled)
 
-    # ---------- figure: 2x2 (PZ, TZ top; box plot bottom-left; 4th empty) ----
-    # Minimal legend on top (matches Fig 2 / Fig 3 convention); the bottom-right
-    # quadrant is left intentionally empty.
-    fig = plt.figure(figsize=(15, 12))
-    gs = fig.add_gridspec(2, 2, hspace=0.24, wspace=0.22, top=0.89,
-                          width_ratios=[1, 1], height_ratios=[1, 1])
+    # ---------- figure: 2 rows x 1 column, full width, PZ top / TZ bottom -----
+    # (lead-author redesign 2026-06-05: dropped the CI-width violin row -- that
+    # comparison is now described in the caption/text. Each sorted-prediction
+    # panel spans the full figure width so individual ROI points are well
+    # separated horizontally.) Legend on TOP, no suptitle.
+    fig = plt.figure(figsize=(13, 9))
+    gs = fig.add_gridspec(2, 1, hspace=0.32, top=0.87)
     ax_pz = fig.add_subplot(gs[0, 0])
-    ax_tz = fig.add_subplot(gs[0, 1])
-    ax_box = fig.add_subplot(gs[1, 0])
-    ax_empty = fig.add_subplot(gs[1, 1])
-    ax_empty.axis("off")
+    ax_tz = fig.add_subplot(gs[1, 0])
 
-    plot_sorted_panel(ax_pz, results["pz"], "PZ: tumor detection")
-    plot_sorted_panel(ax_tz, results["tz"], "TZ: tumor detection")
-    plot_misclassified_panel(ax_box, pooled)
+    # TOP panel: NO x-label (it crowds the middle); BOTTOM panel keeps it.
+    plot_sorted_panel(ax_pz, results["pz"], "PZ", xlabel=False)
+    plot_sorted_panel(ax_tz, results["tz"], "TZ", xlabel=True)
 
+    # Legend on TOP (Fig 1 / 3 style). Correct = small pale pastel marker;
+    # misclassified = larger fully-saturated dark marker with black edge, so the
+    # legend mirrors the in-panel contrast. No "decision boundary" entry -- the
+    # dashed 0.5 line stays in each panel but is self-explanatory.
     legend_handles = [
         Line2D([0], [0], marker="o", color=COLOR_NORMAL, linestyle="none",
-               markersize=11, markeredgecolor="white", label="Normal"),
+               markersize=10, markeredgecolor="white", markeredgewidth=0.6,
+               label="Normal (correct)"),
         Line2D([0], [0], marker="s", color=COLOR_TUMOR, linestyle="none",
-               markersize=11, markeredgecolor="white", label="Tumor"),
-        Line2D([0], [0], marker="o", color="none", linestyle="none",
-               markersize=15, markeredgecolor=COLOR_MISS, markeredgewidth=1.8,
-               label="Misclassified"),
-        Line2D([0], [0], color=GRAY, linestyle="--", linewidth=1.8,
-               label="Decision boundary (0.5)"),
+               markersize=10, markeredgecolor="white", markeredgewidth=0.6,
+               label="Tumor (correct)"),
+        Line2D([0], [0], marker="o", color=COLOR_NORMAL_MISS, linestyle="none",
+               markersize=13, markeredgecolor=MISS_EDGE, markeredgewidth=1.4,
+               label="Normal (misclassified)"),
+        Line2D([0], [0], marker="s", color=COLOR_TUMOR_MISS, linestyle="none",
+               markersize=13, markeredgecolor=MISS_EDGE, markeredgewidth=1.4,
+               label="Tumor (misclassified)"),
     ]
     fig.legend(handles=legend_handles, loc="upper center", ncol=4,
                frameon=True, framealpha=0.95, bbox_to_anchor=(0.5, 0.965),
-               columnspacing=2.0, handlelength=2.0, fontsize=17)
+               columnspacing=1.6, handlelength=1.8, fontsize=FONT_SIZE)
 
-    png = os.path.join(OUT_DIR, "fig6_v1.png")
-    pdf = os.path.join(OUT_DIR, "fig6_v1.pdf")
+    png = os.path.join(OUT_DIR, "fig6_v2.png")
+    pdf = os.path.join(OUT_DIR, "fig6_v2.pdf")
     fig.savefig(png, dpi=300, bbox_inches="tight")
     fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)

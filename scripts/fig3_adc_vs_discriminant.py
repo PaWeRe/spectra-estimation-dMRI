@@ -40,17 +40,26 @@ Output:
 
 import os
 import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from scipy import stats
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
 
-REPO_ROOT = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI"
+from spectra_estimation_dmri.visualization.paper_style import (  # noqa: E402
+    apply_style,
+    COLORS,
+)
+
+
+REPO_ROOT = str(ROOT)
 FEATURES_CSV = os.path.join(REPO_ROOT, "results/biomarkers/features.csv")
 OUT_DIR = os.path.join(REPO_ROOT, "paper/figures")
 
@@ -59,18 +68,12 @@ N_BOOT = 1000
 RNG = np.random.default_rng(42)
 LAMBDA_TUNED = 0.001
 
-# --- Stephan-strict typography (match the fig_roc 2x2 scale) ---
-mpl.rcParams.update({
-    "xtick.labelsize": 18,
-    "ytick.labelsize": 18,
-    "axes.labelsize": 20,
-    "axes.titlesize": 17,
-    "legend.fontsize": 17,
-    "font.family": "DejaVu Sans",
-})
+# --- Shared manuscript typography (locks legend==title size, labels 20 /
+# ticks 18 / title 17 / legend 17). Replaces the script's own rcParams. ---
+apply_style("grid")
 
-COLOR_TUMOR = "#d62728"   # red
-COLOR_NORMAL = "#1f77b4"  # blue
+COLOR_TUMOR = COLORS["tumor"]    # red
+COLOR_NORMAL = COLORS["normal"]  # blue
 COLOR_FIT = "black"
 
 
@@ -157,9 +160,12 @@ def main():
             sub = df[df["zone"] == zkey].copy()
             results[(zkey, mkey)] = per_panel(sub)
 
+    # Layout (Stefan 2026-06-03): zone = COLUMNS (PZ left, TZ right),
+    # estimator = ROWS (NUTS top, MAP bottom). Matches the manuscript-wide
+    # PZ-left / TZ-right convention set by Fig 1.
     fig, axes = plt.subplots(2, 2, figsize=(14, 12), sharex=True, sharey=True)
-    for i, (zkey, zlabel) in enumerate(zones):
-        for j, (mkey, mlabel) in enumerate(methods):
+    for i, (mkey, mlabel) in enumerate(methods):       # rows = estimator
+        for j, (zkey, zlabel) in enumerate(zones):     # cols = zone
             ax = axes[i, j]
             res = results[(zkey, mkey)]
             adc, score, tumor = res["adc"], res["score"], res["is_tumor"]
@@ -200,20 +206,23 @@ def main():
     ]
     fig.legend(handles=legend_handles, loc="upper center",
                ncol=3, frameon=True, framealpha=0.95,
-               bbox_to_anchor=(0.5, 0.99), fontsize=17)
+               bbox_to_anchor=(0.5, 0.975))
 
     # No in-figure title: per MRM the caption's first sentence is the title,
     # matching fig_roc (Fig 2) and fig1 (Fig 1), which carry no suptitle.
-    # Leave room at the top for the shared legend above the panels.
-    fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.95])
+    # Vertical spacing mirrors Fig 1: the legend->row1 gap and the row1->row2
+    # gap are made slightly larger and roughly equal. subplots_adjust is used
+    # directly (no tight_layout/constrained_layout, which would override it).
+    fig.subplots_adjust(top=0.86, bottom=0.08, left=0.09, right=0.97,
+                        hspace=0.31, wspace=0.12)
 
-    png_path = os.path.join(OUT_DIR, "fig3_v3.png")
-    pdf_path = os.path.join(OUT_DIR, "fig3_v3.pdf")
+    png_path = os.path.join(OUT_DIR, "fig3_v4.png")
+    pdf_path = os.path.join(OUT_DIR, "fig3_v4.pdf")
     fig.savefig(png_path, dpi=300, bbox_inches="tight")
     fig.savefig(pdf_path, bbox_inches="tight")
     plt.close(fig)
 
-    print("\n=== Fig 3 v3 - ROI-level ADC vs spectral discriminant ===")
+    print("\n=== Fig 3 v4 - ROI-level ADC vs spectral discriminant ===")
     print(f"{'zone':>5s}  {'method':>10s}  {'n':>4s}  "
           f"{'r':>8s}  {'95% CI low':>11s}  {'95% CI high':>12s}")
     for zkey, zlabel in zones:

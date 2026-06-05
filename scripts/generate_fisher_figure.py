@@ -1,176 +1,230 @@
 """
-Generate Fisher information analysis figure for MRM paper.
+Generate Fisher information analysis figure for MRM paper (Fig 7).
 
-Panel A: Correlation matrix derived from Fisher information matrix
-Panel B: CRLB vs observed NUTS posterior std per component (log scale)
-Panel C: Individual decay curves with SNR noise floors
+Promoted from supplementary to a MAIN figure (Stefan 2026-06-03). 1x3 panels:
+
+  Panel (a) — Parameter correlation matrix derived from the Fisher information
+              matrix (Stefan explicitly wants the matrix kept).
+  Panel (b) — THREE-bar comparison per diffusivity bin at the cohort-median
+              SNR = 303 (NOT the old hard-coded 150):
+                1. Unconstrained classical CRLB (no prior; data-only floor)
+                2. Bayesian / van-Trees CRLB (HalfNormal-as-Gaussian, lambda=0.1)
+                3. Empirical NUTS posterior std (from identifiability.csv)
+              Improvement-factor labels are Bayesian-CRLB / NUTS (the gap
+              relative to the proper Bayesian bound). Legend in a free area.
+  Panel (c) — Component decay curves vs SNR noise floors. Non-angled x ticks,
+              larger SNR labels.
+
+Outputs paper/figures/fig_fisher_v2.{pdf,png}; leaves fig_fisher.* intact.
+
+CAVEAT: the van-Trees Bayesian-CRLB derivation is PENDING SANDY'S VALIDATION
+(see notes/CRLB_NOTE_FOR_SANDY.txt, PROJECT_STATE.md F10).
 """
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 from pathlib import Path
 
-# ── Parameters ──────────────────────────────────────────────────────────────
-b_values = np.array([0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75,
-                      2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5])  # ms/um²
-D = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])  # um²/ms
-SNR = 150  # typical for our data
-sigma = 1.0 / SNR
+from spectra_estimation_dmri.visualization.paper_style import (
+    apply_style, COLORS, DIFFUSIVITIES, DLABELS,
+)
 
-# Labels for components
-D_labels = [f"{d}" for d in D]
+# ── Style ─────────────────────────────────────────────────────────────────────
+apply_style("grid")
+# The 3-in-a-row panels are physically small; bump labels/ticks for readability
+# (Stefan). Keep within the grid preset family but a touch larger.
+plt.rcParams.update({
+    "axes.labelsize": 16,
+    "axes.titlesize": 15,
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14,
+    "legend.fontsize": 13,
+})
+
+# ── Parameters ──────────────────────────────────────────────────────────────
+b_values = np.array([0, 250, 500, 750, 1000, 1250, 1500, 1750,
+                     2000, 2250, 2500, 2750, 3000, 3250, 3500]) / 1000.0  # ms/um²
+D = DIFFUSIVITIES                       # 8 diffusivity bins (shared contract)
+D_labels = DLABELS
+SNR = 303                               # cohort median (IQR 176-478); was 150
+LAMBDA_PRIOR = 0.1                      # HalfNormal prior precision (lambda)
 
 # ── Design matrix ───────────────────────────────────────────────────────────
-U = np.exp(-np.outer(b_values, D))  # shape (15, 8)
+U = np.exp(-np.outer(b_values, D))      # shape (15, 8)
 
-# ── Fisher information matrix ───────────────────────────────────────────────
-F = (1.0 / sigma**2) * (U.T @ U)  # shape (8, 8)
+# ── Fisher information / CRLB ─────────────────────────────────────────────────
+# Data Fisher information at SNR: F_data = (1/sigma^2) U^T U = SNR^2 U^T U
+F_data = (SNR ** 2) * (U.T @ U)
+# Bayesian posterior information (van Trees): add prior precision lambda*I
+F_post = F_data + LAMBDA_PRIOR * np.eye(len(D))
 
-# ── CRLB ────────────────────────────────────────────────────────────────────
-F_inv = np.linalg.inv(F)
-crlb_std = np.sqrt(np.diag(F_inv))  # theoretical minimum std (unconstrained)
+crlb_unc = np.sqrt(np.diag(np.linalg.inv(F_data)))   # unconstrained CRLB
+crlb_bay = np.sqrt(np.diag(np.linalg.inv(F_post)))   # Bayesian van-Trees CRLB
 
-# Parameter correlation matrix: normalize F^{-1} (covariance), not F
+# Parameter correlation matrix: normalize the (unconstrained) covariance F_inv
+F_inv = np.linalg.inv(F_data)
 diag_inv = np.sqrt(np.diag(F_inv))
 C = F_inv / np.outer(diag_inv, diag_inv)
 
-# ── Load observed posterior std from NUTS ────────────────────────────────────
+# ── Observed NUTS posterior std (cohort, from identifiability.csv) ────────────
 project_root = Path(__file__).resolve().parent.parent
 ident_path = project_root / "results" / "biomarkers" / "identifiability.csv"
 df = pd.read_csv(ident_path)
 nuts_std = df["mean_posterior_std"].values
 
 # ── Figure ──────────────────────────────────────────────────────────────────
-fig, axes = plt.subplots(1, 3, figsize=(15, 5),
-                         gridspec_kw={"wspace": 0.38, "left": 0.05, "right": 0.97})
+# Larger canvas so the three panels breathe; extra headroom for a single
+# figure-level legend on top (consolidates panel (b) bars + panel (c) decay
+# lines + SNR noise-floor identities). Panel (c) gets the most room.
+fig, axes = plt.subplots(1, 3, figsize=(19.5, 6.4),
+                         gridspec_kw={"wspace": 0.34, "left": 0.045,
+                                      "right": 0.975})
 
 # ─── Panel A: Correlation matrix heatmap ─────────────────────────────────────
 ax = axes[0]
 im = ax.imshow(C, cmap="RdBu_r", vmin=-1, vmax=1, aspect="equal")
 ax.set_xticks(range(len(D)))
-ax.set_xticklabels(D_labels, fontsize=9, rotation=45, ha="right")
+ax.set_xticklabels(D_labels)          # no rotation (shared contract)
 ax.set_yticks(range(len(D)))
-ax.set_yticklabels(D_labels, fontsize=9)
-ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=11)
-ax.set_ylabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=11)
-ax.set_title("(a) Parameter Correlation\nMatrix (from CRLB)", fontsize=12, fontweight="bold")
+ax.set_yticklabels(D_labels)
+ax.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
+ax.set_ylabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
+ax.set_title("(a) parameter correlation matrix", fontweight="bold")
 
-# Add text annotations
 for i in range(len(D)):
     for j in range(len(D)):
         val = C[i, j]
         color = "white" if abs(val) > 0.7 else "black"
         ax.text(j, i, f"{val:.2f}", ha="center", va="center",
-                fontsize=7.5, color=color, fontweight="bold" if i == j else "normal")
+                fontsize=8.5, color=color, fontweight="bold" if i == j else "normal")
 
 cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-cb.set_label("Correlation", fontsize=10)
-cb.ax.tick_params(labelsize=8)
+cb.set_label("correlation", fontsize=13)
+cb.ax.tick_params(labelsize=12)
 
-# ─── Panel B: CRLB vs NUTS posterior std (log scale) ────────────────────────
+# ─── Panel B: 3-bar CRLB comparison at SNR=303 ───────────────────────────────
 ax = axes[1]
 x = np.arange(len(D))
-width = 0.35
+width = 0.27
 
-bars_crlb = ax.bar(x - width / 2, crlb_std, width, label="CRLB (unconstrained)",
-                    color="#888888", edgecolor="black", linewidth=0.5, alpha=0.85)
-bars_nuts = ax.bar(x + width / 2, nuts_std, width, label="NUTS posterior std",
-                   color="#ff7f0e", edgecolor="black", linewidth=0.5, alpha=0.85)
+b1 = ax.bar(x - width, crlb_unc, width, label="unconstrained CRLB (no prior)",
+            color=COLORS["crlb"], edgecolor="black", linewidth=0.5)
+b2 = ax.bar(x, crlb_bay, width, label=r"Bayesian CRLB (van Trees, $\lambda$=0.1)",
+            color=COLORS["crlb_bayes"], edgecolor="black", linewidth=0.5)
+b3 = ax.bar(x + width, nuts_std, width, label="NUTS posterior std",
+            color=COLORS["nuts"], edgecolor="black", linewidth=0.5)
 
 ax.set_xticks(x)
-ax.set_xticklabels(D_labels, fontsize=9, rotation=45, ha="right")
-ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=11)
-ax.set_ylabel("Standard Deviation of Fraction", fontsize=11)
-ax.set_title(f"(b) Theoretical CRLB vs Observed\nPosterior Std (SNR = {SNR})", fontsize=12, fontweight="bold")
+ax.set_xticklabels(D_labels)          # no rotation
+ax.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
+ax.set_ylabel("std of fraction (signal-normalized)")
+ax.set_title(f"(b) CRLB bounds vs NUTS std (SNR = {SNR})", fontweight="bold",
+             pad=8)
 ax.set_yscale("log")
-ax.legend(fontsize=8.5, loc="upper left")
-ax.tick_params(axis="both", labelsize=9)
+ax.tick_params(axis="both", which="both")
 
-# Add improvement factor annotations
-for i in range(len(D)):
-    if crlb_std[i] > 0 and nuts_std[i] > 0:
-        ratio = crlb_std[i] / nuts_std[i]
-        y_pos = max(crlb_std[i], nuts_std[i]) * 1.5
-        ax.text(x[i], y_pos, f"{ratio:.0f}x", ha="center", va="bottom",
-                fontsize=7, color="#333333", fontweight="bold")
+# Keep the "Bayesian-CRLB / NUTS gap" text label at the top of the panel,
+# placed ABOVE the title so the two do not collide. The per-bar improvement-
+# factor numbers are REMOVED from the plot (they go in the figure caption).
+ax.text(0.5, 1.075, "Bayesian-CRLB / NUTS gap", transform=ax.transAxes,
+        ha="center", va="bottom", fontsize=12, color="#222222",
+        fontweight="bold", style="italic")
 
-ax.set_ylim(5e-3, ax.get_ylim()[1] * 3)
+ax.set_ylim(8e-3, 1.5e3)
 
-# Add reference line at fraction = 1 (max possible)
-ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.8, alpha=0.5)
-ax.text(7.5, 1.05, "fraction = 1", fontsize=7, color="gray", ha="right", va="bottom")
+# (Bar legend moves to the single figure-level legend on top.)
 
-# ─── Panel C: Individual decay curves with noise floors ──────────────────────
+# ─── Panel C: Component decay curves vs noise floors ─────────────────────────
 ax = axes[2]
 b_fine = np.linspace(0, 3.5, 300)
-
-# Colors for each component — use a well-separated qualitative palette
 colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
           "#9467bd", "#8c564b", "#e377c2", "#7f7f7f"]
 
 for j, (d, col) in enumerate(zip(D, colors)):
-    # Each component contributes 1/8 of the total signal (equal fractions)
-    curve = np.exp(-b_fine * d) / len(D)
-    label = f"$D$ = {d}"
-    lw = 2.0 if d in [0.25, 1.0, 3.0, 20.0] else 1.3
-    ax.plot(b_fine, curve, color=col, linewidth=lw, label=label, alpha=0.9)
+    curve = np.exp(-b_fine * d) / len(D)   # equal-fraction component contribution
+    lw = 2.2 if d in [0.25, 1.0, 3.0, 20.0] else 1.4
+    ax.plot(b_fine, curve, color=col, linewidth=lw, label=f"$D$ = {d:g}", alpha=0.9)
 
-# Noise floor lines for different SNR levels
-snr_levels = [50, 100, 150, 300]
-line_styles = [":", "-.", "--", "-"]
+# Noise-floor lines for several SNR levels (cohort median 303 emphasized solid).
+# Labelled so the SNR identities live in the single top legend (no in-axes
+# text -> nothing overflows panel (c) anymore).
+snr_levels = [50, 100, 303]
+line_styles = [":", "--", "-"]
+snr_handles = []
 for snr_val, ls in zip(snr_levels, line_styles):
     noise_floor = 1.0 / snr_val
-    ax.axhline(noise_floor, color="gray", linestyle=ls, linewidth=0.9, alpha=0.6)
-    ax.text(3.58, noise_floor, f"SNR={snr_val}", fontsize=6.5, va="center",
-            color="#555555", clip_on=False)
+    h = ax.axhline(noise_floor, color="gray", linestyle=ls, linewidth=1.4,
+                   alpha=0.8, label=f"noise floor (SNR={snr_val})")
+    snr_handles.append(h)
 
-# Mark actual b-values as subtle tick marks at the top
+# Actual b-value sampling marks along the top.
 for bv in b_values:
-    ax.plot(bv, 0.18, marker="|", color="black", markersize=4, alpha=0.4)
+    ax.plot(bv, 0.18, marker="|", color="black", markersize=5, alpha=0.4)
 
-ax.set_xlabel(r"$b$-value (ms/$\mu$m$^2$)", fontsize=11)
-ax.set_ylabel("Signal Contribution (per component)", fontsize=11)
-ax.set_title("(c) Component Decay Curves\nvs Noise Floor", fontsize=12, fontweight="bold")
+ax.set_xlabel(r"$b$-value (ms/$\mu$m$^2$)")
+ax.set_ylabel("signal contribution (per component)")
+ax.set_title("(c) component decay curves vs noise floor", fontweight="bold")
 ax.set_yscale("log")
 ax.set_ylim(5e-4, 0.2)
-ax.set_xlim(0, 4.1)
-ax.tick_params(axis="both", labelsize=9)
-ax.legend(fontsize=7.5, loc="center left", bbox_to_anchor=(0.0, 0.32),
-          ncol=1, framealpha=0.9, borderaxespad=0.5)
+ax.set_xlim(0, 3.6)
+ax.tick_params(axis="both", which="both")
+
+# ── Single figure-level legend on TOP ────────────────────────────────────────
+# Consolidates: panel (b) 3-bar identities, panel (c) 8 component decay lines,
+# and the 3 SNR noise-floor identities. Nothing lives inside the panels now.
+decay_handles, decay_labels = ax.get_legend_handles_labels()
+# get_legend_handles_labels returns the 8 decay lines + 3 SNR axhlines in
+# plotting order; split them out explicitly.
+line_handles = decay_handles[:len(D)]
+line_labels = decay_labels[:len(D)]
+
+bar_handles = [b1, b2, b3]
+bar_labels = ["unconstrained CRLB (no prior)",
+              r"Bayesian CRLB (van Trees, $\lambda$=0.1)",
+              "NUTS posterior std"]
+
+all_handles = bar_handles + list(line_handles) + snr_handles
+all_labels = bar_labels + list(line_labels) + \
+    [f"noise floor (SNR={s})" for s in snr_levels]
+
+leg = fig.legend(all_handles, all_labels, loc="lower center",
+                 bbox_to_anchor=(0.5, 1.005), ncol=7, frameon=True,
+                 framealpha=0.95, fontsize=12, columnspacing=1.3,
+                 handlelength=1.8, borderaxespad=0.4)
 
 # ── Layout and save ─────────────────────────────────────────────────────────
-fig.subplots_adjust(bottom=0.18, top=0.88)
+# Leave a clear band at the top for the legend so it never collides with the
+# (b) title or its "Bayesian-CRLB / NUTS gap" annotation. The legend is
+# anchored ABOVE the axes (lower edge at y=1.005) and passed to savefig as an
+# extra artist so the tight bbox keeps it.
+fig.subplots_adjust(bottom=0.12, top=0.86)
 
 out_dir = project_root / "paper" / "figures"
 out_dir.mkdir(parents=True, exist_ok=True)
-
-fig.savefig(out_dir / "fig_fisher.pdf", dpi=300, bbox_inches="tight")
-fig.savefig(out_dir / "fig_fisher.png", dpi=300, bbox_inches="tight")
+fig.savefig(out_dir / "fig_fisher_v2.pdf", dpi=300, bbox_inches="tight",
+            bbox_extra_artists=(leg,))
+fig.savefig(out_dir / "fig_fisher_v2.png", dpi=300, bbox_inches="tight",
+            bbox_extra_artists=(leg,))
 plt.close()
 
-print(f"Saved to {out_dir / 'fig_fisher.pdf'}")
-print(f"Saved to {out_dir / 'fig_fisher.png'}")
+print(f"Saved to {out_dir / 'fig_fisher_v2.pdf'}")
+print(f"Saved to {out_dir / 'fig_fisher_v2.png'}")
 
-# ── Print summary statistics ────────────────────────────────────────────────
-print("\n── Fisher Information Analysis Summary ──")
-print(f"Design matrix U: shape {U.shape}, condition number = {np.linalg.cond(U):.1f}")
-print(f"Fisher matrix F: condition number = {np.linalg.cond(F):.1f}")
-print(f"SNR = {SNR}, sigma = {sigma:.6f}")
+# ── Summary ──────────────────────────────────────────────────────────────────
+print("\n── Fisher / CRLB analysis (Fig 7 v2) ──")
+print(f"cond(U) = {np.linalg.cond(U):.3e}, cond(F_data) = {np.linalg.cond(F_data):.3e}")
+print(f"SNR = {SNR} (cohort median), lambda = {LAMBDA_PRIOR}")
 print()
-print(f"{'D (um²/ms)':<12} {'CRLB std':<14} {'NUTS std':<14} {'Improvement':<14} {'Max off-diag corr'}")
-print("-" * 70)
+print(f"{'D':>6} {'unc CRLB':>10} {'Bayes CRLB':>11} {'NUTS std':>10} "
+      f"{'unc/NUTS':>9} {'Bay/NUTS':>9}")
+print("-" * 62)
 for j in range(len(D)):
-    # Find max off-diagonal correlation for this component
-    row = np.abs(C[j, :].copy())
-    row[j] = 0
-    max_corr = np.max(row)
-    max_corr_idx = np.argmax(row)
-    ratio = crlb_std[j] / nuts_std[j] if nuts_std[j] > 0 else float("inf")
-    print(f"{D[j]:<12.2f} {crlb_std[j]:<14.4f} {nuts_std[j]:<14.6f} {ratio:<14.0f}x {max_corr:.3f} (D={D[max_corr_idx]})")
-
+    print(f"{D[j]:6.2f} {crlb_unc[j]:10.4f} {crlb_bay[j]:11.4f} {nuts_std[j]:10.4f} "
+          f"{crlb_unc[j]/nuts_std[j]:8.0f}x {crlb_bay[j]/nuts_std[j]:8.1f}x")
 print()
-print("Key insight: The unconstrained CRLB is 100-10000x larger than the observed")
-print("NUTS posterior std, because NUTS benefits from non-negativity constraints and")
-print("regularizing priors that break the collinearity between adjacent components.")
+print(f"unconstrained CRLB range : {crlb_unc.min():.3f} – {crlb_unc.max():.3f}")
+print(f"Bayesian van-Trees range : {crlb_bay.min():.3f} – {crlb_bay.max():.3f}")
+print(f"NUTS posterior std range : {nuts_std.min():.3f} – {nuts_std.max():.3f}")
+print()
+print("CAVEAT: van-Trees Bayesian-CRLB derivation PENDING SANDY'S VALIDATION.")
