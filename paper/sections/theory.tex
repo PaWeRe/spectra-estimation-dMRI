@@ -2,10 +2,7 @@
 
 \subsection{Signal Model}
 
-In multi-b diffusion MRI, the signal decay at each voxel or region of interest is modeled as a superposition of exponential decays arising from distinct diffusion compartments.
-Two fundamentally different estimation strategies exist: (1)~treat both the diffusivity values $D_j$ and their corresponding fractions as free parameters to be estimated jointly from the data, or (2)~fix the diffusivity values on a predefined grid and estimate only the fractions.
-The first approach is highly nonlinear and suffers from severe non-uniqueness, while the second reduces the problem to linear estimation at the cost of discretization.
-We adopt the second approach: normalizing by the $b = 0$ signal, the discrete spectral model is
+In multi-b diffusion MRI the signal decay is modeled as a superposition of exponential decays from distinct diffusion compartments. One can either estimate the diffusivities $D_j$ and their fractions jointly---highly nonlinear and severely non-unique---or fix the diffusivities on a predefined grid and estimate only the fractions, reducing the problem to linear estimation at the cost of discretization. We adopt the latter: normalizing by the $b = 0$ signal, the discrete spectral model is
 %
 \begin{equation}
   \frac{S(b_i)}{S_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
@@ -21,8 +18,7 @@ The design matrix $\Umat$ has condition number $\kappa(\Umat) \approx 2.8 \times
 
 \subsection{Identifiability and Discretization}
 
-Given the linear-in-fractions formulation above, the choice of diffusivity bins $D_j$ determines which spectral components can be resolved from the data.
-The Fisher information matrix for the spectral fractions $\Rvec$ (assuming known noise $\sigma$) is:
+The choice of diffusivity bins $D_j$ determines which spectral components can be resolved. The Fisher information matrix for the fractions $\Rvec$ (assuming known noise $\sigma$) is:
 %
 \begin{equation}
   \mathbf{F} = \frac{1}{\sigma^2} \Umat^T \Umat,
@@ -53,14 +49,13 @@ Requiring constant estimation precision across the spectrum therefore implies a 
   \label{eq:spacing_scaling}
 \end{equation}
 %
-We use this two-compartment scaling as a heuristic guide for choosing the discretization; the corresponding analysis for the full $K = 8$ multi-compartment model is performed numerically below.
-Our grid approximately follows this scaling: the spacing increases from $\Delta D = 0.25\;\umsmm$ at the slow-diffusion end to $\Delta D = 1.0\;\umsmm$ at $D = 2.0$, placing denser bins where all or most b-values contribute informative signal.
-Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of the specific bin placement: redistributing bins according to the $D^{3/2}$ rule trades reduced resolution at high diffusivities for improved resolution at the slow-diffusion end, without reducing overall ill-conditioning.
-The ill-posedness is intrinsic to the Laplace inversion and cannot be eliminated by optimizing the discretization alone.
+We use this scaling as a heuristic guide for the discretization: our grid spacing increases from $\Delta D = 0.25\;\umsmm$ at the slow-diffusion end to $1.0\;\umsmm$ at $D = 2.0$, placing denser bins where most b-values contribute informative signal.
+Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of bin placement: the $D^{3/2}$ redistribution only trades resolution between the two ends, and the ill-posedness is intrinsic to the Laplace inversion.
 
-The unconstrained CRLB vastly overestimates the actual estimation error: for intermediate components, the CRLB predicts standard deviations exceeding the physical range of the fractions (Figure~\ref{fig:fisher}b).
-The non-negativity constraint and Bayesian priors reduce the effective estimation error by 100--8000$\times$ relative to this unconstrained bound (Figure~\ref{fig:fisher}b), making the problem tractable.
-This improvement is greatest for the most ill-conditioned components and demonstrates the essential role of prior information in spectral decomposition; the magnitude of this gain is revisited in the Discussion.
+The unconstrained CRLB vastly overestimates the actual estimation error because it ignores the prior: for intermediate components it predicts standard deviations exceeding the physical range of the fractions (Figure~\ref{fig:fisher}b).
+% TODO(Sandy): validate the van-Trees Bayesian-CRLB derivation plotted in Fig~\ref{fig:fisher}b.
+Incorporating the half-normal prior through the Bayesian (van Trees) CRLB tightens this bound by up to two orders of magnitude, and the empirical NUTS posterior standard deviation is smaller still---by a further factor of $2$--$74\times$ across components---because the non-negativity constraint and the one-sided prior truncate the feasible region (Figure~\ref{fig:fisher}b).
+This decomposition replaces the single unconstrained-versus-observed ratio with the two distinct mechanisms that make the problem tractable, the prior and the constraint, and demonstrates the essential role of prior information in spectral decomposition; the magnitude of this gain is revisited in the Discussion.
 
 \subsection{MAP Estimation}
 
@@ -80,9 +75,8 @@ The MAP estimate is a point estimate and does not quantify how reliably each com
 
 \subsection{Bayesian Formulation}
 
-The MAP estimate provides a single point in spectrum space but offers no information about the reliability of each component. Moreover, it requires the noise standard deviation $\sigma$ to be known.
-Given the severe ill-conditioning documented above, both limitations matter. A point estimate at an intermediate component ($D = 0.75\;\umsmm$) may appear precise while in fact being largely determined by the regularization rather than the data. An incorrect $\sigma$ silently rescales the regularization weight.
-A fully Bayesian approach addresses both by characterizing the joint posterior over $(\Rvec, \sigma)$, simultaneously inferring the spectrum and the per-ROI noise level while making the ill-posedness explicit through the marginal posterior widths rather than hiding it behind a single number.
+The MAP estimate offers no measure of per-component reliability and requires the noise level $\sigma$ to be known. Given the severe ill-conditioning, both matter: a point estimate at an intermediate component may appear precise while being largely determined by the regularization rather than the data, and an incorrect $\sigma$ silently rescales the penalty.
+A fully Bayesian approach characterizes the joint posterior over $(\Rvec, \sigma)$, inferring the spectrum and per-ROI noise level together and making the ill-posedness explicit through the marginal posterior widths.
 
 We specify a hierarchical model with explicit priors on both the spectrum and the noise level:
 %
@@ -94,21 +88,20 @@ We specify a hierarchical model with explicit priors on both the spectrum and th
   \label{eq:likelihood}
 \end{align}
 %
-The half-normal prior on $\Rvec$ naturally enforces non-negativity while providing smooth gradients for Hamiltonian Monte Carlo (HMC), and its variance $1/\lambda$ corresponds to the ridge penalty strength, establishing a direct link between the MAP and Bayesian formulations.
-The half-Cauchy prior on the noise level $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that allows the noise to be inferred jointly with the spectrum, rather than fixed a priori.
+The half-normal prior on $\Rvec$ enforces non-negativity with smooth gradients for Hamiltonian Monte Carlo (HMC), and its variance $1/\lambda$ matches the ridge penalty, linking the MAP and Bayesian formulations. The half-Cauchy prior on $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that lets the noise be inferred jointly rather than fixed a priori.
 
 The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
 A coordinate-wise Gibbs sampler (truncated-normal full conditionals for $\Rvec$, with a conjugate inverse-gamma update for $\sigma^2$) targets the same posterior; we use NUTS because the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry in which such coordinate-wise updates mix extremely slowly.
 NUTS, as an adaptive variant of HMC \citep{neal2011mcmc}, exploits gradient information to propose joint moves across all components simultaneously and adapts the trajectory length to the local curvature of the posterior, making it well suited to the correlated, constrained geometry of this problem.
 
-Posterior summaries (mean, standard deviation) for each $R_j$ provide both a point estimate and a measure of identifiability: components with posterior coefficient of variation (CV = posterior std / posterior mean) much less than one are well constrained, while those with CV near or above one are effectively undetermined by the data.
+Posterior summaries for each $R_j$ provide both a point estimate and a measure of identifiability via the coefficient of variation (CV = posterior std / posterior mean): components with CV $\ll 1$ are well constrained, those with CV near or above one effectively undetermined by the data.
 
 \subsection{ADC as a Spectral Functional}
 
 The apparent diffusion coefficient can be viewed as a functional of the spectral fractions.
 Given a spectrum $\Rvec$, the synthesized signal at each b-value is $\hat{S}(b) = \sum_j R_j \exp(-b D_j)$.
 Fitting a monoexponential $\log \hat{S}(b) = \log \hat{S}_0 - b \cdot \text{ADC}$ to b-values below a cutoff $b_{\max}$ yields the apparent diffusion coefficient $\text{ADC}(\Rvec)$.
-Least-squares fitting in the log domain is known to introduce a systematic bias because the log transform distorts the noise distribution, particularly at low signal-to-noise ratios \citep{kuczera2023truly}; nevertheless, this is the standard approach used in clinical MR systems and is adopted here for comparability with the conventional ADC pipeline.
+Log-domain least-squares fitting introduces a known noise-distribution bias at low SNR \citep{kuczera2023truly}, but is the clinical standard and is adopted here for comparability with the conventional ADC pipeline.
 This is a nonlinear, spectrum-dependent mapping: the same diffusivity component $R_j$ contributes differently to ADC depending on the operating point (i.e., the overall spectral composition).
 
 To understand which spectral components ADC is most sensitive to, we define the sensitivity vector

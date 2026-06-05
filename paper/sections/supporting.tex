@@ -77,33 +77,34 @@ anatomical region and SNR for each panel.
 % carried unresolved font/colour TODOs. A broader simulation recovery battery
 % can be added back to the SI later if desired.
 
-% --- Fig S: Fisher Information Analysis (relocated from the main text 2026-06-01;
-%     keeps \label{fig:fisher} so the in-text references in theory/results/discussion
-%     resolve to this supplementary figure). ---
+% --- Fig S1: Direction independence of whole-ROI spectral estimates
+%     (demoted from the main text 2026-06-05; keeps \label{fig:directions} so the
+%     in-text references in results/figures resolve to this supplementary figure). ---
+% Generator: scripts/fig7_directions_roi.py (decodes the per-direction ROI .dat
+% export; MAP spectra via recompute.compute_map_spectrum). Four patients x two
+% ROIs (one PZ, one TZ each) drawn from the directional tarball.
 \begin{figure}[p]
 \centering
-% TODO(figure-regen): larger fonts (~+50%); in panel (b) move the legend to
-% a free area in the middle of the plot so that it does not cover the bars
-% or the improvement-factor labels. NOTE: panel (b) SNR is hard-coded at 150;
-% should be regenerated at the cohort-median SNR=303 (see PROJECT_STATE F10).
-\includegraphics[width=\textwidth]{figures/fig_fisher.pdf}
+\includegraphics[width=\textwidth]{figures/fig_directions_v4.pdf}
 \caption{%
-Fisher information analysis of the spectral discretization.
-(a)~Fisher information correlation matrix: adjacent diffusivity components
-($D = 0.50$--$1.00\;\umsmm$) have mutual correlation $> 0.99$, making them
-fundamentally indistinguishable from 15 b-value measurements.
-$D = 0.25$ and $D = 20.0\;\umsmm$ are the most separable components.
-(b)~Unconstrained Cram\'er-Rao lower bound (gray) versus observed NUTS
-posterior standard deviation (orange) at SNR = 150.
-Labels show the improvement factor.
-Non-negativity constraints and Bayesian priors reduce estimation error by
-100--8000$\times$, demonstrating their essential role.
-(c)~Individual component decay curves $R_j \exp(-b D_j) / K$ at equal
-fractions, with horizontal noise floors at SNR = 50--300.
-Slow-diffusing components (e.g., $D = 0.25\;\umsmm$) contribute signal
-across all b-values; fast components ($D \geq 3.0\;\umsmm$) decay below the
-noise floor within the first few b-value steps, motivating the sparser
-discretization at high diffusivities.
+Direction independence of whole-ROI spectral estimates validates trace
+averaging.
+Per-encoding-direction MAP spectra (three encoding directions, colored) versus
+the trace-averaged spectrum (black) for four representative patients (rows),
+each with one peripheral-zone (left) and one transition-zone (right) region of
+interest; tissue type (normal or tumor) is labeled per panel.
+The three directions agree closely in the diagnostically dominant
+restricted-diffusion bin ($D = 0.25\;\umsmm$; mean direction-wise CV $9\%$
+across all 13 directional regions); the larger inter-direction spread in the
+intermediate and near-empty bins ($D = 0.5$--$2.0$ and $D = 20\;\umsmm$)
+mirrors their poor identifiability rather than reflecting genuine anisotropy,
+the per-direction CV tracking each bin's inverse mass.
+Because tumor detection rests on the well-identified outer compartments, trace
+averaging is well justified; aggregate per-bin statistics are reported in
+Results.
+MAP estimates are shown (constrained ridge, $\lambda = 10^{-3}$); these
+directional ROIs lie outside the 149-ROI cohort, and MAP and NUTS are
+equivalent on realistic spectra (Figure~\ref{fig:validation}).
 }
-\label{fig:fisher}
+\label{fig:directions}
 \end{figure}

@@ -4,8 +4,7 @@
 
 Retrospective multi-b DWI data were obtained from the cohort previously described by \citet{langkilde2018evaluation}.
 For the 56 included patients, age ranged from 43 to 77 years (mean 62 years) and the mean serum prostate-specific antigen (PSA) level was 8.8~ng/mL (range, 0.37--46~ng/mL).
-The cohort included patients with biopsy-confirmed prostate cancer, 7 patients with benign biopsies, and 1 patient with high-grade prostatic intraepithelial neoplasia (HGPIN, a known tumor precursor).
-The benign and HGPIN cases contribute only normal-tissue ROIs to the analysis and therefore serve as a specificity test against false-positive labeling of non-malignant tissue.
+The cohort included patients with biopsy-confirmed cancer, 7 with benign biopsies, and 1 with high-grade prostatic intraepithelial neoplasia; these latter eight contribute only normal-tissue ROIs and serve as a specificity check against false-positive labeling of non-malignant tissue.
 
 All patients underwent a standard multiparametric MR examination with an additional diffusion-weighted sequence on a GE 3~T Discovery MR750 scanner (GE Medical Systems, Milwaukee, WI).
 An endorectal coil (Medrad, Pittsburgh, PA) was used in combination with pelvic phased-array coils for signal reception, providing high signal-to-noise ratio at the cost of a non-routine setup.
@@ -25,22 +24,22 @@ MAP spectra were computed via Eq.~\ref{eq:map} with ridge strength $\lambda = 10
 The Bayesian posterior (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) was sampled independently for each of the 149 ROIs using NUTS via PyMC, with 2000 post-tuning draws, 200 tuning steps, 4 independent chains, and target acceptance rate 0.95.
 Convergence was assessed using the split-$\hat{R}$ statistic \citep{vehtari2021rank}; all 149 ROIs converged ($\hat{R} < 1.05$).
 Posterior means of the spectral fractions (normalized to sum to one) were used as NUTS point estimates; posterior standard deviations quantify per-component uncertainty.
-The posterior coefficient of variation (CV $=$ posterior std / posterior mean) reported in the Results is computed per ROI and per component, then averaged across the patient cohort to summarize the typical identifiability of each component for this acquisition.
+The posterior coefficient of variation (CV $=$ posterior std / posterior mean) is computed per ROI and component, then averaged across the cohort to summarize each component's typical identifiability.
 
 \subsection{ADC Computation}
 
 Apparent diffusion coefficients were computed by monoexponential least-squares fitting of $\log S(b) = \log S_0 - b \cdot \text{ADC}$ to the raw signal at b-values $\leq 1000\;\text{s/mm}^2$ (five measurements per ROI: $b = 0, 250, 500, 750, 1000\;\text{s/mm}^2$).
-This cutoff was chosen to follow PI-RADS~v2.1 recommendations, which specify a maximum b-value of 800--1000~s/mm$^2$ for ADC map calculation \citep{turkbey2019prostate, weinreb2016pirads}; the choice of b-value range materially affects the absolute ADC value \citep{maier2022choice}.
+This follows PI-RADS~v2.1, which specifies a maximum b-value of 800--1000~s/mm$^2$ for ADC maps \citep{turkbey2019prostate, weinreb2016pirads}; the b-value range materially affects the absolute ADC value \citep{maier2022choice}.
 
 \subsection{Classification}
 
 Tumor detection and Gleason grade classification were evaluated using $L_2$-regularized logistic regression with leave-one-out cross-validation (LOOCV).
 Three classification tasks were defined: (1)~tumor versus normal in PZ ($n = 81$), (2)~tumor versus normal in TZ ($n = 68$), and (3)~high-grade (GGG~$\geq 3$) versus low-grade (GGG~1--2) among tumor ROIs with available GGG labels ($n = 29$).
-Detection classifiers were trained separately by zone because the diffusion contrast between zones is largely a property of \emph{normal} tissue---normal peripheral- and transition-zone tissue differ systematically in baseline diffusion, whereas tumor tissue is comparatively similar across zones---so a single pooled tumor-versus-normal boundary would conflate zonal and pathological variation.
+Detection classifiers were trained separately by zone: normal peripheral- and transition-zone tissue differ systematically in baseline diffusion whereas tumor tissue is comparatively similar across zones, so a pooled tumor-versus-normal boundary would conflate zonal and pathological variation.
 
 For each task, the following feature representations were compared through an identical leave-one-out cross-validation (LOOCV) pipeline: (a)~ADC alone; (b)~each individual spectral fraction alone; (c)~the two outer fractions $\{D = 0.25,\,3.0\;\umsmm\}$ jointly; and (d)~all eight fractions, using either MAP or NUTS posterior-mean estimates.
 Within each fold, features were standardized and an $L_2$-regularized logistic-regression classifier ($C = 1.0$, inverse regularization strength) was fit on the training ROIs and applied to the held-out ROI, with standardization and fitting confined to the training fold to prevent data leakage.
-Scoring single- and multi-feature models through the same held-out pipeline makes them directly comparable: a single monotonic feature incurs negligible overfitting, whereas a multivariate model pays a finite-sample penalty, so this avoids the optimistic bias that arises from scoring single features in-sample.
+Scoring single- and multi-feature models through the same held-out pipeline makes them comparable, avoiding the optimistic bias of scoring single features in-sample (a single monotonic feature barely overfits, whereas a multivariate model pays a finite-sample penalty).
 For reference we additionally report the conventional in-sample ADC raw-rank AUC (Table~\ref{tab:auc}).
 Performance was measured by the area under the receiver operating characteristic curve (AUC).
 Ninety-five percent confidence intervals for all AUCs and for the ROI-level ADC--discriminant correlations were obtained by patient-level percentile bootstrap (2000 resamples) \citep{efron1993bootstrap}; paired comparisons between two AUCs computed on the same ROIs used DeLong's test \citep{delong1988comparing}.
@@ -56,11 +55,9 @@ Bootstrap 95\% confidence intervals for ROI-level correlations between ADC and t
 % ======================================================================
 \subsection{Pixel-wise and Direction-wise Spectral Estimation}
 
-To demonstrate the framework at the voxel level, pixel-wise spectral decomposition was performed on a single axial slice from one patient acquired outside the patient cohort described above, with the prostate manually segmented prior to analysis.
-For each voxel, the multi-b signal decay $\svec = [S(b_1), \ldots, S(b_{15})]^T$ was normalized by the $b = 0$ signal and decomposed using both MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the same parameters as the ROI-level analysis.
-A spectral discriminant score was computed at each voxel by applying the PZ logistic regression coefficients to the pixel-level normalized spectra; for the Bayesian estimates, uncertainty in the discriminant was propagated by drawing 500 Monte Carlo samples from the per-voxel posterior and passing each through the discriminant function.
+To demonstrate the framework at the voxel level, pixel-wise decomposition was performed on a single axial slice from one patient outside the cohort, with the prostate manually segmented. Each voxel's $b = 0$-normalized decay was decomposed by MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the ROI-level parameters, and a spectral discriminant score was computed by applying the PZ coefficients to the pixel spectra; for NUTS, discriminant uncertainty was propagated by passing 500 posterior draws through the discriminant.
 
 To verify the trace-averaging assumption used at the ROI level, a separate acquisition that retained the per-encoding-direction signal---13 ROIs across 7 patients, with the same 15 b-values along three orthogonal directions---was decomposed independently for each direction with the MAP estimator and compared to the trace-averaged spectrum (Figure~\ref{fig:directions}).
 
 Code, configuration files, and the de-identified per-ROI signal decays used in this study are openly available at \url{https://github.com/PaWeRe/spectra-estimation-dMRI}.
-The repository also packages the inference methods (closed-form ridge MAP and PyMC NUTS) so that the full pipeline can be re-run end-to-end on either the released data or new datasets.
+The repository packages the inference methods so the full pipeline can be re-run on the released data or new datasets.
