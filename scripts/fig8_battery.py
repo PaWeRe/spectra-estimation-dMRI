@@ -460,8 +460,9 @@ def _noise_panel(ax, d, snr_name, snr, show_ylabel):
         ax.set_ylabel(r"inferred $\hat{\sigma}$")
 
     n_real = max(n_real_seen) if n_real_seen else N_SIGMA_REALIZATIONS
-    title = (rf"noise inference, SNR={snr} — $\hat{{\sigma}}$ over "
-             rf"{n_real} realizations")
+    # Descriptive subplot title matching the recovery-panel style; the meaning
+    # of n (independent noise realizations) lives in the figure caption.
+    title = rf"noise inference, SNR={snr} — $n = {n_real}$"
     ax.set_title(title, loc="left", fontweight="bold", pad=6)
     ax.grid(True, axis="y", alpha=0.25)
     # headroom so the true-sigma line and boxes are not flush with the frame
@@ -485,7 +486,7 @@ def plot():
     fig = plt.figure(figsize=(14, 24))
     gs = fig.add_gridspec(
         5, 2, height_ratios=[1, 1, 1, 1, 1],
-        hspace=0.40, wspace=0.18,
+        hspace=0.40, wspace=0.30,
         left=0.085, right=0.985, top=0.945, bottom=0.045)
 
     snr_items = [("low", SNR_LEVELS["low"]), ("high", SNR_LEVELS["high"])]

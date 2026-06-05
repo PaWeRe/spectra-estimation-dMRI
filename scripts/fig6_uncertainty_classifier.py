@@ -89,17 +89,17 @@ plt.rcParams.update({
     "ytick.labelsize": 15,
 })
 
-# --- Palette (lead-author redesign 2026-06-05, contrast pushed harder) ---
+# --- Palette (lead-author redesign 2026-06-05, contrast = pale vs bright) ---
 # VERY pale low-saturation pastel = correctly classified (recedes into the
-# background); FULLY saturated + DARKER distinct shade = MISCLASSIFIED, drawn
-# LARGER with a dark/black edge so misclassified ROIs unmistakably pop. Hue
-# family is preserved (normal = blue, tumor = red) within each correctness
-# class; the light/bold + size + edge separation carries the miss flag.
-COLOR_NORMAL = "#cfe8f5"        # very pale blue   : correct normal
-COLOR_TUMOR = "#fcd0cf"         # very pale red    : correct tumor
-COLOR_NORMAL_MISS = COLORS["normal_dark"]  # deep navy (#0b3d61) : misclassified normal
-COLOR_TUMOR_MISS = COLORS["tumor_dark"]    # deep maroon (#7f1416): misclassified tumor
-MISS_EDGE = "#000000"           # black ring on misclassified markers
+# background); BRIGHT, fully SATURATED standard blue/red = MISCLASSIFIED. The
+# misclassified markers are NO LARGER than the correct ones (same/+1 pt) and
+# keep only a thin edge for definition -- the saturation carries the miss flag,
+# not size. Hue family is preserved (normal = blue, tumor = red).
+COLOR_NORMAL = "#cfe8f5"        # very pale blue           : correct normal
+COLOR_TUMOR = "#fcd0cf"         # very pale red            : correct tumor
+COLOR_NORMAL_MISS = "#1f77b4"   # saturated standard blue  : misclassified normal
+COLOR_TUMOR_MISS = "#d62728"    # saturated standard red   : misclassified tumor
+MISS_EDGE = "#000000"           # thin black ring on misclassified markers
 GRAY = "#666666"
 
 
@@ -235,11 +235,12 @@ def report_misclassified(pooled):
 def plot_sorted_panel(ax, res, zone_label, xlabel=True):
     """Sorted-prediction panel with propagated 90% CIs as error bars.
 
-    Colour encodes BOTH true tissue (hue) and correctness (pale vs bold):
-      VERY pale blue/red  = correctly classified normal/tumor (recede)
-      deep navy/maroon    = misclassified  normal/tumor  (pop)
-    Misclassified markers are drawn LARGER with a black edge so they pop hard
-    against the pale correct cloud (lead author 2026-06-05).
+    Colour encodes BOTH true tissue (hue) and correctness (pale vs bright):
+      VERY pale blue/red       = correctly classified normal/tumor (recede)
+      bright saturated blue/red = misclassified  normal/tumor  (pop)
+    Misclassified markers are the SAME size as the correct ones (a hair larger)
+    with a thin black edge for definition -- the saturation, not the size, makes
+    them pop against the pale correct cloud (lead author 2026-06-05).
 
     The title carries the case-count breakdown for the zone; the x-label is
     only drawn when ``xlabel`` is True (bottom panel only).
@@ -256,12 +257,13 @@ def plot_sorted_panel(ax, res, zone_label, xlabel=True):
 
     # 4 visual classes: (true tissue) x (correct / misclassified).
     # Correct: small, pale, white edge, recede (zorder 2-3).
-    # Misclassified: LARGE, fully saturated dark, BLACK edge, pop (zorder 5).
+    # Misclassified: SAME size (+1 pt), bright saturated, thin BLACK edge,
+    # pop via colour not size (zorder 5).
     groups = [
         (0, True, COLOR_NORMAL, "o"),        # correct normal  (very pale blue)
         (1, True, COLOR_TUMOR, "s"),         # correct tumor   (very pale red)
-        (0, False, COLOR_NORMAL_MISS, "o"),  # miss normal (deep navy)
-        (1, False, COLOR_TUMOR_MISS, "s"),   # miss tumor  (deep maroon)
+        (0, False, COLOR_NORMAL_MISS, "o"),  # miss normal (bright blue)
+        (1, False, COLOR_TUMOR_MISS, "s"),   # miss tumor  (bright red)
     ]
     for cls, want_correct, color, marker in groups:
         m = (y == cls) & (correct == want_correct)
@@ -274,9 +276,9 @@ def plot_sorted_panel(ax, res, zone_label, xlabel=True):
                         markeredgewidth=0.6, linestyle="none", zorder=3)
         else:
             ax.errorbar(x[m], p[m], yerr=yerr[:, m], fmt=marker, color=color,
-                        ecolor=color, elinewidth=2.2, capsize=4.0,
-                        markersize=14, alpha=1.0, markeredgecolor=MISS_EDGE,
-                        markeredgewidth=1.6, linestyle="none", zorder=5)
+                        ecolor=color, elinewidth=1.6, capsize=3.0,
+                        markersize=8, alpha=1.0, markeredgecolor=MISS_EDGE,
+                        markeredgewidth=0.8, linestyle="none", zorder=5)
 
     ax.axhline(0.5, color=GRAY, linestyle="--", linewidth=1.3, alpha=0.85)
     if xlabel:
@@ -326,7 +328,7 @@ def main():
     # panel spans the full figure width so individual ROI points are well
     # separated horizontally.) Legend on TOP, no suptitle.
     fig = plt.figure(figsize=(13, 9))
-    gs = fig.add_gridspec(2, 1, hspace=0.32, top=0.87)
+    gs = fig.add_gridspec(2, 1, hspace=0.32, top=0.86)
     ax_pz = fig.add_subplot(gs[0, 0])
     ax_tz = fig.add_subplot(gs[1, 0])
 
@@ -334,10 +336,11 @@ def main():
     plot_sorted_panel(ax_pz, results["pz"], "PZ", xlabel=False)
     plot_sorted_panel(ax_tz, results["tz"], "TZ", xlabel=True)
 
-    # Legend on TOP (Fig 1 / 3 style). Correct = small pale pastel marker;
-    # misclassified = larger fully-saturated dark marker with black edge, so the
-    # legend mirrors the in-panel contrast. No "decision boundary" entry -- the
-    # dashed 0.5 line stays in each panel but is self-explanatory.
+    # Legend on TOP (Fig 1 / 3 style). Correct = pale pastel marker;
+    # misclassified = bright saturated marker (same size, thin black edge), so
+    # the legend mirrors the in-panel pale-vs-bright contrast. No "decision
+    # boundary" entry -- the dashed 0.5 line stays in each panel but is
+    # self-explanatory.
     legend_handles = [
         Line2D([0], [0], marker="o", color=COLOR_NORMAL, linestyle="none",
                markersize=10, markeredgecolor="white", markeredgewidth=0.6,
@@ -346,15 +349,16 @@ def main():
                markersize=10, markeredgecolor="white", markeredgewidth=0.6,
                label="Tumor (correct)"),
         Line2D([0], [0], marker="o", color=COLOR_NORMAL_MISS, linestyle="none",
-               markersize=13, markeredgecolor=MISS_EDGE, markeredgewidth=1.4,
+               markersize=10, markeredgecolor=MISS_EDGE, markeredgewidth=0.8,
                label="Normal (misclassified)"),
         Line2D([0], [0], marker="s", color=COLOR_TUMOR_MISS, linestyle="none",
-               markersize=13, markeredgecolor=MISS_EDGE, markeredgewidth=1.4,
+               markersize=10, markeredgecolor=MISS_EDGE, markeredgewidth=0.8,
                label="Tumor (misclassified)"),
     ]
     fig.legend(handles=legend_handles, loc="upper center", ncol=4,
                frameon=True, framealpha=0.95, bbox_to_anchor=(0.5, 0.965),
-               columnspacing=1.6, handlelength=1.8, fontsize=FONT_SIZE)
+               columnspacing=0.8, handlelength=1.4, handletextpad=0.35,
+               fontsize=FONT_SIZE - 1)
 
     png = os.path.join(OUT_DIR, "fig6_v2.png")
     pdf = os.path.join(OUT_DIR, "fig6_v2.pdf")

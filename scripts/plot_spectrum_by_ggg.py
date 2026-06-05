@@ -126,13 +126,13 @@ def main() -> None:
     h_normal = plot_group(ax_l, x, normal, "Normal", GROUP_NORMAL)
     h_ggg1 = plot_group(ax_l, x, ggg1, "GGG = 1", C_GGG1)
     h_ggg_ge2 = plot_group(ax_l, x, ggg_ge2, "GGG ≥ 2", C_GGG_GE2)
-    ax_l.set_title("Tumour emergence (GGG 1 vs ≥2)", fontsize=13, pad=8)
+    ax_l.set_title("Tumour emergence (GGG 1 vs ≥2)", fontsize=20, pad=8)
 
     # RIGHT — aggressiveness: Normal baseline + GGG=2 + GGG>=3.
     plot_group(ax_r, x, normal, "Normal", GROUP_NORMAL)
     h_ggg2 = plot_group(ax_r, x, ggg2, "GGG = 2", C_GGG2)
     h_ggg_ge3 = plot_group(ax_r, x, ggg_ge3, "GGG ≥ 3", C_GGG_GE3)
-    ax_r.set_title("Aggressiveness (GGG 2 vs ≥3)", fontsize=13, pad=8)
+    ax_r.set_title("Aggressiveness (GGG 2 vs ≥3)", fontsize=20, pad=8)
 
     for ax in axes:
         set_diff_xaxis(ax, label=True)
@@ -147,15 +147,17 @@ def main() -> None:
     legend_handles = [h_normal, h_ggg1, h_ggg_ge2, h_ggg2, h_ggg_ge3]
     fig.legend(
         legend_handles, [h.get_label() for h in legend_handles],
-        loc="upper center", bbox_to_anchor=(0.5, 0.995),
-        ncol=5, frameon=True, framealpha=0.95,
+        loc="upper center", bbox_to_anchor=(0.5, 1.02),
+        ncol=5, frameon=True, framealpha=0.95, fontsize=20,
         handlelength=1.4, columnspacing=1.0, handletextpad=0.35,
     )
 
     # Vertical order is: top legend -> panel subtitle -> panel. The panel
-    # subtitles (set_title) sit at top=0.86; the shared legend sits above them
-    # at y=0.995. No tight_layout (it would override the legend->title gap).
-    fig.subplots_adjust(top=0.86, bottom=0.10, left=0.07, right=0.97, wspace=0.08)
+    # subtitles (set_title, 20 pt) sit at top=0.80; the shared legend (also
+    # 20 pt, equal to the titles) sits well above them at y=1.02, leaving a
+    # clear gap so the legend does not overshadow the titles. No tight_layout
+    # (it would override the legend->title gap).
+    fig.subplots_adjust(top=0.80, bottom=0.10, left=0.07, right=0.97, wspace=0.08)
 
     PAPER_PNG.parent.mkdir(parents=True, exist_ok=True)
     for path in (PAPER_PNG, OUT_PNG):
