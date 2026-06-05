@@ -6,12 +6,15 @@
 \centering
 \caption{Tumor-detection performance: the spectral classifier matches ADC, and
 the two outer fractions alone suffice.
-Entries are leave-one-out cross-validated AUCs (95\% confidence interval) for
-tumor-versus-normal classification, evaluated through an identical pipeline so
-that single-feature and multi-feature models are directly comparable
-(Figure~\ref{fig:roc}).
-ADC (raw rank) ranks ROIs by the raw value; all other rows are
-$L_2$-regularized logistic regression ($C = 1.0$) on standardized features.
+With one exception, entries are leave-one-out cross-validated AUCs (95\%
+confidence interval) for tumor-versus-normal classification, evaluated through
+an identical $L_2$-regularized logistic-regression pipeline ($C = 1.0$,
+standardized features) so that single- and multi-feature models are directly
+comparable (Figure~\ref{fig:roc}); the fair head-to-head is therefore ADC
+(logistic regression) versus the spectral models.
+The exception, ADC (raw rank), is the conventional in-sample ranking by ADC
+value (no model fit), reported as a reference; it is the hardest baseline to
+beat, yet the spectral models match it within overlapping confidence intervals.
 ``8 fractions'' uses all spectral bins; ``2 outer fractions'' uses only
 $D = 0.25$ and $3.0\;\umsmm$.
 Confidence intervals are percentile bootstrap over patients
