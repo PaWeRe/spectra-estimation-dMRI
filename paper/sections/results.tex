@@ -5,10 +5,8 @@
 The signal-to-noise ratio of the trace decays, computed as $S_0/\sigma$ from the per-ROI NUTS posterior, had a median of 303 across the 149~ROIs (interquartile range 176--478; full range 25--1548).
 The wide spread reflects dependence on tissue composition (more free water, lower SNR) and distance from the endorectal coil.
 Figure~\ref{fig:spectra} shows MAP and NUTS spectral fractions (water fractions at each diffusivity bin, averaged across ROIs of each tissue type) for tumor and normal tissue in both anatomical zones.
-Tumor ROIs exhibited an elevated restricted-diffusion water fraction ($D = 0.25\;\umsmm$: 12.0\% MAP / 16.6\% NUTS in PZ tumor vs.\ 2.5\% / 5.7\% in PZ normal) and a reduced free-water fraction ($D = 3.0\;\umsmm$: 16.9\% MAP / 21.0\% NUTS in PZ tumor vs.\ 23.5\% / 47.5\% in PZ normal), consistent with increased cellular density restricting water mobility.
-These patterns were qualitatively similar in the transition zone, though TZ tumor spectra showed a higher restricted fraction overall ($D = 0.25\;\umsmm$: 19.5\% MAP / 25.0\% NUTS).
-
-A notable difference between MAP and NUTS appears in the free-water component: NUTS concentrates mass at $D = 3.0\;\umsmm$ (47.5\% in PZ normal) whereas MAP distributes it across $D = 1.5$--$3.0\;\umsmm$ (MAP: 23.5\% at $D = 3.0\;\umsmm$).
+Tumor ROIs exhibited an elevated restricted-diffusion water fraction ($D = 0.25\;\umsmm$: 18.5\% MAP / 16.6\% NUTS in PZ tumor vs.\ 7.2\% / 5.7\% in PZ normal) and a reduced free-water fraction ($D = 3.0\;\umsmm$: 18.9\% MAP / 21.0\% NUTS in PZ tumor vs.\ 40.3\% / 47.5\% in PZ normal), consistent with increased cellular density restricting water mobility.
+These patterns were qualitatively similar in the transition zone, though TZ tumor spectra showed a higher restricted fraction overall ($D = 0.25\;\umsmm$: 26.4\% MAP / 25.0\% NUTS). At the tuned regularization, MAP and NUTS agree closely on the two well-identified outer compartments.
 
 \subsection{Per-Component Identifiability}
 
