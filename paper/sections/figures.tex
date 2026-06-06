@@ -204,15 +204,17 @@ predictions in the peripheral zone (top, $n = 81$) and transition zone (bottom,
 $n = 68$), sorted by predicted probability: markers at the posterior mean
 (circles normal, squares tumor), error bars the 90\% credible interval, pale
 for correctly classified and saturated for misclassified ROIs.
-The interval is on average $2.4\times$ wider for misclassified than correctly
-classified ROIs (pooled mean width $0.39$ vs $0.16$; Welch $p = 0.003$), and
-also widens toward the decision boundary---partly a geometric property of the
-logistic link (the boundary effect shrinks markedly in logit space) but with a
-genuine residual.
+The interval is $2.4\times$ wider for misclassified than correctly classified
+ROIs in probability space, but this is largely the geometry of the logistic
+link: in logit space the ratio falls to $1.3\times$ (bootstrap CI including one)
+and the boundary correlation collapses, so the interval width does not add a
+reliable error flag beyond the predicted probability in this cohort.
 The few confidently-misclassified ROIs are almost all low-grade or ungraded
 tumors whose spectra resemble normal tissue
-(cf.\ Figure~\ref{fig:spectrum_ggg})---a contrast limit, not a failure of the
-uncertainty estimate. This analysis is exploratory.
+(cf.\ Figure~\ref{fig:spectrum_ggg}).
+This panel illustrates a capability of full posterior sampling (a calibrated
+probability with a credible interval), not a validated biomarker; it is
+exploratory.
 }
 \label{fig:uncertainty}
 \end{figure}
