@@ -592,3 +592,77 @@ Built `src/.../visualization/paper_style.py` (shared fonts/colours/D-labels/lege
 - **§2** updated figure-justification table; **§3** checks pre-resolved this session (NUTS params non-default; AUC resamples=2000; raw-vs-LR + MAP-fractions + std-vs-raw already settled).
 
 **Coauthor dependencies for the final draft:** Sandy (van-Trees CRLB derivation + theory.tex math/notation + inverse-gamma σ Gibbs question); Stephan (pixelwise-patient-in-cohort?, biological/histology refs + GGG interpretation, "0.8 is good" framing, Obsidian-paper citation fit).
+
+---
+
+## 13. JOINT ITERATION — decisions LOCKED + execution plan (2026-06-06)
+
+**Goal:** finalize a first MRM-conform, consistent draft ready for Sandy + Stephan review. Not reopening the framing — executing all 87 inline notes + Patrick's new notes.
+
+### 13.1 LOCKED decisions
+- **Spine (Patrick approved):** method + uncertainty, NOT single-thesis "why ADC works." The headline contribution is a **rigorous prostate identifiability analysis** (Fisher/CRLB + Bayesian posterior) of which "why ADC works" is the sharpest *result*. De-risks the "null result" read; MRM-valued (resolves the two-camps debate; warns which compartments are fittable). See `notes/lit_novelty_assessment_2026-06-06.md` for the literature-grounded accept-case.
+- **Title (approved):** *"Why ADC works: identifiability and uncertainty in Bayesian decomposition of the prostate diffusivity spectrum"* (lead hook + rigor-signaling subtitle). Replaces the current `main.tex` titlepage title.
+- **Structure (approved) — 3 blocks by MATURITY** (supersedes the §0/§11.1 4-block; figures renumber 1–9 in this reading order):
+  - **A. The method & what it can resolve** (solid core): Fig 1 spectra · Fisher · validation → identifiability.
+  - **B. Tumor detection & why ADC works** (solid core, the climax): ROC + Table 1 · ADC-discriminant · sensitivity.
+  - **C. What the full posterior adds beyond detection** (explicitly EXPLORATORY): uncertainty-aware classifier · GGG grading · pixel-wise. MRM wants feasibility flagged — do so.
+  - New fig reading order: 1 spectra, 2 Fisher, 3 validation, 4 ROC, 5 adc_discriminant, 6 sensitivity, 7 uncertainty, 8 spectrum_ggg, 9 pixelwise (+ Table 1 in B). Semantic `\label`s auto-renumber.
+
+### 13.2 Framing CORRECTION — identifiability is NOT the cause of the 2-bin collapse (Patrick caution, must hold)
+- **Do NOT claim "detection collapses to 2 bins *because* the others are unidentifiable."** The collapse is **biological + low-dimensional** (restricted ↑ / free-water ↓ couple as cellularity rises → 1-D detection axis → ADC). Identifiability is a *complementary* fact, not the cause.
+- **"Poorly identified" ≠ "irrelevant"** — intermediate bins carry a weaker *grading* signal (Fig GGG). Frame as "models fit these compartments *precisely* and the data don't support that precision," NOT "these compartments don't matter."
+
+### 13.3 Identifiability revalidation — DONE 2026-06-06 (Stephan's "smaller values → higher CV" caution)
+Computed from `features.csv` (149 ROIs, NUTS posterior mean + std per bin):
+
+| bin D | mean frac | **abs posterior std** | CV (per-ROI) |
+|---|---|---|---|
+| 0.25 | 0.104 | 0.015 | 0.20 |
+| 0.50 | 0.038 | 0.030 | 0.81 |
+| 0.75 | 0.039 | 0.032 | 0.83 |
+| 1.00 | 0.052 | 0.041 | 0.81 |
+| 1.50 | 0.116 | 0.083 | 0.74 |
+| 2.00 | 0.256 | **0.121** | 0.52 |
+| 3.00 | 0.333 | 0.078 | 0.32 |
+| 20.0 | 0.062 | 0.016 | 0.36 |
+
+corr(mean, CV) = **−0.51** (Stephan partly right: small-mean bins do tend to higher CV); corr(mean, abs_std) = **+0.74** (abs width scales with fraction).
+- **Stephan's caveat applies to the low-mass slow bins** (D=0.5, 0.75; mean ~0.04): their CV 0.81–0.83 is *partly* the small-denominator effect — do NOT over-read CV there.
+- **But the identifiability limit is REAL and mean-independent for the glandular bins:** D=1.5 (mean 0.116, > the well-ID'd D=0.25!) has abs_std 0.083 = 5.5× D=0.25; **D=2.0 is the 2nd-LARGEST compartment (mean 0.256) yet has the LARGEST absolute posterior std (0.121)**. Big mean, big uncertainty → genuine ill-conditioning, not a denominator artifact. Ties directly to the Fisher correlation >0.99.
+- **Honest manuscript framing (use in Theory + Results identifiability paragraph):** (1) anchor on Fisher correlation structure (mean-independent, theoretical); (2) report **absolute posterior std** — glandular bins worst-resolved despite large mass; (3) CV as a *relative* descriptor with the explicit small-mean caveat for D=0.5–0.75. **Beautiful honest tension:** the grading-relevant compartments (1.5, 2.0) are exactly the worst-resolved in absolute terms → why grading is exploratory.
+
+### 13.4 Uncertainty revalidation — DONE 2026-06-06 (re-ran fig6 on gold-standard .nc)
+Logit-geometry decomposition validated (script already computed `z_std`; pooled n=149):
+- **Misclassified-vs-correct CI width: 2.41× prob → 1.27× logit** (correct 0.162 vs miss 0.389; Welch p=0.003). Persists in logit space → **genuine** signal (the defensible "uncertainty flags errors" claim).
+- **Boundary distance: ρ(dist,CIw) = −0.94 prob → −0.29 logit.** Collapses → **mostly geometric** (logistic-link), NOT a real discovery; correctly not headlined.
+- Per-zone: PZ miss n=10 (logit 1.56×); TZ miss n=5 (logit 1.20×, prob Welch p=0.118 ns from small n); pooled is the robust statement.
+- Confident misses (|P−0.5|>0.30, n=5): new62/new14/new46/new52 = low-grade/ungraded tumors read as normal; **new56 = a normal ROI in a GGG-1 patient read as tumor** (flagged in results.tex for Patrick to confirm not a label slip).
+- Manuscript numbers were already correct; results.tex now states the validated decomposition inline (marker removed). Claim qualified per Ghesu 2021 / Tanno 2021.
+
+### 13.5 Citation strategy (Patrick vets before final inclusion; review = LAST todo)
+Add `.bib` entries now; write engagement prose with citations as **clearly-marked candidates**; NO unverified verbatim quotes (`[QUOTE-FLAG]` list in `lit_novelty_assessment`). Must-cite/engage: Mulkern-Balasubramanian-**Maier** 2017 (co-author prior warning we quantify); Bourne & Panagiotaki 2016 (the stated tension we answer); Prange & Song 2009 + Whittall-MacKay 1989 (method lineage); Novikov 2018/Jelescu 2016/Lampinen 2019 (brain-degeneracy prior art); Alexander 2008 (CRLB+MCMC prior art); Si & Liu 2018 ("don't recommend DKI… for now"); engage RSI + Conlin 2021 (BIC=4 → rebut: model-selection ≠ per-ROI identifiability) head-on; Faghani 2023 + Alves 2023 (UQ demand). **Do NOT headline "joint noise inference" as novel** (Sjölund 2018). **Disclose our own ISMRM-2022 abstract** in refs + cover letter (overlap policy; novelty rests on the new layers).
+
+### 13.6 Execution sequence + cadence
+1. ✅ Lock state (this section). 2. ✅ Identifiability revalidation (§13.3); ⏳ uncertainty revalidation = Block-C gate. 3. Figure renumber + `.tex` rewire (once). 4. Prose section-by-section in reading order (Intro→Theory→Methods→Results→Discussion→Conclusion→Abstract last): execute inline+new notes, plant spine, cut redundancy, fewer subheadings, convert co-author-blocked parentheticals → clean colored markers (NOT rendered plain text). 5. Figure-level fixes (Fisher panel-a [Patrick wants DROP correlation matrix vs Stephan KEEP — Patrick call]/2-row layout/factors in-figure; Fig 6/8/SI page-overflow; Table 1 single-feature rows; SI order = directions before atlas; atlas `\includepdf` render check) + MRM compliance (≤5000 words, ≤250 abstract, ≤6 keywords, Data Availability+SHA+DOI, IRB statement, ORCID, refs ≤6-authors-then-etal, LLM disclosure, caption-list-at-end, Conclusion merge decision). 6. Citation pass + assemble Sandy/Stephan question list.
+- **Cadence:** check in after revalidation, after figure rewire, after each major section.
+- **Reference saved:** `notes/MRM_AUTHOR_GUIDELINES.md` (tailored compliance checklist + gap analysis + verbatim).
+
+### 13.7 Execution progress — autonomous pass 2026-06-06 (DONE this session)
+Full first-draft pass executed (Patrick away, "run as long as possible"). All 87 inline `(@patrick…)` notes resolved/removed (verified: zero remain in prose); the only markers left are 16 intentional clean co-author questions (`\note`/`\stephan`/`\todo`).
+- **Figures rewired** `figures.tex` to the 3-block reading order (1 spectra, 2 fisher, 3 validation | 4 roc, 5 adc_discriminant, 6 sensitivity | 7 uncertainty, 8 spectrum_ggg, 9 pixelwise). Semantic labels auto-renumber; all `\ref`s verified resolving, all `\label`s present.
+- **Title + keywords** updated in `main.tex` (new title; 6 keywords).
+- **Bib:** 20 new verified entries added (marked `% NEW CITES — Patrick to vet`); all `\cite` keys resolve. DeLong removed from prose (unified on bootstrap CIs — it was never actually reported); `delong1988comparing` left in bib unused.
+- **All 8 prose sections rewritten** to the new spine: Intro (Bourne tension, model-proliferation positioning, Mulkern-Maier), Theory (3 subsections, mean-independent identifiability framing, softened MAP/ill-posed/D^3/2, Sandy markers), Methods (4 subsections, IRB sentence, GGG-AUC removed, LOOCV/bootstrap unified, pixelwise+directional provenance markers), Results (3-block, Fisher+abs-std identifiability with CV small-mean caveat, tone fixes, λ=0.1 smearing removed, Block C flagged exploratory), Discussion (rebuilt razor-sharp: two-camps+RSI+Conlin head-on, identifiability-as-caution, positive MAP/NUTS, histology hypothesis, tight limitations), Conclusion (tight, non-redundant), Abstract (≤250, structured, spine).
+- **MRM compliance:** body ~4070-word proxy (real ~4.2–4.4k, well under 5000); abstract ~250; 6 keywords; `\usepackage{pdfpages}` added (atlas now renders); Data Availability Statement added (SHA `\todo`); IRB sentence added (Stephan to confirm). SI reordered (directional → atlas).
+- **Verified numbers:** TZ-normal D=0.25 = 9.9% MAP / 8.5% NUTS (corrected from an approximated value); identifiability table (§13.3); bootstrap=2000, ADC b≤1000 (5 pts), normalization post-hoc. NO unverified number shipped.
+
+**Done in the follow-up pass 2026-06-06 (committed + pushed):**
+- ✅ **Fisher figure relayout** — `scripts/generate_fisher_figure.py` rebuilt: panel (a) kept; 2-over-1 layout (a,b top, c centered); y-axis "standard deviation of fraction $R_j$"; "Bayesian CRLB gap" title text removed; BOTH improvement factors in-panel (gray prior gain unc→Bayes 24/35/52/63/36/21/11/3×; orange constraint gain Bayes→NUTS 17/42/74/50/27/14/6/2×); SNR labels inside panel c; fonts bumped to match grid. Caption shortened (factors now in-figure). Regenerated + visually verified.
+- ✅ **Uncertainty logit-geometry re-clean** — §13.4; results.tex marker replaced with validated inline numbers.
+- ✅ **ORCID** added to title page (0000-0002-1329-4955).
+
+**STILL OPEN (for Patrick / co-authors):**
+1. **Table 1 single-feature rows** — recommended as a Supporting table (numbers in fig2 script, not auc_table.csv); note in `tables.tex`.
+2. **Co-author markers:** Sandy (van-Trees Fig 2, Eq~\ref{eq:fisher}/map notation, inverse-gamma σ Gibbs); Stephan (IRB wording, pixelwise-in-cohort, GGG=0 split, histology refs, kuczera cite, Obsidian-paper citation fit).
+3. **Patrick:** directional count (4/8 vs 13/7 vs 3/6), commit SHA + README + Zenodo DOI in the Data Availability Statement, λ-sweep SI figure (optional), confirm new56 normal-ROI label, **vet the 20 new citations against source PDFs** (no verbatim quotes used; see `lit_novelty_assessment`).
+4. **General pass + Overleaf:** Patrick to pull into Overleaf, do a full read-through, run texcount, and check caption/page overflow on the real render.
