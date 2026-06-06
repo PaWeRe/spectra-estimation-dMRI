@@ -577,3 +577,18 @@ Built `src/.../visualization/paper_style.py` (shared fonts/colours/D-labels/lege
 - **Fig 9** E,F per-voxel score = same LR (C=1, 2-bin {0.25,3.0} / 8-bin) + StandardScaler — consistent with Fig 2/Table 1. B,C = fractions. (PZ classifier still PROVISIONAL pending patient-8640 zone, §8.)
 - **Two caption fixes applied (pending push):** (a) **Table 1** — opening falsely claimed "Entries are leave-one-out cross-validated AUCs" (the ADC raw-rank row is in-sample); reworded to carve it out + state the fair head-to-head is ADC-LR vs spectral. (b) **Fig 2** — caption named only "two weakest bins (D=2.0, D=20)" but the plot shows THREE (added D=1.5 indigo in round 3) and "near chance" was wrong for D=2.0 in TZ (0.792); reframed the three as zone-dependent. **No code/CSV changes** — purely caption accuracy.
 - **Verdict: reviewer-defensible.** Optional nicety: a Results clause noting the fair comparison is ADC-LR vs spectral-LR (Methods already flags ADC raw-rank as in-sample "for reference").
+
+---
+
+## 12. JOINT ITERATION — starting point (2026-06-06)
+
+**Repo + Overleaf unified at `ac1576c`.** Patrick did a full annotation pass of the manuscript in Overleaf (`923414d`, **~87 inline `(@patrick: …)` notes** across every section — they RENDER in the compiled PDF, so all must be resolved/removed before submission) and pushed; this was merged with Claude's classification-waterproofing caption fixes (`b037253`) and pushed. Clean merge — disjoint files, no content/number conflicts. The earlier prose-pass + MAP-fraction fix + figure renumbering + CRLB van-Trees reframe are all in the base.
+
+**Next session:** Patrick brings (a) additional notes and (b) the MRM author guidelines → produce the **final draft of the entire manuscript**.
+
+**→ Full prep in [`notes/JOINT_ITERATION_AGENDA.md`](notes/JOINT_ITERATION_AGENDA.md):**
+- **§0 — the foundational decision: restructuring.** Patrick proposes a narrative reorder: derive-spectra [Fig 1, 7, 8] → PZ/TZ detection [Fig 2, 9, 6] → "why ADC works" [Fig 3, 4] → GGG [Fig 5]. This revisits the §11.1 numbering; **decide first**, then renumber + rewire once.
+- **§1 — the 87 notes distilled into 9 themes:** narrative balance (don't over-center the 2-bin collapse), concision/redundancy (cut historic λ=0.1 smearing to SI; reduce subsections→paragraphs; aim well under 5000 words), framing/tone (reframe "too-negative" MAP/NUTS, 0.8-correlation, "cannot resolve δ"), citations/lit pass, methodology clarity (MAP abbrev, NUTS-vs-MAP framing, DeLong/Welch, p-value-vs-bootstrap consistency), novelty advertising (joint σ+spectra, sensitivity analysis, uncertainty-as-biomarker), factual checks, Sandy math/van-Trees, figures/Table 1.
+- **§2** updated figure-justification table; **§3** checks pre-resolved this session (NUTS params non-default; AUC resamples=2000; raw-vs-LR + MAP-fractions + std-vs-raw already settled).
+
+**Coauthor dependencies for the final draft:** Sandy (van-Trees CRLB derivation + theory.tex math/notation + inverse-gamma σ Gibbs question); Stephan (pixelwise-patient-in-cohort?, biological/histology refs + GGG interpretation, "0.8 is good" framing, Obsidian-paper citation fit).
