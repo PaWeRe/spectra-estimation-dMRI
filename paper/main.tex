@@ -98,7 +98,7 @@
 \usetagform{brackets}
 
 % === Title ===
-\title{Magnetic Resonance in Medicine}
+\title{Why ADC Works: Bayesian Spectral Decomposition of Prostate Multi-b Diffusion MRI}
 
 % === Line Numbers ===
 \linenumbers
@@ -138,7 +138,7 @@ E-mail      & \email{patrick.remerscheid@gmail.com} \\
 
 \vfill
 
-\wordcount{\todo{count}}{$<$200}
+\wordcount{\todo{body: run texcount on Overleaf}}{247}
 
 \end{titlepage}
 %TC:endignore
@@ -150,7 +150,7 @@ E-mail      & \email{patrick.remerscheid@gmail.com} \\
 \input{sections/abstract}
 
 \bigskip
-\keywords{Bayesian inference, diffusion-weighted imaging, prostate MRI, ADC, uncertainty estimation, diffusivity spectra, cancer biomarkers}
+\keywords{Bayesian inference, diffusion-weighted imaging, prostate MRI, ADC, diffusivity spectra, cancer biomarkers}
 %TC:break _main_
 \pagebreak
 
@@ -166,6 +166,12 @@ E-mail      & \email{patrick.remerscheid@gmail.com} \\
 %TC:ignore
 \section{Acknowledgments}
 This study was supported in part by NIH grants P41EB028741 and R01CA241817.
+%TC:endignore
+
+% === Data Availability Statement ===
+%TC:ignore
+\section{Data Availability Statement}
+The source code, configuration files, and the de-identified per-ROI signal decays and labels used in this study are openly available at \url{https://github.com/PaWeRe/spectra-estimation-dMRI} (archived at \todo{Zenodo DOI}; commit SHA-1 \todo{hash}). The repository packages the full inference, classification, and figure-generation pipeline so that the reported results can be reproduced and the methods applied to new datasets.
 %TC:endignore
 
 % === References ===

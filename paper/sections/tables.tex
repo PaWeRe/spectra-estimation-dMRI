@@ -18,8 +18,9 @@ beat, yet the spectral models match it within overlapping confidence intervals.
 ``8 fractions'' uses all spectral bins; ``2 outer fractions'' uses only
 $D = 0.25$ and $3.0\;\umsmm$.
 Confidence intervals are percentile bootstrap over patients
-(2000 resamples) \citep{efron1993bootstrap}; paired AUC comparisons reported in
-the Results use DeLong's test \citep{delong1988comparing}.
+(2000 resamples) \citep{efron1993bootstrap}.
+Individual fractions are NUTS single-feature raw-rank AUCs---the per-fraction ROC
+curves in Figure~\ref{fig:roc}.
 Grade-classification AUCs are omitted: with only $n = 29$ graded tumors they are
 too imprecise to be informative (95\% intervals spanning $\sim$0.5--0.95); the
 grading analysis is instead presented as grade-dependent spectral shifts
@@ -38,6 +39,16 @@ Spectral LR, 8 fractions (NUTS)       & 0.926 [0.85, 0.98] & 0.923 [0.81, 1.00] 
 \midrule
 Spectral LR, 2 outer fractions (MAP)  & 0.925 [0.86, 0.98] & 0.965 [0.90, 1.00] \\
 Spectral LR, 2 outer fractions (NUTS) & 0.933 [0.86, 0.98] & 0.937 [0.85, 0.99] \\
+\midrule
+\multicolumn{3}{l}{\textit{Individual fractions (NUTS, single-feature raw rank)}} \\
+$D = 0.25\;\umsmm$  & 0.88 [0.78, 0.96] & 0.91 [0.78, 0.99] \\
+$D = 0.50\;\umsmm$  & 0.80 [0.69, 0.89] & 0.85 [0.72, 0.95] \\
+$D = 0.75\;\umsmm$  & 0.81 [0.71, 0.90] & 0.85 [0.71, 0.95] \\
+$D = 1.00\;\umsmm$  & 0.83 [0.73, 0.92] & 0.83 [0.69, 0.94] \\
+$D = 1.50\;\umsmm$  & 0.83 [0.73, 0.92] & 0.55 [0.36, 0.73] \\
+$D = 2.00\;\umsmm$  & 0.59 [0.45, 0.70] & 0.79 [0.63, 0.92] \\
+$D = 3.00\;\umsmm$  & 0.92 [0.85, 0.97] & 0.90 [0.81, 0.97] \\
+$D = 20.0\;\umsmm$  & 0.52 [0.37, 0.66] & 0.55 [0.34, 0.75] \\
 \bottomrule
 \end{tabular}
 \end{table}

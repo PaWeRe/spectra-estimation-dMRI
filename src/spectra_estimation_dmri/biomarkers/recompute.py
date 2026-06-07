@@ -402,6 +402,20 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
                         "auc_lo": lo, "auc_hi": hi, "n": len(y)})
         print(f"    ADC raw rank:    {adc_raw_auc:.4f} [{lo:.3f}, {hi:.3f}]")
 
+        # Per-bin single-feature raw-rank AUC (matches the individual-fraction
+        # ROC curves in Fig 2; oriented so AUC >= 0.5, bootstrap CI on the
+        # oriented score as for ADC raw rank above).
+        for est, cols in [("MAP", map_cols), ("NUTS", nuts_cols)]:
+            for c, col in zip(D_COLS, cols):
+                feat = task_df[col].values
+                score = feat if roc_auc_score(y, feat) >= 0.5 else -feat
+                auc_bin = roc_auc_score(y, score)
+                lo_b, hi_b = bootstrap_auc_ci(y, score)
+                results.append({"task": task_name,
+                                "method": f"{est} {c.replace('D_', 'D=')}",
+                                "C": "-", "auc": auc_bin,
+                                "auc_lo": lo_b, "auc_hi": hi_b, "n": len(y)})
+
         for C in C_values:
             # ADC via LR
             auc_adc, pred_adc, _, _, _ = loocv_auc(adc_vals.reshape(-1, 1), y, C=C)
