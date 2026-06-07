@@ -18,8 +18,13 @@ beat, yet the spectral models match it within overlapping confidence intervals.
 ``8 fractions'' uses all spectral bins; ``2 outer fractions'' uses only
 $D = 0.25$ and $3.0\;\umsmm$.
 Confidence intervals are percentile bootstrap over patients
-(2000 resamples) \citep{efron1993bootstrap}; paired AUC comparisons reported in
-the Results use DeLong's test \citep{delong1988comparing}.
+(2000 resamples) \citep{efron1993bootstrap}; equivalence is read from
+overlapping intervals.
+% NOTE(Patrick): you asked about adding the individual single-fraction AUCs
+% (the thin curves in Fig 2) here "for reference." They are raw, in-sample,
+% max-orientation AUCs (not in auc_table.csv; computed in fig2_roc_detection.py)
+% and 8 bins x 2 zones would crowd the main table -- recommend a Supporting
+% Information table instead. Decide before submission.
 Grade-classification AUCs are omitted: with only $n = 29$ graded tumors they are
 too imprecise to be informative (95\% intervals spanning $\sim$0.5--0.95); the
 grading analysis is instead presented as grade-dependent spectral shifts
