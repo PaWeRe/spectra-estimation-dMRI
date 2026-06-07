@@ -34,7 +34,6 @@
 \usepackage{siunitx}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
-\usepackage{pdfpages}  % required for the multi-page Supporting Information atlas (\includepdf)
 
 % === Page Geometry (MRM: letter, 1in margins) ===
 \geometry{letterpaper,margin=1in}
@@ -110,7 +109,7 @@
 % === Title Page ===
 %TC:ignore
 \begin{titlepage}
-{\noindent\LARGE\bf Why ADC works: identifiability and uncertainty in Bayesian decomposition of the prostate diffusivity spectrum}
+{\noindent\LARGE\bf Why ADC Works: Bayesian Spectral Decomposition of Prostate Multi-b Diffusion MRI}
 \bigskip
 
 \begin{flushleft}\large
@@ -135,7 +134,6 @@
 \begin{tabular}{>{\bfseries}rl}
 Name        & Patrick Remerscheid \\
 E-mail      & \email{patrick.remerscheid@gmail.com} \\
-ORCID       & \url{https://orcid.org/0000-0002-1329-4955} \\
 \end{tabular}
 
 \vfill
@@ -152,7 +150,7 @@ ORCID       & \url{https://orcid.org/0000-0002-1329-4955} \\
 \input{sections/abstract}
 
 \bigskip
-\keywords{prostate cancer, diffusion-weighted MRI, apparent diffusion coefficient, Bayesian inference, uncertainty quantification, diffusivity spectrum}
+\keywords{Bayesian inference, diffusion-weighted imaging, prostate MRI, ADC, uncertainty estimation, diffusivity spectra, cancer biomarkers}
 %TC:break _main_
 \pagebreak
 
@@ -168,19 +166,6 @@ ORCID       & \url{https://orcid.org/0000-0002-1329-4955} \\
 %TC:ignore
 \section{Acknowledgments}
 This study was supported in part by NIH grants P41EB028741 and R01CA241817.
-
-% === Data Availability Statement (MRM: required in the main manuscript) ===
-\section*{Data Availability Statement}
-The source code, configuration files, and de-identified per-ROI signal decays
-(with radiologist labels and Gleason Grade Groups) that support the findings of
-this study are openly available at
-\url{https://github.com/PaWeRe/spectra-estimation-dMRI}
-% TODO(Patrick): add the exact commit SHA-1 used for this paper, and ideally a
-% Zenodo (or equivalent) DOI, per MRM's reproducible-research guidelines;
-% maintain the archive >= 5 years. State the IRB/consent conditions under which
-% the human data are shared.
-(commit \texttt{\todo{SHA-1}}). The repository packages the inference methods so
-the full pipeline can be re-run on the released data or on new datasets.
 %TC:endignore
 
 % === References ===

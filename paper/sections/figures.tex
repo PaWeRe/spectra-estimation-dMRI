@@ -1,20 +1,13 @@
 % === FIGURES ===
 % MRM: max 10 items (figures + tables combined)
 % Budget: 9 figures + 1 table = 10 items (FULL)
-% Supplementary: directional spectra, all-ROI atlas.
+% Supplementary: atlas, simulation recovery, Fisher.
 %
 % Per Stephan (2026-05): MRM does not allow caption titles or bold lead-in;
 % caption begins with a single summary sentence. Coloring convention used
 % throughout: blue = normal tissue, red = tumor, orange = NUTS,
 % green = MAP, gray/black = CRLB / ground-truth / reference.
-%
-% ORDER = 3-block narrative (locked 2026-06-06, PROJECT_STATE 13.1), figures
-% renumber 1-9 in reading order; semantic \label's auto-update every \ref:
-%   Block A (method & what it can resolve):  1 spectra, 2 fisher, 3 validation
-%   Block B (detection & why ADC works):     4 roc, 5 adc_discriminant, 6 sensitivity
-%   Block C (beyond detection, exploratory): 7 uncertainty, 8 spectrum_ggg, 9 pixelwise
-
-% ============================ BLOCK A ============================
+% Captions shortened 2026-06-02 (don't fit on page); detail moved to text.
 
 % --- Fig 1: Cohort Diffusivity Spectra by Tissue and Zone ---
 \begin{figure}[p]
@@ -39,70 +32,7 @@ Figure~\ref{fig:sensitivity} and the supplementary atlas.
 \label{fig:spectra}
 \end{figure}
 
-% --- Fig 2: Fisher-information analysis of the spectral discretization ---
-% Generator: scripts/generate_fisher_figure.py -> fig_fisher_v2. 2-over-1
-% layout (a,b top; c centered below); panel (b) three-bar comparison at the
-% cohort-median SNR=303 with both improvement factors printed in-panel.
-% TODO(Sandy): validate the van-Trees Bayesian-CRLB derivation in panel (b).
-\begin{figure}[p]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_fisher_v2.pdf}
-\caption{%
-Fisher-information analysis of the eight-bin spectral discretization.
-(a)~Fisher-information correlation matrix
-$C_{jk} = F_{jk}/\sqrt{F_{jj}F_{kk}}$: adjacent intermediate components
-($D = 0.50$--$1.00\;\umsmm$) are mutually correlated above $0.99$, making them
-nearly indistinguishable from the 15 b-value measurements, whereas
-$D = 0.25$ and $D = 20\;\umsmm$ are the most separable.
-(b)~Per-component estimation uncertainty at the cohort-median SNR $= 303$: the
-unconstrained Cram\'er--Rao lower bound (no prior), the Bayesian (van Trees)
-CRLB incorporating the half-normal prior ($\lambda = 0.1$), and the empirical
-NUTS posterior standard deviation. Two improvement factors are printed above
-the bars: the prior gain (unconstrained $\to$ Bayesian, gray) and the
-constraint gain (Bayesian $\to$ NUTS, orange). The prior tightens the bound by
-up to two orders of magnitude, and the non-negativity constraint and one-sided
-prior tighten it by a further $2$--$74\times$.
-(c)~Individual component decay curves $R_j \exp(-bD_j)/K$ at equal fractions,
-with horizontal noise floors at SNR $= 50$, $100$, and $303$: slow components
-($D = 0.25\;\umsmm$) contribute signal across all b-values, whereas fast
-components ($D \geq 3.0\;\umsmm$) fall below the noise floor within the first
-few b-value steps, motivating the sparser discretization at high diffusivities.
-}
-\label{fig:fisher}
-\end{figure}
-
-% --- Fig 3: Method validation on simulated ground truth (spectrum x SNR battery) ---
-% Generator: scripts/fig8_battery.py (replots from cached
-% results/simulation/fig8_battery_snr.npz; --regen resamples). 4 ground truths
-% x 2 SNR recovery grid + per-SNR joint-noise sigma-calibration row. No Gibbs
-% (deferred). Real pipeline: nuts.yaml + tuned-MAP ridge.yaml.
-\begin{figure}[p]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/fig8_v6.pdf}
-\caption{%
-Validation of the Bayesian inference on simulated ground truth across spectrum
-shape and signal-to-noise ratio.
-Four ground-truth spectra (normal-like, tumor-like, bimodal at $D = 0.25$ and
-$3.0\;\umsmm$, and a concentrated $\delta$ at $D = 0.75\;\umsmm$) are each
-recovered at SNR $= 50$ and $1000$ (columns) bracketing the cohort median (303).
-In each recovery panel the black marks are the truth, the orange box plots the
-NUTS posterior for one realization (box $=$ IQR, whiskers $=$ 5th--95th
-percentile), and the green cross the tuned-MAP estimate; split-$\hat{R}$ is
-in each title (all $\leq 1.02$).
-Smooth spectra are recovered well at both SNRs, whereas the $\delta$ is
-under-recovered and smeared into its correlated neighbors---the identifiability
-limit of this grid, not a sampler artifact.
-The bottom row shows joint noise inference: the inferred $\hat{\sigma}$ (box
-plots over 12 realizations) versus the true $\sigma = 1/\mathrm{SNR}$ (dashed),
-recovered accurately for smooth spectra but over-estimated by $\sim$40--50\% on
-the $\delta$, where the model absorbs the unrepresentable spike as excess noise.
-}
-\label{fig:validation}
-\end{figure}
-
-% ============================ BLOCK B ============================
-
-% --- Fig 4: Tumor-detection ROC; collapse onto the two outer compartments ---
+% --- Fig 2: Tumor-detection ROC; collapse onto the two outer compartments ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig2_v3.pdf}
@@ -132,7 +62,7 @@ Table~\ref{tab:auc}.
 \label{fig:roc}
 \end{figure}
 
-% --- Fig 5: ADC vs Spectral Discriminant ---
+% --- Fig 3: ADC vs Spectral Discriminant ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig3_v4.pdf}
@@ -157,7 +87,7 @@ identically to the spectral classifier, independent of estimator.
 \label{fig:adc_discriminant}
 \end{figure}
 
-% --- Fig 6: per-bin anatomy of the spectral discriminant ---
+% --- Fig 4: per-bin anatomy of the spectral discriminant ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig4_std_v4.pdf}
@@ -180,44 +110,16 @@ positive, $D = 3.0\;\umsmm$ negative); the intermediate coefficients are
 individually unstable from inter-bin collinearity and poor identifiability, so
 their separate detection weights are not attributable.
 The profile anti-correlates with $\partial\text{ADC}/\partial R_j$
-($r = -0.79$ PZ, $-0.88$ TZ), carried by the two outer bins.
+($r = -0.79$ PZ, $-0.88$ TZ), carried by the two outer bins---weaker than the
+near-unity value seen under heavy regularization ($\lambda = 0.1$), where
+smearing artificially smooths the profile (see Discussion).
 The intermediate bins' value appears instead as a grading signal
 (Figure~\ref{fig:spectrum_ggg}).
 }
 \label{fig:sensitivity}
 \end{figure}
 
-% ============================ BLOCK C ============================
-
-% --- Fig 7: Uncertainty-aware classifier (posterior propagation) ---
-\begin{figure}[p]
-\centering
-\includegraphics[width=\textwidth]{figures/fig6_v2.pdf}
-\caption{%
-Propagating the diffusivity-spectrum posterior through the classifier turns a
-binary label into a calibrated probability of cancer whose uncertainty is
-largest where the classifier is most likely to be wrong.
-For each ROI the leave-one-out classifier (the NUTS-feature pipeline of
-Figure~\ref{fig:roc}, $C = 1$) is applied to every posterior draw of the eight
-fractions, yielding a distribution over $P(\mathrm{tumor})$. Per-ROI
-predictions in the peripheral zone (top, $n = 81$) and transition zone (bottom,
-$n = 68$), sorted by predicted probability: markers at the posterior mean
-(circles normal, squares tumor), error bars the 90\% credible interval, pale
-for correctly classified and saturated for misclassified ROIs.
-The interval is on average $2.4\times$ wider for misclassified than correctly
-classified ROIs (pooled mean width $0.39$ vs $0.16$; Welch $p = 0.003$), and
-also widens toward the decision boundary---partly a geometric property of the
-logistic link (the boundary effect shrinks markedly in logit space) but with a
-genuine residual.
-The few confidently-misclassified ROIs are almost all low-grade or ungraded
-tumors whose spectra resemble normal tissue
-(cf.\ Figure~\ref{fig:spectrum_ggg})---a contrast limit, not a failure of the
-uncertainty estimate. This analysis is exploratory.
-}
-\label{fig:uncertainty}
-\end{figure}
-
-% --- Fig 8: Diffusivity Spectrum by Gleason Grade Group ---
+% --- Fig 5: Diffusivity Spectrum by Gleason Grade Group (single-panel ladder) ---
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/fig5_v5.pdf}
@@ -245,10 +147,117 @@ tumor ROIs (7 with GGG\,$=\,0$, 4 ungraded) are not shown.
 \label{fig:spectrum_ggg}
 \end{figure}
 
+% --- Fig 6: Uncertainty-aware classifier (posterior propagation) ---
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig6_v2.pdf}
+\caption{%
+Propagating the diffusivity-spectrum posterior through the classifier turns a
+binary label into a calibrated probability of cancer whose uncertainty is
+largest where the classifier is most likely to be wrong.
+For each ROI the leave-one-out classifier (the same NUTS-feature pipeline as
+Figure~\ref{fig:roc}, $C = 1$) is applied to every NUTS posterior draw of the
+eight fractions, yielding a posterior distribution over $P(\mathrm{tumor})$
+rather than a point estimate.
+Per-ROI predictions in the peripheral zone (top, $n = 81$) and transition zone
+(bottom, $n = 68$), each ROI sorted by its predicted probability: markers at
+the posterior-mean probability (circles normal, squares tumor) with error bars
+the propagated 90\% credible interval; correctly classified ROIs are shown in
+pale colors and misclassified ROIs in saturated colors.
+Two uncertainties are evident. First, the credible interval is on average
+$2.4\times$ wider for misclassified than for correctly classified ROIs (pooled
+mean width $0.39$ vs $0.16$; Welch $p = 0.003$). Second, intervals widen toward
+the decision boundary ($P = 0.5$); this widening is partly a geometric property
+of the logistic link---in logit space both the boundary effect and the
+misclassified-to-correct width ratio shrink markedly---but a genuine residual
+remains.
+The residual confidently-misclassified ROIs are almost all low-grade or
+ungraded tumors whose spectra resemble normal tissue
+(cf.\ Figure~\ref{fig:spectrum_ggg})---a limit of diffusion contrast, not a
+failure of the uncertainty estimate.
+A MAP point estimate cannot produce these intervals.
+This analysis is exploratory.
+}
+\label{fig:uncertainty}
+\end{figure}
+
+% --- Fig 7: Fisher-information analysis of the spectral discretization ---
+% Promoted from the Supplement 2026-06-05 (position 7: after Fig 6, before the
+% validation battery). Keeps \label{fig:fisher} so the in-text references in
+% theory/results/discussion resolve to this main figure.
+% Generator: scripts/generate_fisher_figure.py -> fig_fisher_v2. Panel (b)
+% rebuilt per PROJECT_STATE F10: three-bar unconstrained / van-Trees Bayesian /
+% NUTS at the cohort-median SNR=303 (was hard-coded 150).
+% TODO(Sandy): validate the van-Trees Bayesian-CRLB derivation in panel (b).
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_fisher_v2.pdf}
+\caption{%
+Fisher-information analysis of the eight-bin spectral discretization.
+(a)~Fisher-information correlation matrix
+$C_{jk} = F_{jk}/\sqrt{F_{jj}F_{kk}}$: adjacent intermediate components
+($D = 0.50$--$1.00\;\umsmm$) are mutually correlated above $0.99$, making them
+nearly indistinguishable from the 15 b-value measurements, whereas
+$D = 0.25$ and $D = 20\;\umsmm$ are the most separable.
+(b)~Per-component estimation uncertainty at the cohort-median SNR $= 303$: the
+unconstrained Cram\'er--Rao lower bound (light gray, no prior), the Bayesian
+(van Trees) CRLB incorporating the half-normal prior ($\lambda = 0.1$; dark
+gray), and the empirical NUTS posterior standard deviation (orange).
+The prior tightens the unconstrained bound by up to two orders of magnitude,
+and the NUTS posterior is smaller still---the Bayesian-CRLB-to-NUTS ratio is,
+from $D = 0.25$ to $20\;\umsmm$, $17$, $42$, $74$, $50$, $27$, $14$, $6$, and
+$2\times$---because the non-negativity constraint and one-sided prior truncate
+the feasible region.
+(c)~Individual component decay curves $R_j \exp(-bD_j)/K$ at equal fractions,
+with horizontal noise floors at SNR $= 50$, $100$, and $303$: slow components
+($D = 0.25\;\umsmm$) contribute signal across all b-values, whereas fast
+components ($D \geq 3.0\;\umsmm$) fall below the noise floor within the first
+few b-value steps, motivating the sparser discretization at high diffusivities.
+}
+\label{fig:fisher}
+\end{figure}
+
+% --- Fig 8: Method validation on simulated ground truth (spectrum x SNR battery) ---
+% Generator: scripts/fig8_battery.py (replots from cached
+% results/simulation/fig8_battery_snr.npz; --regen resamples). 4 ground truths
+% x 2 SNR recovery grid + per-SNR joint-noise sigma-calibration row. No Gibbs
+% (deferred). Real pipeline: nuts.yaml + tuned-MAP ridge.yaml.
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/fig8_v6.pdf}
+\caption{%
+Validation of the Bayesian spectral inference on simulated ground truth across
+spectrum shape and signal-to-noise ratio.
+Four ground-truth spectra---a normal-like and a tumor-like spectrum (the
+cohort-mean NUTS spectra), a bimodal spectrum (mass at $D = 0.25$ and
+$3.0\;\umsmm$), and a concentrated $\delta$ at $D = 0.75\;\umsmm$---are each
+recovered at a low (SNR $= 50$) and a high (SNR $= 1000$) noise level
+(columns) that bracket the cohort median (303); the low end also reflects the
+reduced per-voxel SNR of the pixel-wise analysis.
+In each recovery panel the black marks are the truth, the orange box plots the
+NUTS posterior for one noisy realization (box $=$ interquartile range, whiskers
+$=$ 5th--95th percentile), and the green cross the tuned-MAP estimate
+($\lambda = 10^{-3}$); the split-$\hat{R}$ convergence diagnostic is reported
+in each panel title (all $\hat{R} \leq 1.02$).
+The smooth spectra are recovered well at both SNRs (tighter at high SNR),
+whereas the $\delta$ spike is under-recovered and smeared into its correlated
+neighboring bins---the genuine identifiability limit of this b-value grid, not
+a sampler artifact.
+The bottom row shows joint noise inference: at each SNR the inferred noise
+$\hat{\sigma}$ (NUTS posterior over 12 noisy realizations per ground truth,
+drawn as box plots) is compared to the true $\sigma = 1/\mathrm{SNR}$ (dashed
+line).
+$\sigma$ is recovered accurately for the smooth spectra but is over-estimated
+by $\sim$40--50\% on the $\delta$, where the model absorbs the unrepresentable
+spike as excess noise (consistent with the coverage caveat discussed below).
+}
+\label{fig:validation}
+\end{figure}
+
 % --- Fig 9: Pixel-wise Spectral Decomposition ---
 \begin{figure}[p]
 \centering
-\includegraphics[width=0.95\textwidth]{figures/fig9_v2.pdf}
+\includegraphics[width=\textwidth]{figures/fig9_v2.pdf}
 \caption{%
 Pixel-wise spectral decomposition of a single peripheral-zone prostate DWI
 slice (anonymized patient), showing that the ROI-level detector extends to the
