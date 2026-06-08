@@ -29,18 +29,18 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from spectra_estimation_dmri.visualization.paper_style import (
-    apply_style, COLORS, DIFFUSIVITIES, DLABELS,
+    apply_style, COLORS, DIFFUSIVITIES, DLABELS, top_legend,
 )
 
 # ── Style ─────────────────────────────────────────────────────────────────────
 apply_style("grid")
-# Larger panels in the 2+1 layout -> fonts can match the other figures.
+# Larger panels in the 2+1 layout -> fonts match the other figures more closely.
 plt.rcParams.update({
-    "axes.labelsize": 15,
-    "axes.titlesize": 15,
-    "xtick.labelsize": 13,
-    "ytick.labelsize": 13,
-    "legend.fontsize": 11,
+    "axes.labelsize": 17,
+    "axes.titlesize": 16,
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
+    "legend.fontsize": 14,
 })
 
 # ── Parameters ──────────────────────────────────────────────────────────────
@@ -76,8 +76,10 @@ nuts_std = df["mean_posterior_std"].values
 
 # ── Figure: 2+1 layout (a, b on top; c centered below) ───────────────────────
 fig = plt.figure(figsize=(15, 11))
-gs = fig.add_gridspec(2, 4, hspace=0.40, wspace=0.70,
-                      left=0.07, right=0.95, top=0.93, bottom=0.08)
+# wspace widened so panel (a)'s colorbar no longer crowds panel (b)'s y-axis;
+# top lowered to make room for the unified two-row legend above the panels.
+gs = fig.add_gridspec(2, 4, hspace=0.42, wspace=1.15,
+                      left=0.07, right=0.95, top=0.85, bottom=0.08)
 ax_a = fig.add_subplot(gs[0, 0:2])
 ax_b = fig.add_subplot(gs[0, 2:4])
 ax_c = fig.add_subplot(gs[1, 1:3])   # centered between the two upper panels
@@ -133,22 +135,23 @@ ax_b.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
 ax_b.set_ylabel("std of fraction (log scale)")
 ax_b.set_title("(b) per-component estimation uncertainty at SNR 303",
                fontweight="bold")
-ax_b.legend(loc="upper left", fontsize=10, framealpha=0.95)
-ax_b.text(0.98, 0.97,
-          "$\\times$ factors on bars:\nprior gain (gray),\nconstraint gain (orange)",
-          transform=ax_b.transAxes, fontsize=8.5, va="top", ha="right",
-          color="#333333",
-          bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.9))
+# Legend lifted to the unified top legend. The on-bar x-factor annotations stay;
+# the explanatory text box is removed (prior/constraint gains are defined in the
+# caption).
 
 # ─── Panel C: Component decay curves vs noise floors (SNR labelled inline) ────
 b_fine = np.linspace(0, 3.5, 300)
-colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
-          "#9467bd", "#8c564b", "#e377c2", "#7f7f7f"]
+# Palette deliberately AVOIDS orange (#ff7f0e = NUTS bar) and grey
+# (#8c8c8c = unconstrained CRLB bar) so the unified legend has no colour clash.
+colors = ["#1f77b4", "#17becf", "#2ca02c", "#d62728",
+          "#9467bd", "#8c564b", "#e377c2", "#bcbd22"]
+dcurve_handles = []
 for j, (d, col) in enumerate(zip(D, colors)):
     curve = np.exp(-b_fine * d) / len(D)
     lw = 2.2 if d in [0.25, 1.0, 3.0, 20.0] else 1.4
-    ax_c.plot(b_fine, curve, color=col, linewidth=lw, label=f"$D$ = {d:g}",
-              alpha=0.9)
+    line, = ax_c.plot(b_fine, curve, color=col, linewidth=lw,
+                      label=f"$D$ = {d:g}", alpha=0.9)
+    dcurve_handles.append(line)
 for snr_val, ls in zip([50, 100, 303], [":", "--", "-"]):
     noise_floor = 1.0 / snr_val
     ax_c.axhline(noise_floor, color="gray", linestyle=ls, linewidth=1.4,
@@ -163,8 +166,14 @@ ax_c.set_title("(c) component decay curves vs noise floor", fontweight="bold")
 ax_c.set_yscale("log")
 ax_c.set_ylim(5e-4, 0.2)
 ax_c.set_xlim(0, 4.15)                              # headroom for inline labels
-ax_c.legend(loc="upper right", ncol=2, fontsize=9, framealpha=0.9,
-            columnspacing=1.0, handlelength=1.4)
+
+# ─── Unified top legend (CRLB bar types + diffusivity-bucket colours) ────────
+# Replaces the per-panel legends of (b) and (c), matching the other figures.
+legend_handles = [b1, b2, b3] + dcurve_handles
+legend_labels = (["unconstrained CRLB", "Bayesian CRLB (van Trees)",
+                  "NUTS posterior std"]
+                 + [f"$D$ = {d:g}" for d in D])
+top_legend(fig, legend_handles, legend_labels, ncol=7, y=0.995)
 
 # ── Save ──────────────────────────────────────────────────────────────────
 out_dir = project_root / "paper" / "figures"

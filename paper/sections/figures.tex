@@ -75,7 +75,9 @@ Figure~\ref{fig:sensitivity} and the supplementary atlas.
 % (deferred). Real pipeline: nuts.yaml + tuned-MAP ridge.yaml.
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{figures/fig8_v6.pdf}
+% Tall 5x2 grid + long caption: cap the height so the figure and its caption
+% both fit on one page (tune the 0.60 fraction on Overleaf if needed).
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{figures/fig8_v6.pdf}
 \caption{%
 Validation of the Bayesian spectral inference on simulated ground truth across
 spectrum shape and signal-to-noise ratio.
@@ -195,8 +197,7 @@ little weight either way.
 \centering
 \includegraphics[width=\textwidth]{figures/fig5_v5.pdf}
 \caption{%
-The diffusivity spectrum by Gleason Grade Group reveals a detection axis
-distinct from a grading axis.
+The diffusivity spectrum shifts systematically across Gleason Grade Groups.
 NUTS posterior-mean spectrum averaged across ROIs, in two contrasts that share
 a normal-tissue baseline (gray, $n = 109$). Left (emergence): GGG\,$=\,1$
 ($n = 8$) versus GGG\,$\geq 2$ ($n = 21$). Right (aggressiveness): GGG\,$=\,2$
@@ -214,6 +215,9 @@ low-grade tumor then depleted ($0.26$ normal, $0.28$ at GGG\,$=\,1$, $0.17$ at
 GGG\,$\geq 3$).
 Grade groups are small (down to $n = 8$--$9$) and the bands wide; 11 of 40
 tumor ROIs (7 with GGG\,$=\,0$, 4 ungraded) are not shown.
+\stephan{exploratory --- please confirm the grade-dependent reading of the
+intermediate bins ($D = 0.25$, $2.0\;\umsmm$); the independent grading-axis
+claim has been dropped pending a larger graded cohort.}
 }
 \label{fig:spectrum_ggg}
 \end{figure}
@@ -221,7 +225,9 @@ tumor ROIs (7 with GGG\,$=\,0$, 4 ungraded) are not shown.
 % --- Fig 8: Prediction confidence (posterior propagation through the classifier) ---
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{figures/fig6_v2.pdf}
+% Long caption runs into the footer at full size: cap the height so the figure
+% and its caption both fit on one page (tune the 0.64 fraction on Overleaf).
+\includegraphics[width=\textwidth,height=0.64\textheight,keepaspectratio]{figures/fig6_v2.pdf}
 \caption{%
 The classifier returns a calibrated probability of cancer per ROI, and its
 confidence---a property of the classifier, not of the spectral posterior---flags

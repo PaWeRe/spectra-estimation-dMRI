@@ -1,9 +1,12 @@
 % === SUPPORTING INFORMATION ===
 %
 % Per Stephan: the CRLB derivation is short enough to remain in an Appendix
-% in the main document; the supplementary figures (NUTS convergence on
-% simulated data and the robustness sweep) live in a separate Supporting
-% Information document.
+% in the main document; the supplementary figures (direction independence and
+% the per-ROI spectral atlas) follow.
+%
+% Order (Patrick 2026-06-08): directional figure FIRST, then the multi-page
+% per-ROI atlas LAST (its \includepdf injects ~20 pages, so it must come last
+% or it splits the supplement).
 
 \section*{Appendix: Cram\'er-Rao Scaling of Bin Spacing}
 
@@ -39,53 +42,18 @@ $q = 1-p$ independent) via inversion of the $2 \times 2$ Fisher matrix.
 This argument is intentionally restricted to the two-compartment limit; the
 full multi-compartment problem is treated numerically in the main text.
 
-% --- Supplementary atlas: individual estimated spectra for every ROI ---
-% Multi-page atlas embedded with \includepdf.
-% REQUIRES \usepackage{pdfpages} in the main preamble.
-% Fallback if pdfpages is unavailable: include pages individually with
-%   \includegraphics[page=<n>]{figures/figS1_all_roi_spectra.pdf}  (n = 1..20).
-\clearpage
-\noindent\textbf{Supplementary Atlas: individual estimated spectra for all
-149 ROIs.}
-Each panel shows one ROI's full NUTS posterior over the eight-bin diffusivity
-spectrum ($D = 0.25,\,0.5,\,0.75,\,1.0,\,1.5,\,2.0,\,3.0,\,20\;\umsmm$, left to
-right) as box plots: the box spans the interquartile range, the solid line is
-the posterior median, the dashed line the posterior mean, and the whiskers the
-5th--95th percentiles (fliers suppressed, as the per-bin posteriors are
-continuous and unimodal). Each box face is coloured by the within-ROI per-bin
-coefficient of variation (CV $=$ posterior std $/$ posterior mean; colorblind-safe
-sequential colour plus hatching, light/clean $=$ well identified to
-dark/cross-hatched $=$ poorly identified, the same scheme as
-Figure~\ref{fig:sensitivity}): the box
-\emph{width} is the absolute posterior spread while the colour is the
-\emph{relative} spread, so a low-mass outer bin can show a narrow box yet a dark
-(relatively uncertain) colour. The green $\times$ marks the tuned-MAP
-($\lambda = 10^{-3}$) point estimate. Panels are grouped by anatomical zone and
-tissue type (page headers) and ordered by ADC within each group; panel titles
-give the patient identifier (the key into the publicly released signal-decay
-data), the zone and tissue, and, for tumour ROIs, the biopsy Gleason score and
-Grade Group. A companion key file (\texttt{figS1\_roi\_key.csv}) lists the exact
-anatomical region and SNR for each panel.
-\includepdf[pages=-]{figures/figS1_all_roi_spectra.pdf}
-
-% --- REMOVED 2026-06-02 ---
-% Fig S1 (NUTS multi-chain trace plots, fig_trace_simulation.pdf): dropped --
-% unreadable and uninformative to readers; convergence is reported in Methods
-% (split-Rhat < 1.05 for all 149 ROIs).
-% Fig S2 (robustness across spectral shapes, fig_robustness.png): dropped --
-% redundant with the recovery panels of main Figure~\ref{fig:validation}, and
-% carried unresolved font/colour TODOs. A broader simulation recovery battery
-% can be added back to the SI later if desired.
-
 % --- Fig S1: Direction independence of whole-ROI spectral estimates
-%     (demoted from the main text 2026-06-05; keeps \label{fig:directions} so the
-%     in-text references in results/figures resolve to this supplementary figure). ---
+%     (first supplementary figure; demoted from the main text 2026-06-05; keeps
+%     \label{fig:directions} so the in-text references in results/figures
+%     resolve to this supplementary figure). ---
 % Generator: scripts/fig7_directions_roi.py (decodes the per-direction ROI .dat
 % export; MAP spectra via recompute.compute_map_spectrum). Four patients x two
 % ROIs (one PZ, one TZ each) drawn from the directional tarball.
+% Tall 4x2 grid + caption: height-capped so figure + caption fit one page
+% (tune the 0.70 fraction on Overleaf if needed).
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_directions_v4.pdf}
+\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{figures/fig_directions_v4.pdf}
 \caption{%
 Direction independence of whole-ROI spectral estimates validates trace
 averaging.
@@ -108,3 +76,42 @@ equivalent on realistic spectra (Figure~\ref{fig:validation}).
 }
 \label{fig:directions}
 \end{figure}
+
+% --- REMOVED 2026-06-02 ---
+% Fig S (NUTS multi-chain trace plots, fig_trace_simulation.pdf): dropped --
+% unreadable and uninformative to readers; convergence is reported in Methods
+% (split-Rhat < 1.05 for all 149 ROIs).
+% Fig S (robustness across spectral shapes, fig_robustness.png): dropped --
+% redundant with the recovery panels of main Figure~\ref{fig:validation}, and
+% carried unresolved font/colour TODOs. A broader simulation recovery battery
+% can be added back to the SI later if desired.
+
+% --- Supplementary atlas: individual estimated spectra for every ROI (LAST) ---
+% Multi-page atlas embedded with \includepdf -- MUST stay last in the document
+% because it injects ~20 pages.
+% REQUIRES \usepackage{pdfpages} in the main preamble.
+% Fallback if pdfpages is unavailable: include pages individually with
+%   \includegraphics[page=<n>]{figures/figS1_all_roi_spectra.pdf}  (n = 1..20).
+\clearpage
+\noindent\textbf{Supplementary Atlas: individual estimated spectra for all
+149 ROIs.}
+Each panel shows one ROI's full NUTS posterior over the eight-bin diffusivity
+spectrum ($D = 0.25$, $0.5$, $0.75$, $1.0$, $1.5$, $2.0$, $3.0$, $20\;\umsmm$,
+left to right) as box plots: the box spans the interquartile range, the solid
+line is the posterior median, the dashed line the posterior mean, and the
+whiskers the 5th--95th percentiles (fliers suppressed, as the per-bin
+posteriors are continuous and unimodal). Each box face is coloured by the
+within-ROI per-bin coefficient of variation (CV $=$ posterior std $/$ posterior
+mean; colorblind-safe sequential colour plus hatching, light/clean $=$ well
+identified to dark/cross-hatched $=$ poorly identified, the same scheme as
+Figure~\ref{fig:sensitivity}): the box
+\emph{width} is the absolute posterior spread while the colour is the
+\emph{relative} spread, so a low-mass outer bin can show a narrow box yet a dark
+(relatively uncertain) colour. The green $\times$ marks the tuned-MAP
+($\lambda = 10^{-3}$) point estimate. Panels are grouped by anatomical zone and
+tissue type (page headers) and ordered by ADC within each group; panel titles
+give the patient identifier (the key into the publicly released signal-decay
+data), the zone and tissue, and, for tumour ROIs, the biopsy Gleason score and
+Grade Group. A companion key file (\texttt{figS1\_roi\_key.csv}) lists the exact
+anatomical region and SNR for each panel.
+\includepdf[pages=-]{figures/figS1_all_roi_spectra.pdf}
