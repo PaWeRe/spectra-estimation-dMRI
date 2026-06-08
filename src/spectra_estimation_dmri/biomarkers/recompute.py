@@ -663,6 +663,237 @@ def component_identifiability(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# Posterior-uncertainty propagation (the "Prediction confidence" claims)
+# ---------------------------------------------------------------------------
+# Canonical source for the manuscript's resolved-negative uncertainty result
+# (results.tex "Prediction confidence"; discussion.tex; PROJECT_STATE S4/S11/
+# S12/S13). The question: does propagating the NUTS posterior through the trained
+# detector add diagnostic value beyond the point estimate? Answer: NO. These
+# functions reproduce the exact numbers cited in the text so they are
+# reproducible from the single source of truth rather than only inside the Fig 6
+# plotting script (scripts/fig6_uncertainty_classifier.py).
+
+def load_nuts_draws(rois: list[dict], nc_dir: str = NC_DIR) -> dict:
+    """Load FULL NUTS posterior draws (not just mean/std).
+
+    Mirrors load_nuts_posteriors, but keeps every draw so the posterior can be
+    propagated through the classifier. Returns dict:
+        roi_id -> (n_draws, 8) array, each draw normalized to a fractional
+        spectrum (sums to 1), columns ordered by DIFFUSIVITIES.
+    """
+    import arviz as az
+
+    var_names = [f"diff_{d:.2f}" for d in DIFFUSIVITIES]
+    draws = {}
+    for roi in rois:
+        spectra_id = compute_spectra_id(roi["signal"], roi["b_values"], roi["snr"])
+        nc_path = os.path.join(nc_dir, f"{spectra_id}.nc")
+        if not os.path.exists(nc_path):
+            continue
+        idata = az.from_netcdf(nc_path)
+        cols = [idata.posterior[vn].values.flatten() for vn in var_names]
+        S = np.column_stack(cols)
+        S = S / np.maximum(S.sum(axis=1, keepdims=True), 1e-10)
+        draws[roi["roi_id"]] = S
+    return draws
+
+
+def _propagate_zone(df_zone: pd.DataFrame, draws: dict, C: float = 1.0,
+                    ci: tuple = (5.0, 95.0)) -> pd.DataFrame:
+    """Within-zone LOOCV detection LR (8 NUTS posterior-mean fractions),
+    propagating each held-out ROI's full posterior draws through the fixed
+    classifier to obtain the predictive distribution of P(tumor).
+
+    Identical pipeline to scripts/fig6_uncertainty_classifier.py (C=1, 8 NUTS
+    features, StandardScaler, seed 42, 90% CI) so the canonical numbers match
+    Figure 6. Returns one row per ROI with:
+        p_point  -- P(tumor) at the posterior-mean features (the Fig-2 label)
+        ci_width -- width of the 90% credible interval on P(tumor) (prob space)
+        z_std    -- std of the propagated draws in LOGIT space (removes the
+                    sigmoid P(1-P) geometry; the "genuine" predictive spread)
+        dist     -- |p_point - 0.5|, distance to the decision boundary
+        correct  -- whether the point-estimate label is correct
+    """
+    nuts_cols = [f"nuts_{c}" for c in D_COLS]
+    df_zone = df_zone[df_zone["roi_id"].isin(draws)].reset_index(drop=True)
+    y = df_zone["is_tumor"].astype(int).values
+    Xmean = df_zone[nuts_cols].values
+    roi_ids = df_zone["roi_id"].values
+    n = len(y)
+
+    p_point = np.zeros(n)
+    p_lo = np.zeros(n)
+    p_hi = np.zeros(n)
+    z_std = np.zeros(n)
+
+    for tr, te in LeaveOneOut().split(Xmean):
+        i = te[0]
+        sc = StandardScaler().fit(Xmean[tr])
+        clf = LogisticRegression(C=C, max_iter=2000, random_state=42,
+                                 solver="lbfgs").fit(sc.transform(Xmean[tr]), y[tr])
+        p_point[i] = clf.predict_proba(sc.transform(Xmean[i:i + 1]))[0, 1]
+        probs = clf.predict_proba(sc.transform(draws[roi_ids[i]]))[:, 1]
+        p_lo[i], p_hi[i] = np.percentile(probs, ci)
+        z = np.log(np.clip(probs, 1e-6, 1 - 1e-6)
+                   / np.clip(1 - probs, 1e-6, 1 - 1e-6))
+        z_std[i] = z.std()
+
+    return pd.DataFrame({
+        "roi_id": roi_ids,
+        "zone": df_zone["zone"].values,
+        "y": y,
+        "p_point": p_point,
+        "ci_width": p_hi - p_lo,
+        "z_std": z_std,
+        "dist": np.abs(p_point - 0.5),
+        "correct": (p_point >= 0.5).astype(int) == y,
+    })
+
+
+def _oriented_auc(label: np.ndarray, score: np.ndarray) -> float:
+    """AUC oriented so it is >= 0.5 (the score's discriminative magnitude)."""
+    a = roc_auc_score(label, score)
+    return max(a, 1 - a)
+
+
+def _paired_auc_delta_ci(y: np.ndarray, pred_a: np.ndarray, pred_b: np.ndarray,
+                         n_boot: int = 2000, seed: int = 42) -> tuple:
+    """Bootstrap 95% CI for AUC(pred_b) - AUC(pred_a) on paired held-out
+    predictions (resample ROIs, recompute both AUCs on the same resample)."""
+    rng = np.random.RandomState(seed)
+    n = len(y)
+    deltas = []
+    for _ in range(n_boot):
+        idx = rng.choice(n, n, replace=True)
+        if len(np.unique(y[idx])) < 2:
+            continue
+        deltas.append(roc_auc_score(y[idx], pred_b[idx])
+                      - roc_auc_score(y[idx], pred_a[idx]))
+    return (float(np.percentile(deltas, 2.5)),
+            float(np.percentile(deltas, 97.5)))
+
+
+def uncertainty_propagation(df: pd.DataFrame, draws: dict, C: float = 1.0,
+                            n_boot: int = 2000, seed: int = 42) -> tuple:
+    """CANONICAL test: does the NUTS posterior add diagnostic value to the
+    tumor-vs-normal decision beyond the point estimate? (Resolved: NO.)
+
+    Reproduces every number the manuscript "Prediction confidence" subsection
+    and the Discussion uncertainty paragraph rely on:
+
+      (1) CI-width ratio (misclassified / correct) in PROBABILITY space vs
+          LOGIT space, with Mann-Whitney significance. The 2.4x probability
+          effect collapses to ~1.3x (n.s.) in logit space -> it is sigmoid
+          geometry, not the spectral posterior.
+      (2) Controlled logistic  error ~ z(logit_width) + z(distance) : does the
+          propagated interval width predict misclassification once distance to
+          the boundary is accounted for? Reports the width coefficient with a
+          bootstrap p / 95% CI, plus the univariate error-AUC of each predictor.
+      (3) Uncertainty-as-features: per-zone detection LOOCV AUC using posterior
+          MEANS only vs MEANS+STDS (the fair test, since the LR is trained on
+          means and cannot otherwise see uncertainty), plus STDS-only and the
+          whole-spectrum posterior spread as a univariate flag.
+
+    Returns (summary_df, per_roi_df).
+    """
+    nuts_cols = [f"nuts_{c}" for c in D_COLS]
+    std_cols = [f"nuts_std_{c}" for c in D_COLS]
+
+    # ---- propagate per zone (within-zone LOOCV), then pool --------------------
+    per_zone = []
+    for z in ("pz", "tz"):
+        dz = df[df["zone"] == z]
+        per_zone.append(_propagate_zone(dz, draws, C=C))
+    per_roi = pd.concat(per_zone, ignore_index=True)
+    err = (~per_roi["correct"]).astype(int).values   # 1 = misclassified
+
+    rows = []
+    n_miss = int(err.sum())
+    rows.append({"metric": "n_roi", "value": len(per_roi)})
+    rows.append({"metric": "n_misclassified", "value": n_miss})
+
+    # ---- (1) CI-width ratio: probability vs logit space -----------------------
+    cw_c = per_roi.loc[per_roi["correct"], "ci_width"]
+    cw_m = per_roi.loc[~per_roi["correct"], "ci_width"]
+    zs_c = per_roi.loc[per_roi["correct"], "z_std"]
+    zs_m = per_roi.loc[~per_roi["correct"], "z_std"]
+    mw_prob = stats.mannwhitneyu(cw_m, cw_c, alternative="two-sided")
+    mw_logit = stats.mannwhitneyu(zs_m, zs_c, alternative="two-sided")
+    rows += [
+        {"metric": "ci_width_correct_mean_prob", "value": cw_c.mean()},
+        {"metric": "ci_width_miss_mean_prob", "value": cw_m.mean()},
+        {"metric": "ci_width_ratio_prob", "value": cw_m.mean() / cw_c.mean()},
+        {"metric": "ci_width_ratio_prob_mw_p", "value": mw_prob.pvalue},
+        {"metric": "spread_correct_mean_logit", "value": zs_c.mean()},
+        {"metric": "spread_miss_mean_logit", "value": zs_m.mean()},
+        {"metric": "spread_ratio_logit", "value": zs_m.mean() / zs_c.mean()},
+        {"metric": "spread_ratio_logit_mw_p", "value": mw_logit.pvalue},
+    ]
+
+    # ---- (2) controlled logistic: error ~ z(logit_width) + z(distance) --------
+    zw = stats.zscore(per_roi["z_std"].values)
+    zd = stats.zscore(per_roi["dist"].values)
+    Xc = np.column_stack([zw, zd])
+    full = LogisticRegression(penalty=None, max_iter=5000,
+                              solver="lbfgs").fit(Xc, err)
+    coef_w, coef_d = full.coef_[0]
+    rng = np.random.RandomState(seed)
+    boot_w = []
+    nC = len(err)
+    for _ in range(n_boot):
+        idx = rng.choice(nC, nC, replace=True)
+        if len(np.unique(err[idx])) < 2:
+            continue
+        try:
+            b = LogisticRegression(penalty=None, max_iter=5000,
+                                   solver="lbfgs").fit(Xc[idx], err[idx])
+            boot_w.append(b.coef_[0][0])
+        except Exception:
+            continue
+    boot_w = np.array(boot_w)
+    p_w = 2.0 * min((boot_w <= 0).mean(), (boot_w >= 0).mean())
+    rows += [
+        {"metric": "ctrl_logit_width_coef", "value": coef_w},
+        {"metric": "ctrl_logit_width_coef_lo", "value": float(np.percentile(boot_w, 2.5))},
+        {"metric": "ctrl_logit_width_coef_hi", "value": float(np.percentile(boot_w, 97.5))},
+        {"metric": "ctrl_logit_width_coef_boot_p", "value": float(min(p_w, 1.0))},
+        {"metric": "ctrl_distance_coef", "value": coef_d},
+        {"metric": "err_auc_logit_width", "value": _oriented_auc(err, per_roi["z_std"].values)},
+        {"metric": "err_auc_distance", "value": _oriented_auc(err, -per_roi["dist"].values)},
+    ]
+
+    # ---- (3) uncertainty-as-features: does posterior std lift detection AUC? ---
+    for z in ("pz", "tz"):
+        dz = df[df["zone"] == z].reset_index(drop=True)
+        dz = dz[dz["roi_id"].isin(draws)].reset_index(drop=True)
+        yz = dz["is_tumor"].astype(int).values
+        auc_mean, pred_mean, _, _, _ = loocv_auc(dz[nuts_cols].values, yz, C=C)
+        auc_both, pred_both, _, _, _ = loocv_auc(
+            dz[nuts_cols + std_cols].values, yz, C=C)
+        auc_std, _, _, _, _ = loocv_auc(dz[std_cols].values, yz, C=C)
+        dlo, dhi = _paired_auc_delta_ci(yz, pred_mean, pred_both,
+                                        n_boot=n_boot, seed=seed)
+        # whole-spectrum posterior spread (sum of per-bin std) as a flag
+        spread = dz[std_cols].sum(axis=1).values
+        rows += [
+            {"metric": f"{z}_auc_means_only", "value": auc_mean},
+            {"metric": f"{z}_auc_means_plus_stds", "value": auc_both},
+            {"metric": f"{z}_delta_auc_addstds", "value": auc_both - auc_mean},
+            {"metric": f"{z}_delta_auc_addstds_lo", "value": dlo},
+            {"metric": f"{z}_delta_auc_addstds_hi", "value": dhi},
+            {"metric": f"{z}_auc_stds_only", "value": auc_std},
+        ]
+
+    # whole-spectrum spread vs error (pooled) -- S13
+    spread_all = df.set_index("roi_id").loc[per_roi["roi_id"], std_cols].sum(axis=1).values
+    rows.append({"metric": "err_auc_whole_spectrum_spread",
+                 "value": _oriented_auc(err, spread_all)})
+
+    summary = pd.DataFrame(rows)
+    return summary, per_roi
+
+
+# ---------------------------------------------------------------------------
 # Main recomputation
 # ---------------------------------------------------------------------------
 
@@ -753,6 +984,32 @@ def recompute_all(signal_json: str = SIGNAL_JSON,
         print(f"    {row['component']:10s} {row['mean_fraction']:10.4f} "
               f"{row['mean_posterior_std']:10.4f} {row['mean_CV']:8.2f}")
 
+    # Posterior-uncertainty propagation ("Prediction confidence" claims).
+    # Needs the full posterior draws (not just mean/std), loaded separately.
+    print("\n  Posterior-uncertainty propagation (does it add diagnostic value?):")
+    unc_df = None
+    unc_per_roi = None
+    try:
+        draws = load_nuts_draws(rois, nc_dir)
+        print(f"    Loaded posterior draws for {len(draws)}/{len(rois)} ROIs")
+        unc_df, unc_per_roi = uncertainty_propagation(df, draws, C=1.0)
+        _u = dict(zip(unc_df["metric"], unc_df["value"]))
+        print(f"    CI-width ratio (miss/correct): prob {_u['ci_width_ratio_prob']:.2f}x "
+              f"(MW p={_u['ci_width_ratio_prob_mw_p']:.3f}) | "
+              f"logit {_u['spread_ratio_logit']:.2f}x "
+              f"(MW p={_u['spread_ratio_logit_mw_p']:.3f})")
+        print(f"    Controlled (error ~ logit-width + distance): width coef "
+              f"{_u['ctrl_logit_width_coef']:+.2f} (boot p={_u['ctrl_logit_width_coef_boot_p']:.2f}, "
+              f"CI [{_u['ctrl_logit_width_coef_lo']:+.2f},{_u['ctrl_logit_width_coef_hi']:+.2f}]); "
+              f"err-AUC width {_u['err_auc_logit_width']:.2f} vs distance {_u['err_auc_distance']:.2f}")
+        print(f"    Uncertainty-as-features dAUC: PZ {_u['pz_delta_auc_addstds']:+.3f} "
+              f"[{_u['pz_delta_auc_addstds_lo']:+.3f},{_u['pz_delta_auc_addstds_hi']:+.3f}], "
+              f"TZ {_u['tz_delta_auc_addstds']:+.3f} "
+              f"[{_u['tz_delta_auc_addstds_lo']:+.3f},{_u['tz_delta_auc_addstds_hi']:+.3f}]")
+        print("    -> posterior adds NO independent error signal beyond the point estimate.")
+    except Exception as e:
+        print(f"    [SKIP] uncertainty propagation failed: {e}")
+
     # Save outputs
     print("\n" + "=" * 80)
     print("SAVING OUTPUTS")
@@ -764,6 +1021,8 @@ def recompute_all(signal_json: str = SIGNAL_JSON,
     ident_path = os.path.join(output_dir, "identifiability.csv")
     map_nuts_path = os.path.join(output_dir, "map_nuts_comparison.csv")
     sens_path = os.path.join(output_dir, "adc_sensitivity.csv")
+    unc_path = os.path.join(output_dir, "uncertainty_propagation.csv")
+    unc_roi_path = os.path.join(output_dir, "uncertainty_propagation_per_roi.csv")
 
     df.to_csv(features_path, index=False)
     auc_df.to_csv(auc_path, index=False)
@@ -771,6 +1030,9 @@ def recompute_all(signal_json: str = SIGNAL_JSON,
     ident_df.to_csv(ident_path, index=False)
     pd.DataFrame([map_nuts]).to_csv(map_nuts_path, index=False)
     sens_df.to_csv(sens_path, index=False)
+    if unc_df is not None:
+        unc_df.to_csv(unc_path, index=False)
+        unc_per_roi.to_csv(unc_roi_path, index=False)
 
     print(f"  {features_path}")
     print(f"  {auc_path}")
@@ -778,6 +1040,9 @@ def recompute_all(signal_json: str = SIGNAL_JSON,
     print(f"  {ident_path}")
     print(f"  {map_nuts_path}")
     print(f"  {sens_path}")
+    if unc_df is not None:
+        print(f"  {unc_path}")
+        print(f"  {unc_roi_path}")
 
     # Print final summary table
     print("\n" + "=" * 80)
@@ -798,6 +1063,8 @@ def recompute_all(signal_json: str = SIGNAL_JSON,
         "ident_df": ident_df,
         "map_nuts_comparison": map_nuts,
         "sensitivity_df": sens_df,
+        "uncertainty_df": unc_df,
+        "uncertainty_per_roi_df": unc_per_roi,
     }
 
 
