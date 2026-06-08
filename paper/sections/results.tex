@@ -2,7 +2,7 @@
 
 \subsection{Diffusivity spectra and identifiability}
 
-The signal-to-noise ratio of the trace decays, computed as $S_0/\sigma$ from the per-ROI NUTS posterior, had a median of 303 across the 149~ROIs (interquartile range 176--478; full range 25--1548). (@patrick: make sure that these numbers are still accurate!!)
+The signal-to-noise ratio of the trace decays, computed as $S_0/\sigma$ from the per-ROI NUTS posterior, had a median of 303 across the 149~ROIs (interquartile range 176--478; full range 25--1548).
 The wide spread reflects dependence on tissue composition (more free water, lower SNR (@patrick: chekc with stephan is this a fact that we self observed or something obvious that comes from literature? if the latter should we cite somethign or is this overkill?) and distance from the endorectal coil.
 Figure~\ref{fig:spectra} shows MAP and NUTS spectral fractions (water fractions at each diffusivity bin, averaged across ROIs of each tissue type) (@patricK: paranthesis seems redundant again? please make sure to connec to other parts of manuscript) for tumor and normal tissue in both anatomical zones.
 Tumor ROIs exhibited an elevated restricted-diffusion water fraction ($D = 0.25\;\umsmm$: 18.5\% MAP / 16.6\% NUTS in PZ tumor vs.\ 7.2\% / 5.7\% in PZ normal) and a reduced free-water fraction ($D = 3.0\;\umsmm$: 18.9\% MAP / 21.0\% NUTS in PZ tumor vs.\ 40.3\% / 47.5\% in PZ normal), consistent with increased cellular density restricting water mobility.
@@ -55,7 +55,7 @@ The posterior therefore quantifies which spectral components are reliably estima
 % ======================================================================
 \subsection{Pixel-wise Spectral Decomposition}
 
-Pixel-wise spectral estimation was performed on the manually segmented prostate of the supplementary patient (@patrick: again check with before ... aptient part of same cohrot i believe ... accoridng to resutrturing should maybe be merged with a previous paragraph) (MAP and NUTS; all NUTS voxels converged, $\hat{R} < 1.05$).
+Pixel-wise spectral estimation was performed on the manually segmented prostate of the supplementary patient (@patrick: B-item --- per restructuring, consider merging this pixel-wise paragraph with the preceding one. Cohort membership flagged for Stephan in Methods.) (MAP and NUTS; all NUTS voxels converged, $\hat{R} < 1.05$).
 
 The restricted-diffusion fraction ($D = 0.25\;\umsmm$) showed the strongest spatial contrast among components (Figure~\ref{fig:pixelwise}), with the free-water fraction ($D = 3.0\;\umsmm$) approximately inverse, consistent with larger extracellular spaces in normal tissue.
 

@@ -25,6 +25,7 @@ The Cram\'er-Rao analysis yields a design principle---minimum resolvable bin spa
 This confirms that the poor identifiability of the $D = 0.50$--$1.00\;\umsmm$ range is an intrinsic property of the Laplace inversion at the SNR realized here, not an artifact of suboptimal discretization.
 % TODO(Sandy): the van-Trees Bayesian-CRLB decomposition below is pending derivation review (see Fig~\ref{fig:fisher}b).
 The unconstrained Cram\'er-Rao lower bound predicts estimation errors far larger than what the Bayesian sampler achieves, but this gap decomposes into two distinct mechanisms rather than a single ratio: incorporating the half-normal prior (the van Trees Bayesian CRLB) tightens the unconstrained bound by up to two orders of magnitude, and the non-negativity constraint together with the one-sided prior tightens the realized posterior by a further $2$--$74\times$ (Figure~\ref{fig:fisher}b).
+\sandy{same van-Trees decomposition as Theory --- pending your derivation review.}
 This demonstrates that non-negativity constraints and prior information are not merely convenient regularization but are essential for making the spectral decomposition tractable, and it resolves an apparent discrepancy between earlier CRLB-based pessimism about multi-compartment fitting and the practical recoverability we observe.
 
 This study has several limitations.

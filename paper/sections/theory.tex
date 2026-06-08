@@ -56,6 +56,7 @@ The unconstrained CRLB vastly overestimates the actual estimation error because 
 % TODO(Sandy): validate the van-Trees Bayesian-CRLB derivation plotted in Fig~\ref{fig:fisher}b.
 Incorporating the half-normal prior through the Bayesian (van Trees) CRLB tightens this bound by up to two orders of magnitude, and the empirical NUTS posterior standard deviation is smaller still---by a further factor of $2$--$74\times$ across components---because the non-negativity constraint truncates the feasible region beyond what the prior alone encodes (Figure~\ref{fig:fisher}b).
 Rather than a single ratio of unconstrained bound to observed posterior width, this attributes the gain to two distinct mechanisms---the prior and the non-negativity constraint---that together make the problem tractable; their magnitudes are revisited in the Discussion.
+\sandy{Please validate this van-Trees Bayesian-CRLB derivation: the prior gain ($\approx$ two orders of magnitude) and the constraint gain ($2$--$74\times$). It is the only unvalidated claim and gates Fig~\ref{fig:fisher}(b) and the matching Discussion paragraph.}
 
 \subsection{MAP Estimation}
 
