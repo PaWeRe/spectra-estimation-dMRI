@@ -78,14 +78,14 @@ nuts_std = df["mean_posterior_std"].values
 fig = plt.figure(figsize=(15, 11))
 # wspace widened so panel (a)'s colorbar no longer crowds panel (b)'s y-axis;
 # top lowered to make room for the unified two-row legend above the panels.
-gs = fig.add_gridspec(2, 4, hspace=0.62, wspace=1.15,
+gs = fig.add_gridspec(2, 4, hspace=0.80, wspace=0.95,
                       left=0.07, right=0.95, top=0.85, bottom=0.08)
 ax_a = fig.add_subplot(gs[0, 0:2])
 ax_b = fig.add_subplot(gs[0, 2:4])
 ax_c = fig.add_subplot(gs[1, 1:3])   # centered between the two upper panels
 
 # ─── Panel A: Correlation matrix heatmap ─────────────────────────────────────
-im = ax_a.imshow(C, cmap="RdBu_r", vmin=-1, vmax=1, aspect="equal")
+im = ax_a.imshow(C, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
 ax_a.set_xticks(range(len(D)))
 ax_a.set_xticklabels(D_labels)
 ax_a.set_yticks(range(len(D)))
@@ -140,12 +140,14 @@ for j, (d, col) in enumerate(zip(D, colors)):
     line, = ax_c.plot(b_fine, curve, color=col, linewidth=lw,
                       label=f"$D$ = {d:g}", alpha=0.9)
     dcurve_handles.append(line)
+# Noise-floor lines per SNR; described in the top legend above panel (c)
+# (Stephan 2026-06-10) instead of inline text labels.
+snr_handles = []
 for snr_val, ls in zip([50, 100, 303], [":", "--", "-"]):
     noise_floor = 1.0 / snr_val
-    ax_c.axhline(noise_floor, color="gray", linestyle=ls, linewidth=1.4,
-                 alpha=0.8)
-    ax_c.text(3.65, noise_floor, f"SNR {snr_val}", ha="left", va="center",
-              fontsize=13, color="black", fontweight="bold")  # inline SNR identity
+    line = ax_c.axhline(noise_floor, color="gray", linestyle=ls, linewidth=1.7,
+                        alpha=0.9, label=f"SNR {snr_val} noise floor")
+    snr_handles.append(line)
 for bv in b_values:
     ax_c.plot(bv, 0.18, marker="|", color="black", markersize=5, alpha=0.4)
 ax_c.set_xlabel(r"$b$-value (ms/$\mu$m$^2$)")
@@ -153,7 +155,7 @@ ax_c.set_ylabel("Relative signal contribution")
 ax_c.set_title("(c) Component Decay Curves vs Noise Floor", fontweight="bold")
 ax_c.set_yscale("log")
 ax_c.set_ylim(5e-4, 0.2)
-ax_c.set_xlim(0, 4.45)                              # headroom for inline SNR labels
+ax_c.set_xlim(0, 3.6)
 
 # ─── Two legends, each placed above its own panel (Stephan 2026-06-09) ───────
 # The previous single top legend mixed two unrelated keys; split so the CRLB-bar
@@ -165,7 +167,10 @@ fig.legend([b1, b2, b3],
            loc="center", bbox_to_anchor=(0.73, 0.935), ncol=1,
            frameon=True, framealpha=0.95, fontsize=12)
 fig.legend(dcurve_handles, [f"$D$ = {d:g}" for d in D],
-           loc="center", bbox_to_anchor=(0.51, 0.435), ncol=8,
+           loc="center", bbox_to_anchor=(0.51, 0.495), ncol=8,
+           frameon=True, framealpha=0.95, fontsize=11)
+fig.legend(snr_handles, [f"SNR {s} noise floor" for s in [50, 100, 303]],
+           loc="center", bbox_to_anchor=(0.51, 0.435), ncol=3,
            frameon=True, framealpha=0.95, fontsize=11)
 
 # ── Save ──────────────────────────────────────────────────────────────────
