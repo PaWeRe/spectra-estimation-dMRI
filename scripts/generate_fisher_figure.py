@@ -166,11 +166,14 @@ fig.legend([b1, b2, b3],
             "NUTS posterior std"],
            loc="center", bbox_to_anchor=(0.73, 0.935), ncol=1,
            frameon=True, framealpha=0.95, fontsize=12)
-fig.legend(dcurve_handles, [f"$D$ = {d:g}" for d in D],
-           loc="center", bbox_to_anchor=(0.51, 0.495), ncol=8,
-           frameon=True, framealpha=0.95, fontsize=11)
-fig.legend(snr_handles, [f"SNR {s} noise floor" for s in [50, 100, 303]],
-           loc="center", bbox_to_anchor=(0.51, 0.435), ncol=3,
+# One merged legend for panel (c): diffusivity-component colours + SNR
+# noise-floor line styles, in TWO rows (ncol=6) so it stays narrow
+# (Stephan/Patrick 2026-06-10). Column-major fill keeps the 8 diffusivity
+# buckets in the left columns and the 3 SNR floors in the right columns.
+c_handles = dcurve_handles + snr_handles
+c_labels = [f"$D$ = {d:g}" for d in D] + [f"SNR {s}" for s in [50, 100, 303]]
+fig.legend(c_handles, c_labels,
+           loc="center", bbox_to_anchor=(0.51, 0.46), ncol=6,
            frameon=True, framealpha=0.95, fontsize=11)
 
 # ── Save ──────────────────────────────────────────────────────────────────
