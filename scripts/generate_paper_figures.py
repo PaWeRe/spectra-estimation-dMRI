@@ -122,8 +122,8 @@ def fig_spectra_combined(df):
                 sub = zdf[zdf["is_tumor"] == is_tumor]
                 n = len(sub)
 
-                # MAP boxes: green + hatch so the estimator is distinguishable by
-                # STYLE, not colour alone (grayscale / colour-blind safe).
+                # MAP boxes: green, solid (Stephan 2026-06-10: hatch removed;
+                # MAP vs NUTS distinguished by colour alone).
                 bp_map = ax.boxplot(
                     [sub[c].values for c in map_cols],
                     positions=x - width/2, widths=width*0.85,
@@ -132,7 +132,6 @@ def fig_spectra_combined(df):
                 )
                 for patch in bp_map["boxes"]:
                     patch.set_facecolor(MAP_COLOR); patch.set_alpha(0.55)
-                    patch.set_hatch("////")
                     patch.set_edgecolor("black"); patch.set_linewidth(0.8)
 
                 # NUTS boxes: orange, solid.
@@ -147,13 +146,15 @@ def fig_spectra_combined(df):
                     patch.set_edgecolor("black"); patch.set_linewidth(0.8)
 
                 ax.set_xticks(x)
-                ax.set_xticklabels(D_LABELS)
+                # x-tick NUMBERS only on the bottom row (Stephan 2026-06-10),
+                # mirroring the shared-y convention that drops col-2 y-numbers.
+                ax.set_xticklabels(D_LABELS if row_idx == 1 else [])
                 ax.set_xlim(-0.85, len(DIFFUSIVITIES) - 0.15)
                 if row_idx == 1:
-                    ax.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
+                    ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)")
                 if col_idx == 0:
-                    ax.set_ylabel(r"spectral fraction $R_j$")
-                ax.set_title(f"{tissue_label}, {zone_title} (n={n})")
+                    ax.set_ylabel(r"Spectral fraction $R_j$")
+                ax.set_title(f"{tissue_label.capitalize()}, {zone_title} (n={n})")
                 ax.set_ylim(-0.02, 1.0)
                 ax.grid(axis="y", alpha=0.25, linewidth=0.5)
 
