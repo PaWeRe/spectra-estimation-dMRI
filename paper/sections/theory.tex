@@ -76,7 +76,7 @@ The MAP estimate is a point estimate and does not quantify how reliably each com
 
 \subsection{Bayesian Formulation}
 
-Beyond offering no measure of per-component reliability, the MAP estimate requires the noise level $\sigma$ to be known, and both limitations bite here: a point estimate at an intermediate component may appear precise while being largely determined by the regularization rather than the data, and an incorrect $\sigma$ silently rescales the penalty.
+The MAP objective in (\ref{eq:map}) is solved without reference to the noise level---the regularization weight $\lambda$, not $\sigma$, governs the bias--variance trade-off, so MAP does not require $\sigma$ to be specified---but it remains a point estimate with no measure of per-component reliability: a value at an intermediate component may appear precise while being largely determined by the regularization rather than the data.
 A fully Bayesian approach characterizes the joint posterior over $(\Rvec, \sigma)$, inferring the spectrum and per-ROI noise level together and making the ill-posedness explicit through the marginal posterior widths.
 
 We specify a hierarchical model with explicit priors on both the spectrum and the noise level:
