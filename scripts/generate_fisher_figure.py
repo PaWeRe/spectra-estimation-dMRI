@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from spectra_estimation_dmri.visualization.paper_style import (
-    apply_style, COLORS, DIFFUSIVITIES, DLABELS, top_legend,
+    apply_style, COLORS, DIFFUSIVITIES, DLABELS, DIFF_AXIS_LABEL,
 )
 
 # ── Style ─────────────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ nuts_std = df["mean_posterior_std"].values
 fig = plt.figure(figsize=(15, 11))
 # wspace widened so panel (a)'s colorbar no longer crowds panel (b)'s y-axis;
 # top lowered to make room for the unified two-row legend above the panels.
-gs = fig.add_gridspec(2, 4, hspace=0.42, wspace=1.15,
+gs = fig.add_gridspec(2, 4, hspace=0.62, wspace=1.15,
                       left=0.07, right=0.95, top=0.85, bottom=0.08)
 ax_a = fig.add_subplot(gs[0, 0:2])
 ax_b = fig.add_subplot(gs[0, 2:4])
@@ -90,9 +90,9 @@ ax_a.set_xticks(range(len(D)))
 ax_a.set_xticklabels(D_labels)
 ax_a.set_yticks(range(len(D)))
 ax_a.set_yticklabels(D_labels)
-ax_a.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
-ax_a.set_ylabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
-ax_a.set_title("(a) Fisher correlation matrix", fontweight="bold")
+ax_a.set_xlabel(DIFF_AXIS_LABEL)
+ax_a.set_ylabel(DIFF_AXIS_LABEL)
+ax_a.set_title("(a) Fisher Correlation Matrix", fontweight="bold")
 for i in range(len(D)):
     for j in range(len(D)):
         val = C[i, j]
@@ -101,7 +101,7 @@ for i in range(len(D)):
                   fontsize=8.5, color=color,
                   fontweight="bold" if i == j else "normal")
 cb = fig.colorbar(im, ax=ax_a, fraction=0.046, pad=0.04)
-cb.set_label("correlation", fontsize=12)
+cb.set_label("Correlation", fontsize=12)
 cb.ax.tick_params(labelsize=11)
 
 # ─── Panel B: 3-bar CRLB comparison with factors ON the bars ─────────────────
@@ -116,28 +116,16 @@ b3 = ax_b.bar(x + width, nuts_std, width, label="NUTS posterior std",
 ax_b.set_yscale("log")
 ax_b.set_ylim(8e-3, 5e3)
 
-# Improvement factors drawn ON the bars, both steps, colour-coded:
-#   gray  = prior gain      (unconstrained -> Bayesian)
-#   orange = constraint gain (Bayesian -> NUTS)
-for j in range(len(D)):
-    f_prior = crlb_unc[j] / crlb_bay[j]     # unconstrained -> Bayesian
-    f_constr = crlb_bay[j] / nuts_std[j]    # Bayesian -> NUTS
-    top = crlb_unc[j]
-    ax_b.text(x[j], top * 1.8, f"{f_prior:.0f}$\\times$", ha="center",
-              va="bottom", fontsize=8.5, color=COLORS["crlb_bayes"],
-              fontweight="bold")
-    ax_b.text(x[j], top * 6.0, f"{f_constr:.0f}$\\times$", ha="center",
-              va="bottom", fontsize=8.5, color=COLORS["nuts"],
-              fontweight="bold")
+# Per-bin improvement factors (unconstrained -> Bayesian -> NUTS) are NOT drawn
+# on the bars (Stephan 2026-06-09: the log axis already conveys the 1-2 orders
+# of magnitude separation between the three uncertainty estimates). They remain
+# in the stdout summary below for reference.
 ax_b.set_xticks(x)
 ax_b.set_xticklabels(D_labels)
-ax_b.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
-ax_b.set_ylabel("std of fraction (log scale)")
-ax_b.set_title("(b) per-component estimation uncertainty at SNR 303",
+ax_b.set_xlabel(DIFF_AXIS_LABEL)
+ax_b.set_ylabel("Std of fraction (log scale)")
+ax_b.set_title("(b) Per-Component Estimation Uncertainty at SNR 303",
                fontweight="bold")
-# Legend lifted to the unified top legend. The on-bar x-factor annotations stay;
-# the explanatory text box is removed (prior/constraint gains are defined in the
-# caption).
 
 # ─── Panel C: Component decay curves vs noise floors (SNR labelled inline) ────
 b_fine = np.linspace(0, 3.5, 300)
@@ -156,24 +144,29 @@ for snr_val, ls in zip([50, 100, 303], [":", "--", "-"]):
     noise_floor = 1.0 / snr_val
     ax_c.axhline(noise_floor, color="gray", linestyle=ls, linewidth=1.4,
                  alpha=0.8)
-    ax_c.text(3.62, noise_floor, f"SNR {snr_val}", ha="left", va="center",
-              fontsize=9, color="gray")            # inline SNR identity
+    ax_c.text(3.65, noise_floor, f"SNR {snr_val}", ha="left", va="center",
+              fontsize=13, color="black", fontweight="bold")  # inline SNR identity
 for bv in b_values:
     ax_c.plot(bv, 0.18, marker="|", color="black", markersize=5, alpha=0.4)
 ax_c.set_xlabel(r"$b$-value (ms/$\mu$m$^2$)")
-ax_c.set_ylabel("signal contribution")
-ax_c.set_title("(c) component decay curves vs noise floor", fontweight="bold")
+ax_c.set_ylabel("Relative signal contribution")
+ax_c.set_title("(c) Component Decay Curves vs Noise Floor", fontweight="bold")
 ax_c.set_yscale("log")
 ax_c.set_ylim(5e-4, 0.2)
-ax_c.set_xlim(0, 4.15)                              # headroom for inline labels
+ax_c.set_xlim(0, 4.45)                              # headroom for inline SNR labels
 
-# ─── Unified top legend (CRLB bar types + diffusivity-bucket colours) ────────
-# Replaces the per-panel legends of (b) and (c), matching the other figures.
-legend_handles = [b1, b2, b3] + dcurve_handles
-legend_labels = (["unconstrained CRLB", "Bayesian CRLB (van Trees)",
-                  "NUTS posterior std"]
-                 + [f"$D$ = {d:g}" for d in D])
-top_legend(fig, legend_handles, legend_labels, ncol=7, y=0.995)
+# ─── Two legends, each placed above its own panel (Stephan 2026-06-09) ───────
+# The previous single top legend mixed two unrelated keys; split so the CRLB-bar
+# key sits above panel (b) and the diffusivity-component colour key above panel
+# (c). Figure-fraction coordinates keep each legend centred over its panel.
+fig.legend([b1, b2, b3],
+           ["unconstrained CRLB", "Bayesian CRLB (van Trees)",
+            "NUTS posterior std"],
+           loc="center", bbox_to_anchor=(0.73, 0.935), ncol=1,
+           frameon=True, framealpha=0.95, fontsize=12)
+fig.legend(dcurve_handles, [f"$D$ = {d:g}" for d in D],
+           loc="center", bbox_to_anchor=(0.51, 0.435), ncol=8,
+           frameon=True, framealpha=0.95, fontsize=11)
 
 # ── Save ──────────────────────────────────────────────────────────────────
 out_dir = project_root / "paper" / "figures"

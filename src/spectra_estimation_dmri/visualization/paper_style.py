@@ -32,7 +32,7 @@ DIFFUSIVITIES = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0])
 # for the resolved bins, "20.0" for the dump bin. Use these verbatim everywhere.
 DLABELS = ["0.25", "0.50", "0.75", "1.00", "1.50", "2.00", "3.00", "20.0"]
 DIFF_UNIT = r"$\mu$m$^2$/ms"
-DIFF_AXIS_LABEL = rf"diffusivity $D$ ({DIFF_UNIT})"
+DIFF_AXIS_LABEL = rf"Diffusivity $D$ ({DIFF_UNIT})"
 
 # --------------------------------------------------------------------------- #
 # Colour palette (LOCKED; matches the figures.tex header convention).
