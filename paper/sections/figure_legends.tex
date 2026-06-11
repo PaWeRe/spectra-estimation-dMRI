@@ -1,0 +1,205 @@
+% === FIGURE LEGENDS ===
+% Listed separately from the figure floats (MRM style: captions go in a list at
+% the end of the manuscript text, not inside the figure files). Each number is
+% auto-synced to its float via \ref to the figure's \label, so the list stays
+% correct even if the figures are reordered.
+%TC:ignore
+\section*{Figure Legends}
+
+\noindent\textbf{Figure~\ref{fig:fisher}.}
+Fisher-information analysis of the eight-bin spectral discretization.
+(a)~Fisher-information correlation matrix
+$C_{jk} = F_{jk}/\sqrt{F_{jj}F_{kk}}$: adjacent intermediate components
+($D = 0.50$--$1.00\;\umsmm$) are mutually correlated above $0.99$, making them
+nearly indistinguishable from the 15 b-value measurements, whereas
+$D = 0.25$ and $D = 20\;\umsmm$ are the most separable.
+(b)~Per-component estimation uncertainty at the cohort-median SNR $= 303$: the
+unconstrained Cram\'er--Rao lower bound (light gray), the Bayesian (van Trees)
+CRLB with the half-normal prior (dark gray), and the empirical NUTS posterior
+standard deviation (orange).
+Two improvement factors are annotated on the bars---the prior gain (gray,
+unconstrained\,$\to$\,Bayesian) and the constraint gain (orange,
+Bayesian\,$\to$\,NUTS, up to $74\times$)---which together reduce the estimation
+uncertainty by up to three orders of magnitude relative to the unconstrained
+bound, because the prior and the non-negativity constraint truncate the
+feasible region.
+(c)~Individual component decay curves $R_j \exp(-bD_j)/K$ at equal fractions,
+with horizontal noise floors at SNR $= 50$, $100$, and $303$: slow components
+($D = 0.25\;\umsmm$) contribute signal across all b-values, whereas fast
+components ($D \geq 3.0\;\umsmm$) fall below the noise floor within the first
+few b-value steps, motivating the sparser discretization at high diffusivities.
+\sandy{panel (b) van-Trees Bayesian-CRLB pending your derivation validation.}
+
+\medskip\noindent\textbf{Figure~\ref{fig:spectra}.}
+Cohort diffusivity spectra by tissue type and anatomical zone.
+For each diffusivity bin, box plots show the cohort distribution of the
+estimated water fraction $R_j$ across ROIs (box: interquartile range; line:
+median; whiskers: $1.5\times$ IQR), with MAP (green) alongside NUTS
+posterior-mean estimates (orange) at the tuned regularization
+$\lambda = 10^{-3}$.
+Top row: normal; bottom row: tumor. Left column: peripheral zone (PZ); right:
+transition zone (TZ).
+Relative to normal tissue, tumor shows an elevated restricted-diffusion
+fraction ($D = 0.25\;\umsmm$) and a reduced free-water fraction
+($D = 3.0\;\umsmm$) in both zones, and MAP and NUTS agree closely.
+Each box is the cohort distribution of the per-ROI posterior-mean fraction
+(between-ROI spread); within-ROI posterior uncertainty is shown in
+Figure~\ref{fig:sensitivity} and the supplementary atlas.
+
+\medskip\noindent\textbf{Figure~\ref{fig:validation}.}
+Validation of the spectral inference on simulated ground truth across spectrum
+shape and noise level.
+Six ground-truth spectra (rows A--F: normal-like and tumor-like---the
+cohort-mean NUTS spectra---a uniform spectrum, a concentrated $\delta$ at
+$D = 0.75\;\umsmm$, an inverse-tumor (reversed tumor), and a bimodal spectrum)
+are each recovered at SNR $= 50$, $300$, and $1000$ (columns); SNR $300$ is the
+cohort median (the operating point of the real data) and $50$ reflects the
+reduced per-voxel SNR of the pixel-wise analysis.
+In every panel the bars are the ground truth (grey), the tuned-MAP estimate
+($\lambda = 10^{-3}$, green), and the NUTS posterior mean (orange); error bars
+% TODO: set n to the final rep count once the 100-rep run completes
+are $\pm 1$ standard deviation across $n = 100$ independent noise realizations,
+each fit with the deployed NUTS configuration (the per-panel
+$\hat{R}_{\max}$ is the worst split-$\hat{R}$ over those realizations).
+MAP and NUTS recover the smooth spectra equivalently and tighten with SNR,
+whereas the $\delta$ spike is only partially recovered and smeared into its
+correlated neighboring bins---the identifiability limit of this b-value grid,
+not a sampler artifact; on that concentrated spectrum NUTS recovers more of the
+peak than MAP.
+The bottom row reports noise recovery for each ground truth (A--F): the true
+$\sigma = 1/\mathrm{SNR}$ (dashed) against the MAP residual estimate and the
+NUTS-inferred $\hat{\sigma}$, both close to truth---the noise level is
+recoverable with or without a sampler.
+
+\medskip\noindent\textbf{Figure~\ref{fig:roc}.}
+Tumor detection collapses onto the two outer diffusivity compartments, and the
+spectral classifier is equivalent to ADC.
+Leave-one-out cross-validated ROC for tumor-versus-normal detection in the
+peripheral zone (PZ, left; $n = 81$) and transition zone (TZ, right;
+$n = 68$). The three thick reference curves---ADC (black), the spectral
+classifier on all eight fractions (orange solid) and on only the two outer
+fractions $\{D = 0.25,\,3.0\;\umsmm\}$ (orange dashed)---pass through the
+identical NUTS-feature leave-one-out logistic-regression pipeline ($C = 1.0$)
+for an apples-to-apples comparison.
+The thin single-component curves are each a raw single-feature ROC in the
+tumor-positive orientation (not the LOOCV pipeline): the strong outer
+components $D = 0.25\;\umsmm$ (restricted, teal) and $D = 3.0\;\umsmm$
+(free water, brown); three weak single bins whose weakness is zone-dependent,
+$D = 2.0\;\umsmm$ (goldenrod, near chance in PZ), $D = 1.5\;\umsmm$ (indigo,
+near chance in TZ), and $D = 20\;\umsmm$ (magenta, near chance in both); and
+the remaining intermediate bins as a faint grey bundle.
+The three thick curves are statistically indistinguishable and the
+two-fraction classifier matches the full eight-fraction one: the intermediate
+and free-water fractions add nothing to detection.
+AUC values with 95\% confidence intervals are reported in
+Table~\ref{tab:auc}.
+
+\medskip\noindent\textbf{Figure~\ref{fig:adc_discriminant}.}
+ADC is a near-optimal spectral discriminant, and the equivalence holds for
+both estimators.
+ADC versus the spectral discriminant score (logistic-regression linear
+predictor from the eight spectral fractions) across ROIs, by anatomical zone
+(columns: PZ, $n = 81$, left; TZ, $n = 68$, right) and spectral estimator
+(rows: NUTS posterior-mean, top; constrained-MAP at tuned
+$\lambda = 10^{-3}$, bottom).
+All panels share common axes; the discriminant is fit separately per zone and
+estimator, so its score scale is comparable only within a panel, whereas ADC
+($x$-axis) is the same physical quantity throughout.
+Tumor ROIs (red) cluster at low ADC and high discriminant, normal ROIs (blue)
+the reverse; the black line is the ordinary-least-squares (OLS) fit.
+Per-panel Pearson $r$ with a 95\% percentile-bootstrap confidence interval is
+annotated in each panel (all $|r| > 0.95$).
+The near-perfect anti-correlation shows that ADC rank-orders ROIs almost
+identically to the spectral classifier, independent of estimator.
+
+\medskip\noindent\textbf{Figure~\ref{fig:sensitivity}.}
+The spectral discriminant is statistically a two-compartment detector, and its
+two stable bins coincide with where ADC is most sensitive.
+For each zone (PZ, TZ), bars give the standardized tumor-versus-normal
+logistic-regression coefficient per diffusivity bin (NUTS features, $C = 1.0$,
+the same fit as Figure~\ref{fig:adc_discriminant}), normalized to
+$\max|w| = 1$, with 95\% bootstrap confidence intervals.
+Charcoal diamonds give the ADC sensitivity $-\partial\text{ADC}/\partial R_j$
+at the average tumor spectrum (normalized, sign-aligned to the tumor
+direction).
+Each bar is colored and hatched by the bin's within-ROI posterior CV (light
+$=$ well identified to dark $=$ poorly identified), a per-ROI identifiability
+distinct from the cohort-level coefficient stability shown by the bootstrap
+intervals.
+In both zones only the two outer bins carry stable weight ($D = 0.25\;\umsmm$
+positive, $D = 3.0\;\umsmm$ negative); the intermediate coefficients are
+individually unstable from inter-bin collinearity and poor identifiability, so
+their separate detection weights are not attributable.
+The profile anti-correlates with $\partial\text{ADC}/\partial R_j$
+($r = -0.79$ PZ, $-0.88$ TZ), carried by the two outer bins; the moderate
+whole-profile value reflects the noisy intermediate coefficients, which carry
+little weight either way.
+
+\medskip\noindent\textbf{Figure~\ref{fig:spectrum_ggg}.}
+The diffusivity spectrum shifts systematically across Gleason Grade Groups.
+NUTS posterior-mean spectrum averaged across ROIs, in two contrasts that share
+a normal-tissue baseline (gray, $n = 109$). Left (emergence): GGG\,$=\,1$
+($n = 8$) versus GGG\,$\geq 2$ ($n = 21$). Right (aggressiveness): GGG\,$=\,2$
+($n = 12$) versus GGG\,$\geq 3$ ($n = 9$). Each grade group has its own color.
+Shaded bands are 95\% confidence intervals of the group mean (Student's $t$,
+$\text{df} = n - 1$).
+The free-water bin ($D = 3.0\;\umsmm$, a proxy for intact gland lumen)
+collapses at tumor onset ($0.39$ normal $\to 0.21$ at GGG\,$=\,1$) and changes
+little thereafter ($0.16$ at GGG\,$\geq 3$): it carries detection, not grade.
+In contrast the restricted-cellular bin ($D = 0.25\;\umsmm$) and the
+glandular-epithelial bin ($D = 2.0\;\umsmm$), where ADC is least sensitive,
+track grade: $D = 0.25$ rises with grade ($0.07$ normal, $0.17$ at
+GGG\,$=\,1$--$2$, $0.31$ at GGG\,$\geq 3$) and $D = 2.0$ is preserved in
+low-grade tumor then depleted ($0.26$ normal, $0.28$ at GGG\,$=\,1$, $0.17$ at
+GGG\,$\geq 3$).
+Grade groups are small (down to $n = 8$--$9$) and the bands wide; 11 of 40
+tumor ROIs (7 with GGG\,$=\,0$, 4 ungraded) are not shown.
+\stephan{exploratory --- please confirm the grade-dependent reading of the
+intermediate bins ($D = 0.25$, $2.0\;\umsmm$); the independent grading-axis
+claim has been dropped pending a larger graded cohort.}
+
+\medskip\noindent\textbf{Figure~\ref{fig:uncertainty}.}
+The classifier returns a calibrated probability of cancer per ROI, and its
+confidence---a property of the classifier, not of the spectral posterior---flags
+the predictions most likely to be wrong.
+For each ROI the leave-one-out classifier (the same NUTS-feature pipeline as
+Figure~\ref{fig:roc}, $C = 1$) is applied to every NUTS posterior draw of the
+eight fractions, yielding a posterior distribution over $P(\mathrm{tumor})$.
+Per-ROI predictions in the peripheral zone (top, $n = 81$) and transition zone
+(bottom, $n = 68$), each sorted by predicted probability: markers at the
+posterior-mean probability (circles normal, squares tumor) with error bars the
+propagated 90\% credible interval; correctly classified ROIs in pale colors,
+misclassified in saturated colors.
+Misclassified ROIs cluster near the decision boundary ($P = 0.5$), where the
+interval is on average $2.4\times$ wider (pooled mean width $0.39$ vs $0.16$).
+This widening is a geometric property of the logistic link---its slope
+$P(1-P)$ is largest at the boundary---not a contribution of the spectral
+posterior: in logit space the misclassified-to-correct difference is not
+significant, and supplying the per-component posterior standard deviations to
+the classifier as features leaves detection AUC unchanged.
+The confidently-misclassified ROIs are almost all low-grade or ungraded tumors
+whose spectra resemble normal tissue (cf.\ Figure~\ref{fig:spectrum_ggg})---a
+limit of diffusion contrast, not a miscalibration.
+The classifier's per-prediction confidence is thus a useful triage signal
+available already from the point estimate.
+
+\medskip\noindent\textbf{Figure~\ref{fig:pixelwise}.}
+Pixel-wise spectral decomposition of a single peripheral-zone prostate DWI
+slice (anonymized patient), showing that the ROI-level detector extends to the
+voxel level while uniquely providing a per-voxel uncertainty map.
+(A)~Anatomical reference ($b = 0$).
+(B,\,C)~NUTS posterior-mean restricted-diffusion ($D = 0.25\;\umsmm$) and
+free-water ($D = 3.0\;\umsmm$) fractions.
+(D)~Conventional ADC map (restricted diffusion appears dark).
+(E,\,F)~Per-voxel discriminant score for the two-bin
+$\{D = 0.25,\,3.0\;\umsmm\}$ and full eight-bin classifiers (peripheral-zone
+detectors, same recipe as Figure~\ref{fig:roc}), centered on the decision
+boundary; both reproduce the ADC pattern ($r = -0.93$ and $-0.96$). The
+absolute score skews tumor-like because the lower SNR of a single voxel
+inflates the restricted fraction, which is why quantitative results are
+reported at the ROI level.
+(H,\,I)~Posterior standard deviation of the score (500 Monte Carlo draws) for
+the two- and eight-bin detectors on a shared scale: the eight-bin map is
+$1.8\times$ more uncertain because it weights the unidentifiable intermediate
+bins---an uncertainty ADC and point-estimate methods cannot provide.
+%TC:endignore
