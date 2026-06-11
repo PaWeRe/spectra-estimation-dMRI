@@ -183,10 +183,10 @@ def build_figure(store, gt_slugs, out_stem):
     from matplotlib.lines import Line2D
     n_gt = len(gt_slugs)
     n_reps = min(len(store[f"{s}__{snr}__nuts"]) for s in gt_slugs for snr in SNRS)
-    TITLE_FS, TICK_FS, AXLAB_FS = 18, 20, 24
-    # n_gt recovery rows + a thin spacer + a noise-sigma row. Wider column gaps so
-    # the noise-row y-numbers clear and panels are less stretched; bigger fonts.
-    fig = plt.figure(figsize=(18.5, 3.1 * n_gt + 3.4))
+    TITLE_FS, TICK_FS, AXLAB_FS, LEG_FS = 22, 24, 24, 24   # uniformly large fonts
+    # n_gt recovery rows + a thin spacer + a noise-sigma row. Taller figure (fills
+    # the page) with uniformly large fonts; noise-row y-axis in scientific notation.
+    fig = plt.figure(figsize=(18.5, 3.5 * n_gt + 4.0))
     gs = fig.add_gridspec(n_gt + 2, 3, height_ratios=[1] * n_gt + [0.32, 0.95],
                           hspace=0.30, wspace=0.18,
                           left=0.075, right=0.985, top=0.905, bottom=0.05)
@@ -203,6 +203,8 @@ def build_figure(store, gt_slugs, out_stem):
             ax.bar(x + w, nt.mean(0), w, yerr=nt.std(0), color=C_NUTS, alpha=NUTS_ALPHA,
                    ecolor="0.2", capsize=2, error_kw=dict(lw=1.1))
             ax.set_xticks(x)
+            # 8 diffusivity labels can't all be 24pt without overlap -> keep
+            # this dense axis smaller; every other tick is the only alternative.
             ax.set_xticklabels(DLABELS if ri == n_gt - 1 else [], fontsize=16)
             ax.set_ylim(0, max(0.5, float(Rt.max()) * 1.22))
             ax.tick_params(axis="y", labelsize=TICK_FS)
@@ -227,9 +229,11 @@ def build_figure(store, gt_slugs, out_stem):
         axs.errorbar(xs + 0.10, [store[f"{s}__{snr}__sig_nuts"].mean() for s in gt_slugs],
                      yerr=[store[f"{s}__{snr}__sig_nuts"].std() for s in gt_slugs],
                      fmt="o", color=C_NUTS, capsize=3, ms=8)
-        axs.set_xticks(xs); axs.set_xticklabels(PANEL_LETTERS[:n_gt], fontsize=20)
+        axs.set_xticks(xs); axs.set_xticklabels(PANEL_LETTERS[:n_gt], fontsize=24)
         axs.set_xlim(-0.5, n_gt - 0.5); axs.set_ylim(0, st * 1.9)
         axs.tick_params(axis="y", labelsize=TICK_FS)
+        axs.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))  # 0.0025 -> x10^-3
+        axs.yaxis.get_offset_text().set_fontsize(TICK_FS - 4)
         axs.set_title(rf"Noise $\sigma$ Recovery  $\mid$  SNR {snr}", fontsize=TITLE_FS)
         if ci == 0:
             axs.set_ylabel(r"Noise $\sigma$", fontsize=AXLAB_FS)
@@ -249,7 +253,7 @@ def build_figure(store, gt_slugs, out_stem):
                label=r"NUTS $\hat\sigma$"),
     ]
     fig.legend(handles=handles, loc="upper center", ncol=3,
-               bbox_to_anchor=(0.5, 0.985), frameon=True, framealpha=0.95, fontsize=20)
+               bbox_to_anchor=(0.5, 0.99), frameon=True, framealpha=0.95, fontsize=LEG_FS)
     fig.savefig(f"paper/figures/{out_stem}.png", dpi=160, bbox_inches="tight")
     fig.savefig(f"paper/figures/{out_stem}.pdf", bbox_inches="tight")
     plt.close(fig)
