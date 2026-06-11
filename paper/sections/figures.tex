@@ -82,25 +82,26 @@ Figure~\ref{fig:sensitivity} and the supplementary atlas.
 \caption{%
 Validation of the spectral inference on simulated ground truth across spectrum
 shape and noise level.
-Four ground-truth spectra---normal-like and tumor-like (the cohort-mean NUTS
-spectra), a uniform spectrum, and a concentrated $\delta$ at $D = 0.75\;\umsmm$%
----are each recovered at SNR $= 50$, $300$, and $1000$ (columns); SNR $300$ is
-the cohort median (the operating point of the real data) and $50$ reflects the
+Six ground-truth spectra (rows A--F: normal-like and tumor-like---the
+cohort-mean NUTS spectra---a uniform spectrum, a concentrated $\delta$ at
+$D = 0.75\;\umsmm$, an inverse-tumor (reversed tumor), and a bimodal spectrum)
+are each recovered at SNR $= 50$, $300$, and $1000$ (columns); SNR $300$ is the
+cohort median (the operating point of the real data) and $50$ reflects the
 reduced per-voxel SNR of the pixel-wise analysis.
-In every panel the bars are the ground truth (black), the tuned-MAP estimate
+In every panel the bars are the ground truth (grey), the tuned-MAP estimate
 ($\lambda = 10^{-3}$, green), and the NUTS posterior mean (orange); error bars
-are $\pm 1$ standard deviation across independent noise realizations, each fit
-with the deployed NUTS configuration.
+are $\pm 1$ standard deviation across $n = 100$ independent noise realizations,% TODO: set n to final rep count
+each fit with the deployed NUTS configuration (the per-panel
+$\hat{R}_{\max}$ is the worst split-$\hat{R}$ over those realizations).
 MAP and NUTS recover the smooth spectra equivalently and tighten with SNR,
 whereas the $\delta$ spike is only partially recovered and smeared into its
 correlated neighboring bins---the identifiability limit of this b-value grid,
 not a sampler artifact; on that concentrated spectrum NUTS recovers more of the
 peak than MAP.
-The bottom row shows noise recovery: the true $\sigma = 1/\mathrm{SNR}$ (dashed)
-against the MAP residual estimate and the NUTS-inferred $\hat{\sigma}$, both
-close to truth---the noise level is recoverable with or without a sampler.
-The full six-ground-truth battery (adding inverse-tumor and bimodal spectra) is
-shown in Figure~\ref{fig:recovery_si}.
+The bottom row reports noise recovery for each ground truth (A--F): the true
+$\sigma = 1/\mathrm{SNR}$ (dashed) against the MAP residual estimate and the
+NUTS-inferred $\hat{\sigma}$, both close to truth---the noise level is
+recoverable with or without a sampler.
 }
 \label{fig:validation}
 \end{figure}

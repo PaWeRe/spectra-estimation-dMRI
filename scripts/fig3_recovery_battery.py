@@ -57,7 +57,8 @@ GT_LABELS = {
     "delta": r"$\delta$ ($D$=0.75)", "inverse": "Inverse tumor",
     "bimodal": "Bimodal",
 }
-C_TRUTH, C_MAP, C_NUTS = COLORS["truth"], COLORS["map"], COLORS["nuts"]
+C_TRUTH, C_MAP, C_NUTS = "#a6a6a6", COLORS["map"], COLORS["nuts"]  # truth = light grey reference
+PANEL_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 
 U = np.exp(-np.outer(B_VALUES_MS, D))
 def norm(R):
@@ -174,64 +175,76 @@ def run(reps, draws, tune, chains):
 
 
 # ----------------------------------------------------------------- plotting
-def build_figure(store, gt_slugs, out_stem, title):
-    nrow = len(gt_slugs) + 1
-    fig, axes = plt.subplots(nrow, 3, figsize=(15, 3.4 * nrow),
-                             gridspec_kw={"height_ratios": [1] * len(gt_slugs) + [0.9]})
+def build_figure(store, gt_slugs, out_stem):
+    n_gt = len(gt_slugs)
+    n_reps = min(len(store[f"{s}__{snr}__nuts"]) for s in gt_slugs for snr in SNRS)
+    # n_gt recovery rows + a thin spacer + a noise-sigma row. The spacer gives the
+    # sigma row extra separation while the recovery rows stay tight.
+    fig = plt.figure(figsize=(18.5, 3.0 * n_gt + 3.6))
+    gs = fig.add_gridspec(n_gt + 2, 3, height_ratios=[1] * n_gt + [0.30, 0.95],
+                          hspace=0.28, wspace=0.22,
+                          left=0.07, right=0.975, top=0.955, bottom=0.045)
     x = np.arange(N_D); w = 0.27
     for ci, snr in enumerate(SNRS):
         for ri, slug in enumerate(gt_slugs):
-            ax = axes[ri, ci]
+            ax = fig.add_subplot(gs[ri, ci])
             Rt = store[f"{slug}__{snr}__Rtrue"]
             mp = store[f"{slug}__{snr}__map"]; nt = store[f"{slug}__{snr}__nuts"]
+            rh = store.get(f"{slug}__{snr}__rhat", np.array([np.nan]))
             ax.bar(x - w, Rt, w, color=C_TRUTH, label="Ground truth")
-            ax.bar(x, mp.mean(0), w, yerr=mp.std(0), color=C_MAP, alpha=0.8,
-                   ecolor="black", capsize=2, error_kw=dict(lw=0.8), label="Tuned MAP")
-            ax.bar(x + w, nt.mean(0), w, yerr=nt.std(0), color=C_NUTS, alpha=0.85,
-                   ecolor="black", capsize=2, error_kw=dict(lw=0.8),
+            ax.bar(x, mp.mean(0), w, yerr=mp.std(0), color=C_MAP, alpha=0.85,
+                   ecolor="0.3", capsize=2, error_kw=dict(lw=0.8), label="Tuned MAP")
+            ax.bar(x + w, nt.mean(0), w, yerr=nt.std(0), color=C_NUTS, alpha=0.9,
+                   ecolor="0.3", capsize=2, error_kw=dict(lw=0.8),
                    label="NUTS (posterior mean)")
             ax.set_xticks(x)
-            ax.set_xticklabels(DLABELS if ri == len(gt_slugs) - 1 else [])
-            ax.set_ylim(0, max(0.5, float(Rt.max()) * 1.25))
+            if ri == n_gt - 1:
+                ax.set_xticklabels(DLABELS, fontsize=14)   # 8 values: keep compact
+            else:
+                ax.set_xticklabels([])
+            ax.set_ylim(0, max(0.5, float(Rt.max()) * 1.22))
             if ci == 0:
                 ax.set_ylabel("Spectral fraction $R_j$")
-            if ri == len(gt_slugs) - 1:
+            else:
+                ax.tick_params(labelleft=False)          # within-row shared y-scale
+            if ri == n_gt - 1:
                 ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)")
-            n_reps = nt.shape[0]
-            ax.set_title(f"{GT_LABELS[slug]}  |  SNR {snr}", fontsize=13)
+            ax.set_title(f"({PANEL_LETTERS[ri]}) {GT_LABELS[slug]}  |  SNR {snr}",
+                         fontsize=18)
+            ax.text(0.03, 0.95, rf"$\hat{{R}}_{{\max}}\,{np.nanmax(rh):.2f}$",
+                    transform=ax.transAxes, fontsize=10, color="0.45",
+                    ha="left", va="top")
             ax.grid(axis="y", alpha=0.25, lw=0.5)
-        # sigma row
-        axs = axes[len(gt_slugs), ci]
-        xs = np.arange(len(gt_slugs))
+        # noise-sigma row (x-axis = ground-truth letters A-F)
+        axs = fig.add_subplot(gs[n_gt + 1, ci])
+        xs = np.arange(n_gt)
         st = 1.0 / snr
-        axs.axhline(st, color=C_TRUTH, ls="--", lw=1.6, label=r"true $\sigma=1/$SNR")
-        axs.errorbar(xs - 0.08,
-                     [store[f"{s}__{snr}__sig_map"].mean() for s in gt_slugs],
+        axs.axhline(st, color="0.35", ls="--", lw=1.8, label=r"true $\sigma=1/$SNR")
+        axs.errorbar(xs - 0.10, [store[f"{s}__{snr}__sig_map"].mean() for s in gt_slugs],
                      yerr=[store[f"{s}__{snr}__sig_map"].std() for s in gt_slugs],
-                     fmt="s", color=C_MAP, capsize=3, label=r"MAP residual $\hat\sigma$")
-        axs.errorbar(xs + 0.08,
-                     [store[f"{s}__{snr}__sig_nuts"].mean() for s in gt_slugs],
+                     fmt="s", color=C_MAP, capsize=3, ms=7, label=r"MAP residual $\hat\sigma$")
+        axs.errorbar(xs + 0.10, [store[f"{s}__{snr}__sig_nuts"].mean() for s in gt_slugs],
                      yerr=[store[f"{s}__{snr}__sig_nuts"].std() for s in gt_slugs],
-                     fmt="o", color=C_NUTS, capsize=3, label=r"NUTS $\hat\sigma$")
-        axs.set_xticks(xs)
-        axs.set_xticklabels([GT_LABELS[s].split(" ")[0] for s in gt_slugs], fontsize=11)
-        axs.set_ylim(0, st * 1.8)
+                     fmt="o", color=C_NUTS, capsize=3, ms=7, label=r"NUTS $\hat\sigma$")
+        axs.set_xticks(xs); axs.set_xticklabels(PANEL_LETTERS[:n_gt], fontsize=18)
+        axs.set_xlim(-0.5, n_gt - 0.5); axs.set_ylim(0, st * 1.9)
+        axs.set_xlabel("Ground truth (A--F)", fontsize=20)
         if ci == 0:
             axs.set_ylabel(r"Noise $\sigma$")
-        axs.set_title(rf"Noise $\sigma$ Recovery  |  SNR {snr}", fontsize=13)
+        axs.set_title(rf"Noise $\sigma$ Recovery  |  SNR {snr}", fontsize=18)
         axs.grid(axis="y", alpha=0.25, lw=0.5)
+        if ci == 2:
+            axs.legend(loc="upper right", fontsize=12, framealpha=0.95)
 
-    h, l = axes[0, 0].get_legend_handles_labels()
-    fig.legend(h, l, loc="upper center", ncol=3, bbox_to_anchor=(0.5, 0.998),
-               frameon=True, framealpha=0.95, fontsize=15)
-    hs, ls_ = axes[len(gt_slugs), 0].get_legend_handles_labels()
-    axes[len(gt_slugs), 2].legend(hs, ls_, loc="upper right", fontsize=10, framealpha=0.95)
-    fig.subplots_adjust(top=1 - 0.45 / nrow, bottom=0.04, left=0.07, right=0.97,
-                        hspace=0.38, wspace=0.12)
-    fig.savefig(f"paper/figures/{out_stem}.png", dpi=200, bbox_inches="tight")
+    fig.legend(*fig.axes[0].get_legend_handles_labels(), loc="upper center",
+               ncol=3, bbox_to_anchor=(0.5, 0.999), frameon=True,
+               framealpha=0.95, fontsize=18)
+    fig.text(0.975, 0.999, f"n = {n_reps} realizations / condition",
+             ha="right", va="top", fontsize=14, color="0.3")
+    fig.savefig(f"paper/figures/{out_stem}.png", dpi=170, bbox_inches="tight")
     fig.savefig(f"paper/figures/{out_stem}.pdf", bbox_inches="tight")
     plt.close(fig)
-    print(f"saved paper/figures/{out_stem}.png/.pdf")
+    print(f"saved paper/figures/{out_stem}.png/.pdf  (n_reps={n_reps})")
 
 
 def make_figures(quick=False):
@@ -244,8 +257,9 @@ def make_figures(quick=False):
                 if f"{s}__{snr}__rhat" in store), default=float("nan"))
     print(f"rep counts: min={min(reps)} max={max(reps)} | global max R-hat={rmax:.3f}")
     suffix = "_quick" if quick else ""
-    build_figure(store, GT_MAIN, f"fig3_v7{suffix}", "main")
-    build_figure(store, GT_ALL, f"figS_recovery{suffix}", "SI")
+    # Single main figure = the full 6-ground-truth battery (Patrick 2026-06-11:
+    # no separate 4-GT main + SI; the battery IS Fig 3, full page).
+    build_figure(store, GT_ALL, f"fig3_v7{suffix}")
 
 
 if __name__ == "__main__":

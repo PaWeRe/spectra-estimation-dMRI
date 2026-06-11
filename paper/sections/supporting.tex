@@ -81,24 +81,9 @@ equivalent on realistic spectra (Figure~\ref{fig:validation}).
 % Fig S (NUTS multi-chain trace plots, fig_trace_simulation.pdf): dropped --
 % unreadable and uninformative to readers; convergence is reported in Methods
 % (split-Rhat < 1.05 for all 149 ROIs).
-% --- Fig S: full simulation recovery battery (6 ground truths x 3 SNR) ---
-\begin{figure}[p]
-\centering
-\includegraphics[width=\textwidth,height=0.95\textheight,keepaspectratio]{figures/figS_recovery.pdf}
-\caption{%
-Full simulation recovery battery: the main-text validation
-(Figure~\ref{fig:validation}) extended to six ground-truth spectra---adding an
-inverse-tumor (reversed tumor) and a bimodal spectrum (mass at $D = 0.25$ and
-$3.0\;\umsmm$)---each recovered at SNR $= 50$, $300$, and $1000$.
-Bars are the ground truth (black), the tuned-MAP estimate ($\lambda = 10^{-3}$,
-green), and the NUTS posterior mean (orange); error bars are $\pm 1$ standard
-deviation across independent noise realizations.
-The bottom row shows noise recovery: the true $\sigma = 1/\mathrm{SNR}$ (dashed)
-against the MAP residual estimate and the NUTS-inferred $\hat{\sigma}$.
-All fits used the deployed NUTS configuration.
-}
-\label{fig:recovery_si}
-\end{figure}
+% Full simulation recovery battery (6 ground truths x 3 SNR) is now the MAIN
+% Figure~\ref{fig:validation} (full page), not a separate SI figure
+% (Patrick 2026-06-11). No SI recovery figure.
 
 % --- Supplementary atlas: individual estimated spectra for every ROI (LAST) ---
 % Multi-page atlas embedded with \includepdf -- MUST stay last in the document
