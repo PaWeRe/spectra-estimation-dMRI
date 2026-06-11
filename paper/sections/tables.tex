@@ -4,27 +4,7 @@
 % --- Table 1: Tumor-detection AUCs ---
 \begin{table}[p]
 \centering
-\caption{Tumor-detection performance: the spectral classifier matches ADC, and
-the two outer fractions alone suffice.
-With one exception, entries are leave-one-out cross-validated AUCs (95\%
-confidence interval) for tumor-versus-normal classification, evaluated through
-an identical $L_2$-regularized logistic-regression pipeline ($C = 1.0$,
-standardized features) so that single- and multi-feature models are directly
-comparable (Figure~\ref{fig:roc}); the fair head-to-head is therefore ADC
-(logistic regression) versus the spectral models.
-The exception, ADC (raw rank), is the conventional in-sample ranking by ADC
-value (no model fit), reported as a reference; it is the hardest baseline to
-beat, yet the spectral models match it within overlapping confidence intervals.
-``8 fractions'' uses all spectral bins; ``2 outer fractions'' uses only
-$D = 0.25$ and $3.0\;\umsmm$.
-Confidence intervals are percentile bootstrap over patients
-(2000 resamples) \citep{efron1993bootstrap}.
-Individual fractions are NUTS single-feature raw-rank AUCs---the per-fraction ROC
-curves in Figure~\ref{fig:roc}.
-Grade-classification AUCs are omitted: with only $n = 29$ graded tumors they are
-too imprecise to be informative (95\% intervals spanning $\sim$0.5--0.95); the
-grading analysis is instead presented as grade-dependent spectral shifts
-(Figure~\ref{fig:spectrum_ggg}) and rank correlations (Results).}
+\caption{}  % caption text moved to sections/table_legends (MRM style)
 \label{tab:auc}
 \smallskip
 \begin{tabular}{lcc}
