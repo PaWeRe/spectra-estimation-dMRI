@@ -57,7 +57,7 @@ GT_LABELS = {
     "delta": r"$\delta$ ($D$=0.75)", "inverse": "Inverse tumor",
     "bimodal": "Bimodal",
 }
-C_TRUTH, C_MAP, C_NUTS = "#a6a6a6", COLORS["map"], COLORS["nuts"]  # truth = light grey reference
+C_TRUTH, C_MAP, C_NUTS = "#7f7f7f", COLORS["map"], COLORS["nuts"]  # truth = medium grey reference
 PANEL_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 
 U = np.exp(-np.outer(B_VALUES_MS, D))
@@ -183,12 +183,12 @@ def build_figure(store, gt_slugs, out_stem):
     from matplotlib.lines import Line2D
     n_gt = len(gt_slugs)
     n_reps = min(len(store[f"{s}__{snr}__nuts"]) for s in gt_slugs for snr in SNRS)
-    TITLE_FS, TICK_FS, AXLAB_FS = 16, 18, 24
-    # n_gt recovery rows + a thin spacer + a noise-sigma row. Tight columns
-    # (inner y-numbers hidden) + bigger fonts to match Fig 2's apparent scale.
-    fig = plt.figure(figsize=(19, 3.1 * n_gt + 3.4))
+    TITLE_FS, TICK_FS, AXLAB_FS = 18, 20, 24
+    # n_gt recovery rows + a thin spacer + a noise-sigma row. Wider column gaps so
+    # the noise-row y-numbers clear and panels are less stretched; bigger fonts.
+    fig = plt.figure(figsize=(18.5, 3.1 * n_gt + 3.4))
     gs = fig.add_gridspec(n_gt + 2, 3, height_ratios=[1] * n_gt + [0.32, 0.95],
-                          hspace=0.30, wspace=0.09,
+                          hspace=0.30, wspace=0.18,
                           left=0.075, right=0.985, top=0.905, bottom=0.05)
     x = np.arange(N_D); w = 0.27
     for ci, snr in enumerate(SNRS):
@@ -203,7 +203,7 @@ def build_figure(store, gt_slugs, out_stem):
             ax.bar(x + w, nt.mean(0), w, yerr=nt.std(0), color=C_NUTS, alpha=NUTS_ALPHA,
                    ecolor="0.2", capsize=2, error_kw=dict(lw=1.1))
             ax.set_xticks(x)
-            ax.set_xticklabels(DLABELS if ri == n_gt - 1 else [], fontsize=15)
+            ax.set_xticklabels(DLABELS if ri == n_gt - 1 else [], fontsize=16)
             ax.set_ylim(0, max(0.5, float(Rt.max()) * 1.22))
             ax.tick_params(axis="y", labelsize=TICK_FS)
             if ci != 0:
@@ -213,7 +213,8 @@ def build_figure(store, gt_slugs, out_stem):
                 ax.set_ylabel("Spectral fraction $R_j$", fontsize=AXLAB_FS, labelpad=8)
             if ci == 1 and ri == n_gt - 1:
                 ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=AXLAB_FS)
-            ax.set_title(rf"({PANEL_LETTERS[ri]}) {GT_LABELS[slug]}  $\mid$  SNR {snr}"
+            short = GT_LABELS[slug].replace("-like", "").replace(" tumor", "")
+            ax.set_title(rf"({PANEL_LETTERS[ri]}) {short}  $\mid$  SNR {snr}"
                          rf"  $\mid$  $\hat{{R}}\,{rh:.2f}$", fontsize=TITLE_FS)
             ax.grid(axis="y", alpha=0.25, lw=0.5)
         # noise-sigma row (x-axis = ground-truth letters A-F)
