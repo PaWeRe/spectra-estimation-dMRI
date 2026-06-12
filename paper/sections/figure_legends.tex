@@ -57,10 +57,10 @@ cohort median (the operating point of the real data) and $50$ reflects the
 reduced per-voxel SNR of the pixel-wise analysis.
 In every panel the bars are the ground truth (grey), the tuned-MAP estimate
 ($\lambda = 10^{-3}$, green), and the NUTS posterior mean (orange); error bars
-% TODO: set n to the final rep count once the 100-rep run completes
-are $\pm 1$ standard deviation across $n = 100$ independent noise realizations,
-each fit with the deployed NUTS configuration (the per-panel
-$\hat{R}_{\max}$ is the worst split-$\hat{R}$ over those realizations).
+are $\pm 1$ standard deviation across 100 independent noise realizations, each
+fit with the deployed NUTS configuration. Realizations whose split-$\hat{R}$
+exceeded $1.05$ were excluded ($\geq 81$ converged realizations retained per
+condition); the per-panel $\hat{R}_{\max}$ is the worst retained value.
 MAP and NUTS recover the smooth spectra equivalently and tighten with SNR,
 whereas the $\delta$ spike is only partially recovered and smeared into its
 correlated neighboring bins---the identifiability limit of this b-value grid,

@@ -191,12 +191,17 @@ def build_figure(store, gt_slugs, out_stem):
                           hspace=0.30, wspace=0.18,
                           left=0.075, right=0.985, top=0.905, bottom=0.05)
     x = np.arange(N_D); w = 0.27
+    RHAT_MAX = 1.05                                  # use only converged reps
+    def msk(s, sn): return store[f"{s}__{sn}__rhat"] <= RHAT_MAX
+    kept = [int(msk(s, sn).sum()) for s in gt_slugs for sn in SNRS]
+    print(f"  reps kept per condition (R-hat<={RHAT_MAX}): {min(kept)}-{max(kept)} of {n_reps}")
     for ci, snr in enumerate(SNRS):
         for ri, slug in enumerate(gt_slugs):
             ax = fig.add_subplot(gs[ri, ci])
             Rt = store[f"{slug}__{snr}__Rtrue"]
-            mp = store[f"{slug}__{snr}__map"]; nt = store[f"{slug}__{snr}__nuts"]
-            rh = float(np.nanmax(store.get(f"{slug}__{snr}__rhat", [np.nan])))
+            _m = msk(slug, snr)
+            mp = store[f"{slug}__{snr}__map"][_m]; nt = store[f"{slug}__{snr}__nuts"][_m]
+            rh = float(store[f"{slug}__{snr}__rhat"][_m].max())
             ax.bar(x - w, Rt, w, color=C_TRUTH)
             ax.bar(x, mp.mean(0), w, yerr=mp.std(0), color=C_MAP, alpha=MAP_ALPHA,
                    ecolor="0.2", capsize=2, error_kw=dict(lw=1.1))
@@ -223,11 +228,11 @@ def build_figure(store, gt_slugs, out_stem):
         axs = fig.add_subplot(gs[n_gt + 1, ci])
         xs = np.arange(n_gt); st = 1.0 / snr
         axs.axhline(st, color="0.35", ls="--", lw=2.0)
-        axs.errorbar(xs - 0.10, [store[f"{s}__{snr}__sig_map"].mean() for s in gt_slugs],
-                     yerr=[store[f"{s}__{snr}__sig_map"].std() for s in gt_slugs],
+        axs.errorbar(xs - 0.10, [store[f"{s}__{snr}__sig_map"][msk(s, snr)].mean() for s in gt_slugs],
+                     yerr=[store[f"{s}__{snr}__sig_map"][msk(s, snr)].std() for s in gt_slugs],
                      fmt="s", color=C_MAP, capsize=3, ms=8)
-        axs.errorbar(xs + 0.10, [store[f"{s}__{snr}__sig_nuts"].mean() for s in gt_slugs],
-                     yerr=[store[f"{s}__{snr}__sig_nuts"].std() for s in gt_slugs],
+        axs.errorbar(xs + 0.10, [store[f"{s}__{snr}__sig_nuts"][msk(s, snr)].mean() for s in gt_slugs],
+                     yerr=[store[f"{s}__{snr}__sig_nuts"][msk(s, snr)].std() for s in gt_slugs],
                      fmt="o", color=C_NUTS, capsize=3, ms=8)
         axs.set_xticks(xs); axs.set_xticklabels(PANEL_LETTERS[:n_gt], fontsize=24)
         axs.set_xlim(-0.5, n_gt - 0.5); axs.set_ylim(0, st * 1.9)
