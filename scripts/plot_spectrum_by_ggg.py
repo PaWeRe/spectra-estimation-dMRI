@@ -130,13 +130,13 @@ def main() -> None:
     h_ggg_ge2 = plot_group(ax_l, x, ggg_ge2, "GGG ≥ 2", C_GGG_GE2)
     ax_l.set_title("Tumor Emergence (GGG 1 vs ≥ 2)", fontsize=20, pad=8)
 
-    # RIGHT — aggressiveness: Normal baseline + GGG=2 + GGG>=3 (labelled "GGG 3"
-    # per Stephan; the group is grade groups 3-5 pooled, n=9 — kept honest in
-    # the figure caption).
+    # RIGHT — aggressiveness: Normal baseline + GGG=2 + GGG>=3 (grades 3-5
+    # pooled, n=9; labelled "GGG >= 3" — Patrick 2026-06-12 keeps the >=3
+    # pooling rather than restricting to grade 3 only).
     plot_group(ax_r, x, normal, "Normal", GROUP_NORMAL)
     h_ggg2 = plot_group(ax_r, x, ggg2, "GGG = 2", C_GGG2)
-    h_ggg_ge3 = plot_group(ax_r, x, ggg_ge3, "GGG 3", C_GGG_GE3)
-    ax_r.set_title("Aggressiveness (GGG 2 vs 3)", fontsize=20, pad=8)
+    h_ggg_ge3 = plot_group(ax_r, x, ggg_ge3, "GGG ≥ 3", C_GGG_GE3)
+    ax_r.set_title("Aggressiveness (GGG 2 vs ≥3)", fontsize=20, pad=8)
 
     for ax in axes:
         set_diff_xaxis(ax, label=True)

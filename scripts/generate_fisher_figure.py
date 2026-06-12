@@ -145,8 +145,8 @@ for j, (d, col) in enumerate(zip(D, colors)):
 snr_handles = []
 for snr_val, ls in zip([50, 100, 303], [":", "--", "-"]):
     noise_floor = 1.0 / snr_val
-    line = ax_c.axhline(noise_floor, color="gray", linestyle=ls, linewidth=1.7,
-                        alpha=0.9, label=f"SNR {snr_val} noise floor")
+    line = ax_c.axhline(noise_floor, color="black", linestyle=ls, linewidth=1.9,
+                        alpha=0.95, label=f"SNR {snr_val} noise floor")
     snr_handles.append(line)
 for bv in b_values:
     ax_c.plot(bv, 0.18, marker="|", color="black", markersize=5, alpha=0.4)
@@ -165,7 +165,7 @@ fig.legend([b1, b2, b3],
            ["unconstrained CRLB", "Bayesian CRLB (van Trees)",
             "NUTS posterior std"],
            loc="center", bbox_to_anchor=(0.73, 0.935), ncol=1,
-           frameon=True, framealpha=0.95, fontsize=12)
+           frameon=True, framealpha=0.95, fontsize=15)
 # One merged legend for panel (c): diffusivity-component colours + SNR
 # noise-floor line styles, in TWO rows (ncol=6) so it stays narrow
 # (Stephan/Patrick 2026-06-10). Column-major fill keeps the 8 diffusivity
@@ -174,7 +174,7 @@ c_handles = dcurve_handles + snr_handles
 c_labels = [f"$D$ = {d:g}" for d in D] + [f"SNR {s}" for s in [50, 100, 303]]
 fig.legend(c_handles, c_labels,
            loc="center", bbox_to_anchor=(0.51, 0.46), ncol=6,
-           frameon=True, framealpha=0.95, fontsize=11)
+           frameon=True, framealpha=0.95, fontsize=13)
 
 # ── Save ──────────────────────────────────────────────────────────────────
 out_dir = project_root / "paper" / "figures"
