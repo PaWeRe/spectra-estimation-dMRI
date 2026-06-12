@@ -66,10 +66,10 @@ whereas the $\delta$ spike is only partially recovered and smeared into its
 correlated neighboring bins---the identifiability limit of this b-value grid,
 not a sampler artifact; on that concentrated spectrum NUTS recovers more of the
 peak than MAP.
-The bottom row reports noise recovery for each ground truth (A--F): the true
-$\sigma = 1/\mathrm{SNR}$ (dashed) against the MAP residual estimate and the
-NUTS-inferred $\hat{\sigma}$, both close to truth---the noise level is
-recoverable with or without a sampler.
+The bottom row reports NUTS noise recovery for each ground truth (A--F): the
+jointly inferred $\hat{\sigma}$ (posterior mean) tracks the true
+$\sigma = 1/\mathrm{SNR}$ (dashed) across SNR, validating the joint inference of
+spectrum and noise level.
 
 \medskip\noindent\textbf{Figure~\ref{fig:roc}.}
 Tumor detection collapses onto the two outer diffusivity compartments, and the

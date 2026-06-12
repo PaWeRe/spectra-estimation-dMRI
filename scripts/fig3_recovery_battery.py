@@ -230,10 +230,9 @@ def build_figure(store, gt_slugs, out_stem):
         axs = fig.add_subplot(gs[n_gt + 1, ci])
         xs = np.arange(n_gt); st = 1.0 / snr
         axs.axhline(st, color="0.35", ls="--", lw=2.0)
-        axs.errorbar(xs - 0.10, [store[f"{s}__{snr}__sig_map"][msk(s, snr)].mean() for s in gt_slugs],
-                     yerr=[store[f"{s}__{snr}__sig_map"][msk(s, snr)].std() for s in gt_slugs],
-                     fmt="s", color=C_MAP, capsize=3, ms=8)
-        axs.errorbar(xs + 0.10, [store[f"{s}__{snr}__sig_nuts"][msk(s, snr)].mean() for s in gt_slugs],
+        # NUTS only: it jointly infers sigma. MAP is sigma-free (the residual
+        # estimate was a post-hoc plug-in; removed per Patrick 2026-06-12).
+        axs.errorbar(xs, [store[f"{s}__{snr}__sig_nuts"][msk(s, snr)].mean() for s in gt_slugs],
                      yerr=[store[f"{s}__{snr}__sig_nuts"][msk(s, snr)].std() for s in gt_slugs],
                      fmt="o", color=C_NUTS, capsize=3, ms=8)
         axs.set_xticks(xs); axs.set_xticklabels(PANEL_LETTERS[:n_gt], fontsize=24)
@@ -249,15 +248,15 @@ def build_figure(store, gt_slugs, out_stem):
         axs.grid(axis="y", alpha=0.25, lw=0.5)
 
     # unified top legend: bars + noise markers, grouped by truth / MAP / NUTS
+    # 5 entries, ncol=3 (column-major) -> top row = the 3 bars, bottom row = the
+    # 2 noise-row series (true sigma, NUTS sigma-hat).
     handles = [
         Patch(facecolor=C_TRUTH, label="Ground truth"),
         Line2D([], [], color="0.35", ls="--", lw=2.0, label=r"true $\sigma=1/$SNR"),
         Patch(facecolor=C_MAP, alpha=MAP_ALPHA, label="Tuned MAP"),
-        Line2D([], [], color=C_MAP, marker="s", ls="none", ms=10,
-               label=r"MAP residual $\hat\sigma$"),
-        Patch(facecolor=C_NUTS, alpha=NUTS_ALPHA, label="NUTS (posterior mean)"),
         Line2D([], [], color=C_NUTS, marker="o", ls="none", ms=10,
                label=r"NUTS $\hat\sigma$"),
+        Patch(facecolor=C_NUTS, alpha=NUTS_ALPHA, label="NUTS (posterior mean)"),
     ]
     fig.legend(handles=handles, loc="upper center", ncol=3,
                bbox_to_anchor=(0.5, 0.99), frameon=True, framealpha=0.95, fontsize=LEG_FS)
