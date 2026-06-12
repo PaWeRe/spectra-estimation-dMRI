@@ -229,34 +229,46 @@ def build_figure(store, gt_slugs, out_stem):
         # noise-sigma row (x-axis = ground-truth letters A-F)
         axs = fig.add_subplot(gs[n_gt + 1, ci])
         xs = np.arange(n_gt); st = 1.0 / snr
-        axs.axhline(st, color="0.35", ls="--", lw=2.0)
-        # NUTS only: it jointly infers sigma. MAP is sigma-free (the residual
-        # estimate was a post-hoc plug-in; removed per Patrick 2026-06-12).
-        axs.errorbar(xs, [store[f"{s}__{snr}__sig_nuts"][msk(s, snr)].mean() for s in gt_slugs],
-                     yerr=[store[f"{s}__{snr}__sig_nuts"][msk(s, snr)].std() for s in gt_slugs],
+        # Ratio sigma_hat / sigma_true (Stephan 2026-06-12): dimensionless, so the
+        # same y-range serves all three SNR panels and 1 = perfect recovery.
+        axs.axhline(1.0, color="0.35", ls="--", lw=2.0)
+        map_r = [store[f"{s}__{snr}__sig_map"][msk(s, snr)] / st for s in gt_slugs]
+        nut_r = [store[f"{s}__{snr}__sig_nuts"][msk(s, snr)] / st for s in gt_slugs]
+        axs.errorbar(xs - 0.10, [r.mean() for r in map_r], yerr=[r.std() for r in map_r],
+                     fmt="s", color=C_MAP, capsize=3, ms=8)
+        axs.errorbar(xs + 0.10, [r.mean() for r in nut_r], yerr=[r.std() for r in nut_r],
                      fmt="o", color=C_NUTS, capsize=3, ms=8)
+        # mark any off-scale (>2) point with an up-arrow + its value
+        for j in range(n_gt):
+            for off, r, col in [(-0.10, map_r[j].mean(), C_MAP),
+                                (0.10, nut_r[j].mean(), C_NUTS)]:
+                if r > 2:
+                    axs.plot(j + off, 1.93, marker="^", color=col, ms=11, clip_on=False)
+                    axs.text(j + off, 1.74, f"{r:.1f}", color=col, fontsize=13,
+                             ha="center", va="top", fontweight="bold")
         axs.set_xticks(xs); axs.set_xticklabels(PANEL_LETTERS[:n_gt], fontsize=24)
-        axs.set_xlim(-0.5, n_gt - 0.5); axs.set_ylim(0, st * 1.9)
+        axs.set_xlim(-0.5, n_gt - 0.5); axs.set_ylim(0, 2)
+        axs.set_yticks([0, 0.5, 1.0, 1.5, 2.0])
         axs.tick_params(axis="y", labelsize=TICK_FS)
-        axs.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))  # 0.0025 -> x10^-3
-        axs.yaxis.get_offset_text().set_fontsize(TICK_FS - 4)
         axs.set_title(rf"Noise $\sigma$ Recovery $\mid$ SNR {snr}", fontsize=TITLE_FS + 2)
         if ci == 0:
-            axs.set_ylabel(r"Noise $\sigma$", fontsize=AXLAB_FS)
+            axs.set_ylabel(r"$\hat\sigma / \sigma_{\mathrm{true}}$", fontsize=AXLAB_FS)
         if ci == 1:
             axs.set_xlabel("Ground truth (A--F)", fontsize=AXLAB_FS)
         axs.grid(axis="y", alpha=0.25, lw=0.5)
 
     # unified top legend: bars + noise markers, grouped by truth / MAP / NUTS
-    # 5 entries, ncol=3 (column-major) -> top row = the 3 bars, bottom row = the
-    # 2 noise-row series (true sigma, NUTS sigma-hat).
+    # 6 entries, ncol=3 (column-major) -> top row = the 3 bars, bottom row = the
+    # 3 noise-row series (reference, MAP residual sigma-hat, NUTS sigma-hat).
     handles = [
         Patch(facecolor=C_TRUTH, label="Ground truth"),
-        Line2D([], [], color="0.35", ls="--", lw=2.0, label=r"true $\sigma=1/$SNR"),
+        Line2D([], [], color="0.35", ls="--", lw=2.0, label=r"$\hat\sigma=\sigma_{\mathrm{true}}$"),
         Patch(facecolor=C_MAP, alpha=MAP_ALPHA, label="Tuned MAP"),
+        Line2D([], [], color=C_MAP, marker="s", ls="none", ms=10,
+               label=r"MAP residual $\hat\sigma$"),
+        Patch(facecolor=C_NUTS, alpha=NUTS_ALPHA, label="NUTS (posterior mean)"),
         Line2D([], [], color=C_NUTS, marker="o", ls="none", ms=10,
                label=r"NUTS $\hat\sigma$"),
-        Patch(facecolor=C_NUTS, alpha=NUTS_ALPHA, label="NUTS (posterior mean)"),
     ]
     fig.legend(handles=handles, loc="upper center", ncol=3,
                bbox_to_anchor=(0.5, 0.99), frameon=True, framealpha=0.95, fontsize=LEG_FS)

@@ -66,10 +66,16 @@ whereas the $\delta$ spike is only partially recovered and smeared into its
 correlated neighboring bins---the identifiability limit of this b-value grid,
 not a sampler artifact; on that concentrated spectrum NUTS recovers more of the
 peak than MAP.
-The bottom row reports NUTS noise recovery for each ground truth (A--F): the
-jointly inferred $\hat{\sigma}$ (posterior mean) tracks the true
-$\sigma = 1/\mathrm{SNR}$ (dashed) across SNR, validating the joint inference of
-spectrum and noise level.
+The bottom row reports noise recovery for each ground truth (A--F) as the ratio
+$\hat{\sigma}/\sigma_{\mathrm{true}}$ (dashed reference $=1$; common scale across
+SNR) for the NUTS posterior-mean $\hat{\sigma}$, inferred jointly with the
+spectrum, and the MAP residual $\hat{\sigma}$, a post-hoc estimate from the
+$\sigma$-free ridge fit. NUTS recovers the noise level to ratio $\approx 1$
+across all ground truths; the MAP residual under-estimates on the smooth spectra
+(the eight-bin fit absorbs noise) and over-estimates on the unrepresentable
+$\delta$-spike (its residual reflects the un-fit spike rather than the noise;
+off-scale, arrow), illustrating that the joint Bayesian inference quantifies the
+noise level more robustly than a residual plug-in.
 
 \medskip\noindent\textbf{Figure~\ref{fig:roc}.}
 Tumor detection collapses onto the two outer diffusivity compartments, and the
