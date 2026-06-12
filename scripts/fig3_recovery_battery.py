@@ -59,6 +59,8 @@ GT_LABELS = {
 }
 C_TRUTH, C_MAP, C_NUTS = "#7f7f7f", COLORS["map"], COLORS["nuts"]  # truth = medium grey reference
 PANEL_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]
+# Short diffusivity x-tick labels so they can be larger without overlapping.
+XTICK_LABELS = [".25", ".5", ".75", "1", "1.5", "2", "3", "20"]
 
 U = np.exp(-np.outer(B_VALUES_MS, D))
 def norm(R):
@@ -210,7 +212,7 @@ def build_figure(store, gt_slugs, out_stem):
             ax.set_xticks(x)
             # 8 diffusivity labels can't all be 24pt without overlap -> keep
             # this dense axis smaller; every other tick is the only alternative.
-            ax.set_xticklabels(DLABELS if ri == n_gt - 1 else [], fontsize=16)
+            ax.set_xticklabels(XTICK_LABELS if ri == n_gt - 1 else [], fontsize=19)
             ax.set_ylim(0, max(0.5, float(Rt.max()) * 1.22))
             ax.tick_params(axis="y", labelsize=TICK_FS)
             if ci != 0:
@@ -221,8 +223,8 @@ def build_figure(store, gt_slugs, out_stem):
             if ci == 1 and ri == n_gt - 1:
                 ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=AXLAB_FS)
             short = GT_LABELS[slug].replace("-like", "").replace(" tumor", "")
-            ax.set_title(rf"({PANEL_LETTERS[ri]}) {short}  $\mid$  SNR {snr}"
-                         rf"  $\mid$  $\hat{{R}}\,{rh:.2f}$", fontsize=TITLE_FS)
+            ax.set_title(rf"({PANEL_LETTERS[ri]}) {short} $\mid$ SNR {snr} "
+                         rf"$\mid$ $\hat{{R}}\,{rh:.2f}$", fontsize=TITLE_FS)
             ax.grid(axis="y", alpha=0.25, lw=0.5)
         # noise-sigma row (x-axis = ground-truth letters A-F)
         axs = fig.add_subplot(gs[n_gt + 1, ci])
@@ -239,7 +241,7 @@ def build_figure(store, gt_slugs, out_stem):
         axs.tick_params(axis="y", labelsize=TICK_FS)
         axs.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))  # 0.0025 -> x10^-3
         axs.yaxis.get_offset_text().set_fontsize(TICK_FS - 4)
-        axs.set_title(rf"Noise $\sigma$ Recovery  $\mid$  SNR {snr}", fontsize=TITLE_FS)
+        axs.set_title(rf"Noise $\sigma$ Recovery $\mid$ SNR {snr}", fontsize=TITLE_FS + 2)
         if ci == 0:
             axs.set_ylabel(r"Noise $\sigma$", fontsize=AXLAB_FS)
         if ci == 1:
