@@ -4,7 +4,9 @@
 % --- Table 1: Tumor-detection AUCs ---
 \begin{table}[p]
 \centering
-\caption{}  % caption text moved to sections/table_legends (MRM style)
+\caption{}  % MRM tables carry no caption text; notes/abbreviations go BELOW the
+            % table (Stephan 2026-06-12). The empty \caption keeps the "Table 1"
+            % number + binds \label so every \ref resolves.
 \label{tab:auc}
 \smallskip
 \begin{tabular}{lcc}
@@ -31,4 +33,24 @@ $D = 3.00\;\umsmm$  & 0.92 [0.85, 0.97] & 0.90 [0.81, 0.97] \\
 $D = 20.0\;\umsmm$  & 0.52 [0.37, 0.66] & 0.55 [0.34, 0.75] \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+{\footnotesize\raggedright
+Values are areas under the ROC curve (AUC) for tumor-versus-normal detection,
+with 95\% bootstrap confidence intervals over patients
+(2000 resamples)~\citep{efron1993bootstrap}. With one exception, AUCs are
+leave-one-out cross-validated through an identical $L_2$-regularized logistic-
+regression pipeline ($C = 1.0$, standardized features), so single- and
+multi-feature models are directly comparable; the fair head-to-head is ADC
+(logistic regression) versus the spectral models. The exception, ADC (raw
+rank), is the conventional in-sample ranking by ADC value (no model fit),
+reported as the hardest reference to beat. ``8 fractions'' uses all spectral
+bins; ``2 outer fractions'' uses only $D = 0.25$ and $3.0\;\umsmm$; individual
+fractions are NUTS single-feature raw-rank AUCs. Grade-classification AUCs are
+omitted (only $n = 29$ graded tumors; 95\% intervals span $\sim$0.5--0.95);
+grading is presented instead as grade-dependent spectral shifts
+(Figure~\ref{fig:spectrum_ggg}) and rank correlations (Results).
+Abbreviations: PZ, peripheral zone; TZ, transition zone; ADC, apparent
+diffusion coefficient; LR, logistic regression; MAP, maximum a posteriori;
+NUTS, no-U-turn sampler.\par}
 \end{table}

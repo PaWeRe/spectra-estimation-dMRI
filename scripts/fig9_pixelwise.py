@@ -252,29 +252,29 @@ def main():
     fig, ax = plt.subplots(3, 3, figsize=(16.5, 13.6))
 
     panel(ax[0, 0], b0, None, "gray", r"Anatomy ($b=0$)", "A", add_cbar=False)
-    panel(ax[0, 1], b0, M["fr"], "Reds", r"Restricted fraction ($D=0.25$)", "B",
-          vmin=0, vmax=fr_hi, cbar_label="fraction")
-    panel(ax[0, 2], b0, M["fw"], "Blues", r"Free-water fraction ($D=3.0$)", "C",
-          vmin=0, vmax=fw_hi, cbar_label="fraction")
+    panel(ax[0, 1], b0, M["fr"], "Reds", r"Restricted Fraction ($D=0.25$)", "B",
+          vmin=0, vmax=fr_hi, cbar_label="Fraction")
+    panel(ax[0, 2], b0, M["fw"], "Blues", r"Free-Water Fraction ($D=3.0$)", "C",
+          vmin=0, vmax=fw_hi, cbar_label="Fraction")
 
     panel(ax[1, 0], b0, M["adc"], "gray", "ADC", "D", vmin=adc_lo, vmax=adc_hi,
           cbar_label=r"ADC ($\mu$m$^2$/ms)", alpha=1.0)
     # Score maps E,F: BrBG (diverging, teal-green <-> brown), boundary-centred.
     # NOT red/blue (B,C fractions) nor purple-yellow (H,I plasma). Parentheses
     # dropped from titles (logit / boundary explanation moves to the caption).
-    panel(ax[1, 1], b0, M["s2"], CMAP_SCORE, "2-bin score", "E",
-          vmin=-abs_k, vmax=abs_k, cbar_label="discriminant score")
-    panel(ax[1, 2], b0, M["s8"], CMAP_SCORE, "8-bin score", "F",
-          vmin=-abs_k, vmax=abs_k, cbar_label="discriminant score")
+    panel(ax[1, 1], b0, M["s2"], CMAP_SCORE, "2-Bin Score", "E",
+          vmin=-abs_k, vmax=abs_k, cbar_label="Discriminant score")
+    panel(ax[1, 2], b0, M["s8"], CMAP_SCORE, "8-Bin Score", "F",
+          vmin=-abs_k, vmax=abs_k, cbar_label="Discriminant score")
 
     # Panel G (windowed 2-bin score) deleted (Stefan 2026-06-03): leave the
     # 3x3 slot blank, keep H,I in place. Uncertainty maps use plasma
     # (purple->yellow, max contrast) on a SHARED scale (vmax = unc_max).
     ax[2, 0].axis("off")
-    panel(ax[2, 1], b0, M["u2"], CMAP_UNC, "2-bin score uncertainty", "H",
-          vmin=0, vmax=unc_max, cbar_label="posterior SD")
-    panel(ax[2, 2], b0, M["u8"], CMAP_UNC, "8-bin score uncertainty", "I",
-          vmin=0, vmax=unc_max, cbar_label="posterior SD")
+    panel(ax[2, 1], b0, M["u2"], CMAP_UNC, "2-Bin Score Uncertainty", "H",
+          vmin=0, vmax=unc_max, cbar_label="Posterior SD")
+    panel(ax[2, 2], b0, M["u8"], CMAP_UNC, "8-Bin Score Uncertainty", "I",
+          vmin=0, vmax=unc_max, cbar_label="Posterior SD")
 
     fig.tight_layout()
     png = os.path.join(OUT_DIR, "fig9_v2.png")

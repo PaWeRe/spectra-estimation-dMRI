@@ -251,7 +251,7 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     feats = pd.read_csv(FEATURES_CSV)
 
-    zones = [("pz", "PZ: tumor detection"), ("tz", "TZ: tumor detection")]
+    zones = [("pz", "PZ: Tumor Detection"), ("tz", "TZ: Tumor Detection")]
     results = {z: build_zone(feats[feats["zone"] == z].copy()) for z, _ in zones}
 
     # ---------- printed AUC table (keep Table 1 in sync) ----------

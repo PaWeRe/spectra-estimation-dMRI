@@ -71,13 +71,15 @@ NUTS_COLS = [f"nuts_D_{d:.2f}" for d in DIFFUSIVITIES]
 # (aggressiveness):
 #   LEFT  (emergence)      = WARM family, light->dark with grade.
 #   RIGHT (aggressiveness) = COOL family, light->dark with grade.
-GROUP_NORMAL = "#7f7f7f"  # neutral grey baseline (both panels)
-# LEFT — warm (orange -> dark red).
-C_GGG1 = "#fdae6b"     # light orange — GGG = 1   (left panel)
-C_GGG_GE2 = "#cb181d"  # dark red     — GGG >= 2  (left panel)
-# RIGHT — cool (purple).
-C_GGG2 = "#9e9ac8"     # light purple — GGG = 2   (right panel)
-C_GGG_GE3 = "#54278f"  # dark purple  — GGG >= 3  (right panel, most aggressive)
+# Striking, well-separated hues (Stephan 2026-06-12 email: the old pastels were
+# too faint). Normal is a DARK neutral grey shared by both panels.
+GROUP_NORMAL = "#4d4d4d"  # dark neutral grey baseline (both panels)
+# LEFT (emergence).
+C_GGG1 = "#2ca02c"     # green  — GGG = 1   (left panel)
+C_GGG_GE2 = "#d62728"  # red    — GGG >= 2  (left panel)
+# RIGHT (aggressiveness).
+C_GGG2 = "#e6550d"     # orange — GGG = 2   (right panel; darker than the GGG1 hue)
+C_GGG_GE3 = "#54278f"  # purple — GGG 3     (right panel, most aggressive)
 
 
 def group_stats(spec: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -126,20 +128,22 @@ def main() -> None:
     h_normal = plot_group(ax_l, x, normal, "Normal", GROUP_NORMAL)
     h_ggg1 = plot_group(ax_l, x, ggg1, "GGG = 1", C_GGG1)
     h_ggg_ge2 = plot_group(ax_l, x, ggg_ge2, "GGG ≥ 2", C_GGG_GE2)
-    ax_l.set_title("Tumour emergence (GGG 1 vs ≥2)", fontsize=20, pad=8)
+    ax_l.set_title("Tumor Emergence (GGG 1 vs ≥ 2)", fontsize=20, pad=8)
 
-    # RIGHT — aggressiveness: Normal baseline + GGG=2 + GGG>=3.
+    # RIGHT — aggressiveness: Normal baseline + GGG=2 + GGG>=3 (labelled "GGG 3"
+    # per Stephan; the group is grade groups 3-5 pooled, n=9 — kept honest in
+    # the figure caption).
     plot_group(ax_r, x, normal, "Normal", GROUP_NORMAL)
     h_ggg2 = plot_group(ax_r, x, ggg2, "GGG = 2", C_GGG2)
-    h_ggg_ge3 = plot_group(ax_r, x, ggg_ge3, "GGG ≥ 3", C_GGG_GE3)
-    ax_r.set_title("Aggressiveness (GGG 2 vs ≥3)", fontsize=20, pad=8)
+    h_ggg_ge3 = plot_group(ax_r, x, ggg_ge3, "GGG 3", C_GGG_GE3)
+    ax_r.set_title("Aggressiveness (GGG 2 vs 3)", fontsize=20, pad=8)
 
     for ax in axes:
         set_diff_xaxis(ax, label=True)
         ax.grid(alpha=0.3)
         ax.axhline(0, color="k", lw=0.4)
         ax.margins(x=0.02)
-    ax_l.set_ylabel(r"spectral fraction $R_j$")
+    ax_l.set_ylabel(r"Spectral fraction $R_j$")
 
     # SINGLE shared figure-level legend on top (matches Fig 1 / Fig 3). Normal
     # is listed ONCE; each grade group is its own distinct red. One row of 5

@@ -343,6 +343,12 @@ def make_figure_v3(U, out_stem):
 # ---------------------------------------------------------------------------
 # v4 supplementary figure: 4 rows x 2 columns (4 patients x 2 zones)
 # ---------------------------------------------------------------------------
+def _tissue_disp(tissue: str) -> str:
+    """Title-case, American-spelling tissue label for panel titles
+    (Stephan 2026-06-12): 'tumour'/'normal' -> 'Tumor'/'Normal'."""
+    return "Tumor" if tissue.lower().startswith("tum") else "Normal"
+
+
 def make_figure_v4(U, out_stem):
     """4x2 grid of per-direction MAP spectra + trace-averaged reference.
 
@@ -377,7 +383,7 @@ def make_figure_v4(U, out_stem):
             except (ValueError, FileNotFoundError) as exc:
                 ax.text(0.5, 0.5, f"{stem}\nMISSING:\n{exc}", transform=ax.transAxes,
                         ha="center", va="center", fontsize=10, color="#b22222")
-                ax.set_title(f"Patient {r + 1} — {tissue} {zone}")
+                ax.set_title(f"Patient {r + 1} — {_tissue_disp(tissue)} {zone}")
                 status.append((r + 1, zone, stem, f"FAILED: {exc}"))
                 continue
 
@@ -387,12 +393,15 @@ def make_figure_v4(U, out_stem):
             ax.plot(x, trace_spectrum, "s-", color=COLORS["truth"], lw=2.6, ms=7,
                     label="Trace-averaged", zorder=5)
 
-            set_diff_xaxis(ax, label=(r == nrows - 1), rotation=0)
-            ax.set_title(f"Patient {r + 1} — {tissue} {zone}")
+            # x-tick labels only on the bottom row (Stephan 2026-06-12: don't
+            # repeat them per row); x-axis title also on the bottom row only.
+            bottom = (r == nrows - 1)
+            set_diff_xaxis(ax, label=bottom, ticklabels=bottom, rotation=0)
+            ax.set_title(f"Patient {r + 1} — {_tissue_disp(tissue)} {zone}")
             ax.grid(axis="y", alpha=0.3)
 
     for r in range(nrows):
-        axes[r, 0].set_ylabel("spectral fraction")
+        axes[r, 0].set_ylabel("Spectral fraction")
 
     handles, labels = axes[0, 0].get_legend_handles_labels()
     top_legend(fig, handles, labels, ncol=4, y=0.985)

@@ -89,17 +89,17 @@ plt.rcParams.update({
     "ytick.labelsize": 15,
 })
 
-# --- Palette (lead-author redesign 2026-06-05, contrast = pale vs bright) ---
-# VERY pale low-saturation pastel = correctly classified (recedes into the
-# background); BRIGHT, fully SATURATED standard blue/red = MISCLASSIFIED. The
-# misclassified markers are NO LARGER than the correct ones (same/+1 pt) and
-# keep only a thin edge for definition -- the saturation carries the miss flag,
-# not size. Hue family is preserved (normal = blue, tumor = red).
-COLOR_NORMAL = "#cfe8f5"        # very pale blue           : correct normal
-COLOR_TUMOR = "#fcd0cf"         # very pale red            : correct tumor
-COLOR_NORMAL_MISS = "#1f77b4"   # saturated standard blue  : misclassified normal
-COLOR_TUMOR_MISS = "#d62728"    # saturated standard red   : misclassified tumor
-MISS_EDGE = "#000000"           # thin black ring on misclassified markers
+# --- Palette (Stephan 2026-06-12: raise the intensity of the correctly
+# classified markers so they read clearly). MEDIUM-saturation blue/red =
+# correctly classified (now clearly visible, not receding); FULLY saturated
+# blue/red + thicker black ring + a hair larger = MISCLASSIFIED, so the misses
+# still pop against the now-stronger correct cloud. Hue preserved (normal =
+# blue, tumor = red).
+COLOR_NORMAL = "#6baed6"        # medium blue              : correct normal
+COLOR_TUMOR = "#fc9272"         # medium red               : correct tumor
+COLOR_NORMAL_MISS = "#08519c"   # deep saturated blue      : misclassified normal
+COLOR_TUMOR_MISS = "#a50f15"    # deep saturated red       : misclassified tumor
+MISS_EDGE = "#000000"           # black ring on misclassified markers
 GRAY = "#666666"
 
 

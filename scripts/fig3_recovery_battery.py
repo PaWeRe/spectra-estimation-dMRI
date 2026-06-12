@@ -57,7 +57,7 @@ GT_LABELS = {
     "delta": r"$\delta$ ($D$=0.75)", "inverse": "Inverse tumor",
     "bimodal": "Bimodal",
 }
-C_TRUTH, C_MAP, C_NUTS = "#7f7f7f", COLORS["map"], COLORS["nuts"]  # truth = medium grey reference
+C_TRUTH, C_MAP, C_NUTS = "#000000", COLORS["map"], COLORS["nuts"]  # truth = black, striking reference (Stephan 2026-06-12)
 PANEL_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 # Short diffusivity x-tick labels so they can be larger without overlapping.
 XTICK_LABELS = [".25", ".5", ".75", "1", "1.5", "2", "3", "20"]

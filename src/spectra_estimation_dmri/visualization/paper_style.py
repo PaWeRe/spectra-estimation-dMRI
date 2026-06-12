@@ -106,11 +106,14 @@ def apply_style(preset: str = "grid") -> None:
     mpl.rcParams.update({**_BASE, **fonts})
 
 
-def set_diff_xaxis(ax, label: bool = True, rotation: int = 0) -> None:
+def set_diff_xaxis(ax, label: bool = True, rotation: int = 0,
+                   ticklabels: bool = True) -> None:
     """Standard diffusivity x-axis: integer tick positions, fixed labels, no
-    rotation (no angled text)."""
+    rotation (no angled text). Set ``ticklabels=False`` to keep the ticks but
+    hide their text (e.g. non-bottom rows of a shared-x grid, so labels are not
+    repeated on every row)."""
     ax.set_xticks(range(len(DIFFUSIVITIES)))
-    ax.set_xticklabels(DLABELS, rotation=rotation)
+    ax.set_xticklabels(DLABELS if ticklabels else [], rotation=rotation)
     if label:
         ax.set_xlabel(DIFF_AXIS_LABEL)
 

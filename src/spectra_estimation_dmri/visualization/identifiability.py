@@ -45,9 +45,14 @@ def cv_hatch(cv: float) -> str:
     return CV_BANDS[-1][2]
 
 
-def cv_legend_handles():
-    """Four band patches (colour + hatch) for a figure legend."""
+def cv_legend_handles(hatch: bool = True):
+    """Four band patches for a figure legend.
+
+    ``hatch=True`` (default) keeps the colour+hatch swatches used by the S1
+    atlas; ``hatch=False`` returns colour-only swatches (Fig. 6 / sensitivity,
+    per Stephan 2026-06-12 — colour encodes CV, no hatching)."""
     return [
-        mpatches.Patch(facecolor=c, edgecolor="black", hatch=h, label=lab)
+        mpatches.Patch(facecolor=c, edgecolor="black",
+                       hatch=(h if hatch else None), label=lab)
         for (_, c, h), lab in zip(CV_BANDS, CV_LABELS)
     ]

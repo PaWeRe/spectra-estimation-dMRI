@@ -165,10 +165,10 @@ def build_figure(data: dict, standardize: bool, out_stem: Path) -> None:
         z = data[zkey]
         ax = fig.add_subplot(gs[0, j])
 
-        # --- LR bars (colour+hatch = CV) with bootstrap CIs ---
+        # --- LR bars (colour = CV; no hatch, Stephan 2026-06-12) w/ boot CIs ---
         for i in range(len(D)):
             ax.bar(x[i] - dx, z["w_n"][i], width=bw,
-                   color=cv_color(z["cv_mean"][i]), hatch=cv_hatch(z["cv_mean"][i]),
+                   color=cv_color(z["cv_mean"][i]),
                    edgecolor="black", linewidth=0.6, zorder=2)
         ax.errorbar(x - dx, z["w_n"],
                     yerr=[z["w_n"] - z["w_lo"], z["w_hi"] - z["w_n"]],
@@ -186,7 +186,7 @@ def build_figure(data: dict, standardize: bool, out_stem: Path) -> None:
         ax.grid(axis="y", alpha=0.22, linewidth=0.5)
         ax.set_xticks(x)
         ax.set_xticklabels(DLAB)
-        ax.set_xlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)")
+        ax.set_xlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)")
         ax.set_title(f"{zlabel}   ($n = {z['n']}$) · NUTS")
         # r + CI as a compact in-panel annotation (keeps the title short).
         ax.text(0.5, 0.965,
@@ -195,7 +195,7 @@ def build_figure(data: dict, standardize: bool, out_stem: Path) -> None:
                 transform=ax.transAxes, ha="center", va="top", fontsize=15,
                 bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8))
         if j == 0:
-            ax.set_ylabel(r"normalised weight  ($\max|\cdot| = 1$)")
+            ax.set_ylabel(r"Normalized weight  ($\max|\cdot| = 1$)")
 
     # --- shared top legend: row 1 = glyphs, row 2 = the 4 CV bands ---
     coef_label = (r"LR coef (bars, NUTS)" if standardize
@@ -206,7 +206,7 @@ def build_figure(data: dict, standardize: bool, out_stem: Path) -> None:
                mfc="white", mew=1.8, label=r"$-\,\partial$ADC$/\partial R$"),
         Line2D([0], [0], color="black", marker="|", linestyle="None", ms=11,
                markeredgewidth=1.4, label="95% boot CI"),
-    ] + cv_legend_handles()
+    ] + cv_legend_handles(hatch=False)
     # CV colour+hatch meaning is described in the caption (not as a legend title).
     fig.legend(handles=handles, loc="upper center", ncol=4, frameon=True,
                framealpha=0.95, bbox_to_anchor=(0.5, 0.995),

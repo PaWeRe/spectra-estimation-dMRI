@@ -226,8 +226,8 @@ def make_page(pdf, chunk, mapchunk, header, preview_path=None):
                title_fontsize=10)
     fig.text(0.105, 0.988, header, ha="left", va="top", fontsize=11,
              color="0.35", fontstyle="italic")
-    fig.supxlabel(r"diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=14, y=0.018)
-    fig.supylabel(r"spectral fraction $R_j$", fontsize=14, x=0.022)
+    fig.supxlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=14, y=0.018)
+    fig.supylabel(r"Spectral fraction $R_j$", fontsize=14, x=0.022)
     pdf.savefig(fig)  # no bbox_inches -> fixed 8.5x11 page; nothing clipped
     if preview_path is not None:
         fig.savefig(preview_path, dpi=160)
@@ -239,10 +239,10 @@ def main() -> None:
     feat = pd.read_csv(FEAT).set_index("roi_id")
 
     cats = [
-        ("pz", False, "peripheral zone · normal"),
-        ("pz", True, "peripheral zone · tumor"),
-        ("tz", False, "transition zone · normal"),
-        ("tz", True, "transition zone · tumor"),
+        ("pz", False, "Peripheral Zone · Normal"),
+        ("pz", True, "Peripheral Zone · Tumor"),
+        ("tz", False, "Transition Zone · Normal"),
+        ("tz", True, "Transition Zone · Tumor"),
     ]
     OUT.mkdir(parents=True, exist_ok=True)
     pdf_path = OUT / "figS1_all_roi_spectra.pdf"
