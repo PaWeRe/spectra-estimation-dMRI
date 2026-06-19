@@ -196,6 +196,10 @@ def build_figure(data: dict, standardize: bool, out_stem: Path) -> None:
                 bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8))
         if j == 0:
             ax.set_ylabel(r"Normalized weight  ($\max|\cdot| = 1$)")
+        else:
+            # Both panels share the same symmetric y-range; drop the right
+            # panel's redundant y-tick numbers (Stephan 2026-06-19).
+            ax.tick_params(labelleft=False)
 
     # --- shared top legend: row 1 = glyphs, row 2 = the 4 CV bands ---
     coef_label = (r"LR coef (bars, NUTS)" if standardize

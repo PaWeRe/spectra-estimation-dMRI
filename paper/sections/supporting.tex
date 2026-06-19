@@ -51,8 +51,8 @@ Direction independence of whole-ROI spectral estimates validates trace
 averaging.
 Per-encoding-direction MAP spectra (three encoding directions, colored) versus
 the trace-averaged spectrum (black) for four representative patients (rows),
-each with one peripheral-zone (left) and one transition-zone (right) region of
-interest; tissue type (normal or tumor) is labeled per panel.
+each with one normal (left) and one tumor (right) region of interest; the
+anatomical zone (peripheral or transition) is labeled per panel.
 The three directions agree closely in the diagnostically dominant
 restricted-diffusion bin ($D = 0.25\;\umsmm$; mean direction-wise CV $9\%$
 across all 13 directional regions); the larger inter-direction spread in the
@@ -66,27 +66,42 @@ MAP estimates are shown (constrained ridge, $\lambda = 10^{-3}$); these
 directional ROIs lie outside the 149-ROI cohort, and MAP and NUTS are
 equivalent on realistic spectra (Figure~\ref{fig:validation}).
 
-\medskip\noindent\textbf{Supplementary Atlas: individual estimated spectra for
-all 149 ROIs.}
-Each panel shows one ROI's full NUTS posterior over the eight-bin diffusivity
-spectrum ($D = 0.25$, $0.5$, $0.75$, $1.0$, $1.5$, $2.0$, $3.0$, $20\;\umsmm$,
-left to right) as box plots: the box spans the interquartile range, the solid
-line is the posterior median, the dashed line the posterior mean, and the
-whiskers the 5th--95th percentiles (fliers suppressed, as the per-bin
+\medskip\noindent\textbf{Figure~\ref{fig:atlas}.}
+Representative per-ROI NUTS posterior spectra across anatomical zone and Gleason
+Grade Group. Eight ROIs are shown (rows: peripheral zone, transition zone;
+columns: normal tissue and tumor at Grade Group 1, 3, and 5), each the full NUTS
+posterior over the eight-bin diffusivity spectrum
+($D = 0.25$--$20\;\umsmm$, left to right) drawn as box plots: box $=$
+interquartile range, solid line $=$ posterior median, dashed line $=$ posterior
+mean, whiskers $=$ 5th--95th percentiles (fliers suppressed; the per-bin
 posteriors are continuous and unimodal). Each box face is coloured by the
-within-ROI per-bin coefficient of variation (CV $=$ posterior std $/$ posterior
-mean; colorblind-safe sequential colour plus hatching, light/clean $=$ well
-identified to dark/cross-hatched $=$ poorly identified, the same scheme as
-Figure~\ref{fig:sensitivity}): the box \emph{width} is the absolute posterior
-spread while the colour is the \emph{relative} spread, so a low-mass outer bin
-can show a narrow box yet a dark (relatively uncertain) colour. The green
-$\times$ marks the tuned-MAP ($\lambda = 10^{-3}$) point estimate. Panels are
-grouped by anatomical zone and tissue type (page headers) and ordered by ADC
-within each group; panel titles give the patient identifier (the key into the
-publicly released signal-decay data), the zone and tissue, and, for tumour
-ROIs, the biopsy Gleason score and Grade Group. A companion key file
-(\texttt{figS1\_roi\_key.csv}) lists the exact anatomical region and SNR for
-each panel.
+within-ROI per-bin coefficient of variation (CV $=$ posterior std $/$ mean;
+colorblind-safe sequential colour plus hatching, light $=$ well identified to
+dark $=$ poorly identified, the scheme of Figure~\ref{fig:sensitivity}); the box
+\emph{width} is the absolute posterior spread and the colour the \emph{relative}
+spread, so a low-mass outer bin can show a narrow box yet a dark colour. The
+green $\times$ is the tuned-MAP ($\lambda = 10^{-3}$) estimate. The
+restricted-diffusion fraction ($D = 0.25\;\umsmm$) rises and the free-water
+fraction ($D = 3.0\;\umsmm$) falls with grade, while the intermediate bins
+remain the least identifiable. Panel titles give the (anonymized) patient
+identifier, zone, tissue, Grade Group, and SNR; a companion key file
+(\texttt{figS\_subset\_key.csv}) lists the exact anatomical region per panel.
+This representative subset stands in for a full per-ROI atlas; the complete
+149-ROI inference is reproducible from the released pipeline.
+
+\medskip\noindent\textbf{Figure~\ref{fig:convergence}.}
+NUTS sampler convergence for the same eight representative ROIs (one page per
+zone). For each ROI the left panel is the trace of all eight normalized spectral
+fractions (colours) across the four concatenated chains (2000 post-warmup draws
+each; dotted lines mark chain boundaries), and the right panel the corresponding
+per-fraction autocorrelation (averaged over chains) versus lag. The
+well-identified outer fractions ($D = 0.25$, $3.0$, $20\;\umsmm$) are pinned and
+decorrelate within a few tens of draws, whereas the collinear intermediate
+fractions explore a wider range yet still mix efficiently; the worst per-ROI
+split-$\hat{R}$ (annotated, all $\leq 1.01$) and the rapid autocorrelation decay
+confirm convergence. The dispersion of the intermediate fractions is the
+sampling signature of their poor identifiability (Figure~\ref{fig:sensitivity}),
+not a failure to converge.
 %TC:endignore
 
 % --- Fig S1: Direction independence of whole-ROI spectral estimates
@@ -105,21 +120,25 @@ each panel.
 \label{fig:directions}
 \end{figure}
 
-% --- REMOVED 2026-06-02 ---
-% Fig S (NUTS multi-chain trace plots, fig_trace_simulation.pdf): dropped --
-% unreadable and uninformative to readers; convergence is reported in Methods
-% (split-Rhat < 1.05 for all 149 ROIs).
-% Full simulation recovery battery (6 ground truths x 3 SNR) is now the MAIN
-% Figure~\ref{fig:validation} (full page), not a separate SI figure
-% (Patrick 2026-06-11). No SI recovery figure.
+% --- Fig S2: representative subset atlas (single page) ---
+% Generator: scripts/fig_si_subset.py. A representative 8-ROI subset
+% (2 zones x {normal, GGG1, GGG3, GGG5}) supersedes the full 149-ROI atlas
+% (Stephan 2026-06-19: "I would not publish each case"). The full-atlas script
+% (figS1_all_roi_spectra.py) remains in the repo for authors/reviewers.
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/figS_subset_atlas.pdf}
+\caption{}  % caption text in the SI Figure Legends above
+\label{fig:atlas}
+\end{figure}
 
-% --- Supplementary atlas: individual estimated spectra for every ROI (LAST) ---
-% Multi-page atlas embedded with \includepdf -- MUST stay last in the document
-% because it injects ~20 pages.
-% REQUIRES \usepackage{pdfpages} in the main preamble.
-% Fallback if pdfpages is unavailable: include pages individually with
-%   \includegraphics[page=<n>]{figures/figS1_all_roi_spectra.pdf}  (n = 1..20).
+% --- Fig S3: NUTS convergence for the same subset (2 pages: PZ then TZ) ---
+% Generator: scripts/fig_si_subset.py. Restores the "computation progression"
+% diagnostic Stephan asked about (formerly the dropped fig_trace_simulation.pdf),
+% redesigned NUTS-only: trace + autocorrelation per ROI, all 8 fractions
+% overlaid in one panel. Multi-page \includepdf -> keep near the end; the figure
+% number is reserved with \refstepcounter so \ref{fig:convergence} resolves.
+% REQUIRES \usepackage{pdfpages} (already in the main preamble).
 \clearpage
-\noindent\textbf{Supplementary Atlas: individual estimated spectra for all
-149 ROIs} (legend in the Supporting Information Figure Legends above).
-\includepdf[pages=-]{figures/figS1_all_roi_spectra.pdf}
+\refstepcounter{figure}\label{fig:convergence}
+\includepdf[pages=-]{figures/figS_subset_convergence.pdf}

@@ -188,7 +188,7 @@ def build_zone(df_zone):
     return out
 
 
-def plot_panel(ax, res, title):
+def plot_panel(ax, res, title, show_ylabel=True):
     n = res["n"]
 
     # --- the intermediate single components: faint grey bundle ---
@@ -239,7 +239,9 @@ def plot_panel(ax, res, title):
 
     ax.plot([0, 1], [0, 1], color="0.6", linestyle=":", linewidth=1.0, zorder=1)
     ax.set_xlabel("False positive rate")
-    ax.set_ylabel("True positive rate")
+    # Right (TZ) panel shares the y-axis; drop its redundant title (Stephan 2026-06-19).
+    if show_ylabel:
+        ax.set_ylabel("True positive rate")
     ax.set_title(f"{title}  (n = {n})")
     ax.set_xlim(-0.02, 1.02)
     ax.set_ylim(-0.02, 1.02)
@@ -293,8 +295,8 @@ def main():
 
     # ---------- figure ----------
     fig, axes = plt.subplots(1, 2, figsize=(13, 8.0), sharex=True, sharey=True)
-    for ax, (zkey, zlabel) in zip(axes, zones):
-        plot_panel(ax, results[zkey], zlabel)
+    for i, (ax, (zkey, zlabel)) in enumerate(zip(axes, zones)):
+        plot_panel(ax, results[zkey], zlabel, show_ylabel=(i == 0))
 
     # Shared identity legend on top (no AUC numbers -> Table 1). Concise
     # labels only: no legend title row, no "(NUTS)"/"(LOOCV-LR)" qualifiers,

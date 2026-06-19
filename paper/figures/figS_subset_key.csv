@@ -1,0 +1,9 @@
+panel,display_id,roi_id,raw_patient_id,anatomical_region,zone,tissue,gs,ggg,snr,adc,rhat_max,n_draws
+P52 · PZ Normal,P52,new52_pz_normal,new52,normal_pz_s2,pz,normal,,,251.6,0.00191,1.0016,8000
+P61 · PZ Tumor · GGG 1,P61,new61_pz_tumor,new61,tumor_pz_s1,pz,tumor,3+3,1.0,578.5,0.00141,1.0035,8000
+P02 · PZ Tumor · GGG 3,P02,new02_pz_tumor,new02,tumor_pz_s1,pz,tumor,4+3,3.0,369.3,0.0011,1.0028,8000
+P03 · PZ Tumor · GGG 5,P03,new03_pz_tumor,new03,tumor_pz_s1,pz,tumor,4+3+5,5.0,566.2,0.00104,1.0011,8000
+P37 · TZ Normal,P37,new37_tz_normal,new37,normal_tz_s3,tz,normal,,,425.9,0.00156,1.0026,8000
+P20 · TZ Tumor · GGG 1,P20,new20_tz_tumor,new20,tumor_tz_s1,tz,tumor,3+3,1.0,343.7,0.00108,1.0018,8000
+P01 · TZ Tumor · GGG 3,P01,new01_tz_tumor,new01,tumor_tz_s1,tz,tumor,4+3,3.0,434.1,0.00095,1.0011,8000
+P45 · TZ Tumor · GGG 5,P45,new45_tz_tumor,new45,tumor_tz_s1,tz,tumor,4+3+5,5.0,477.3,0.00095,1.002,8000

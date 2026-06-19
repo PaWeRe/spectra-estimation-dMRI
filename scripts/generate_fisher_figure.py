@@ -74,18 +74,26 @@ ident_path = project_root / "results" / "biomarkers" / "identifiability.csv"
 df = pd.read_csv(ident_path)
 nuts_std = df["mean_posterior_std"].values
 
-# ── Figure: 2+1 layout (a, b on top; c centered below) ───────────────────────
-fig = plt.figure(figsize=(15, 11))
-# wspace widened so panel (a)'s colorbar no longer crowds panel (b)'s y-axis;
-# top lowered to make room for the unified two-row legend above the panels.
-gs = fig.add_gridspec(2, 4, hspace=0.80, wspace=0.95,
-                      left=0.07, right=0.95, top=0.85, bottom=0.08)
-ax_a = fig.add_subplot(gs[0, 0:2])
-ax_b = fig.add_subplot(gs[0, 2:4])
-ax_c = fig.add_subplot(gs[1, 1:3])   # centered between the two upper panels
+# ── Figure: square panels with right-side legends (Stephan 2026-06-19) ────────
+# Previous 2+1 grid stretched the 8x8 matrix into a wide cell (aspect='auto'),
+# which read as "rectangular", and floated the two legends between the rows.
+# New 2x2 grid: (a) matrix and (b) CRLB bars on top; (c) decay curves bottom-left
+# with its vertical legend in the bottom-right cell. Each panel is kept ~square
+# (aspect='equal' / set_box_aspect) and each legend sits on the right.
+fig = plt.figure(figsize=(15, 13.5))
+gs = fig.add_gridspec(2, 2, hspace=0.28, wspace=0.32,
+                      left=0.07, right=0.97, top=0.94, bottom=0.07)
+ax_a = fig.add_subplot(gs[0, 0])
+ax_b = fig.add_subplot(gs[0, 1])
+ax_c = fig.add_subplot(gs[1, 0])
+ax_cleg = fig.add_subplot(gs[1, 1])
+ax_cleg.axis("off")
 
-# ─── Panel A: Correlation matrix heatmap ─────────────────────────────────────
-im = ax_a.imshow(C, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
+# ─── Panel A: Correlation matrix heatmap (square) ────────────────────────────
+# aspect='equal' renders the 8x8 matrix as a true square (Stephan 2026-06-19);
+# in-cell numbers enlarged 8.5 -> 11 ("inside the color fields the letter could
+# be larger"), axis/title fonts unchanged.
+im = ax_a.imshow(C, cmap="RdBu_r", vmin=-1, vmax=1, aspect="equal")
 ax_a.set_xticks(range(len(D)))
 ax_a.set_xticklabels(D_labels)
 ax_a.set_yticks(range(len(D)))
@@ -98,39 +106,43 @@ for i in range(len(D)):
         val = C[i, j]
         color = "white" if abs(val) > 0.7 else "black"
         ax_a.text(j, i, f"{val:.2f}", ha="center", va="center",
-                  fontsize=8.5, color=color,
+                  fontsize=11, color=color,
                   fontweight="bold" if i == j else "normal")
 cb = fig.colorbar(im, ax=ax_a, fraction=0.046, pad=0.04)
 cb.set_label("Correlation", fontsize=12)
 cb.ax.tick_params(labelsize=11)
 
-# ─── Panel B: 3-bar CRLB comparison with factors ON the bars ─────────────────
+# ─── Panel B: 3-bar CRLB comparison (square); legend inside, right side ───────
 x = np.arange(len(D))
 width = 0.27
-b1 = ax_b.bar(x - width, crlb_unc, width, label="unconstrained CRLB",
+# Legend labels kept short so the opaque box fits the right portion of the
+# panel (van-Trees attribution is in the caption).
+b1 = ax_b.bar(x - width, crlb_unc, width, label="Unconstrained CRLB",
               color=COLORS["crlb"], edgecolor="black", linewidth=0.5)
-b2 = ax_b.bar(x, crlb_bay, width, label="Bayesian CRLB (van Trees)",
+b2 = ax_b.bar(x, crlb_bay, width, label="Bayesian CRLB",
               color=COLORS["crlb_bayes"], edgecolor="black", linewidth=0.5)
-b3 = ax_b.bar(x + width, nuts_std, width, label="NUTS posterior std",
+b3 = ax_b.bar(x + width, nuts_std, width, label="NUTS posterior SD",
               color=COLORS["nuts"], edgecolor="black", linewidth=0.5)
 ax_b.set_yscale("log")
-ax_b.set_ylim(8e-3, 5e3)
-
-# Per-bin improvement factors (unconstrained -> Bayesian -> NUTS) are NOT drawn
-# on the bars (Stephan 2026-06-09: the log axis already conveys the 1-2 orders
-# of magnitude separation between the three uncertainty estimates). They remain
-# in the stdout summary below for reference.
+# Upper range trimmed 5e3 -> 5e2 (Stephan 2026-06-19): the gray (unconstrained
+# CRLB) bars still fit, and the freed headroom over D >= 3.0 holds the legend.
+ax_b.set_ylim(8e-3, 5e2)
 ax_b.set_xticks(x)
 ax_b.set_xticklabels(D_labels)
 ax_b.set_xlabel(DIFF_AXIS_LABEL)
 ax_b.set_ylabel("Std of fraction (log scale)")
 ax_b.set_title("(b) Per-Component Estimation Uncertainty at SNR 303",
                fontweight="bold")
+ax_b.set_box_aspect(1)
+# Opaque legend over the right portion (left edge ~ D = 3.0, the 7th of 8 bins).
+leg_b = ax_b.legend(loc="upper left", bbox_to_anchor=(0.58, 0.99),
+                    frameon=True, framealpha=1.0, fontsize=12)
+leg_b.set_zorder(10)
 
-# ─── Panel C: Component decay curves vs noise floors (SNR labelled inline) ────
+# ─── Panel C: Component decay curves vs noise floors (square) ────────────────
 b_fine = np.linspace(0, 3.5, 300)
 # Palette deliberately AVOIDS orange (#ff7f0e = NUTS bar) and grey
-# (#8c8c8c = unconstrained CRLB bar) so the unified legend has no colour clash.
+# (#8c8c8c = unconstrained CRLB bar) so the legend has no colour clash.
 colors = ["#1f77b4", "#17becf", "#2ca02c", "#d62728",
           "#9467bd", "#8c564b", "#e377c2", "#bcbd22"]
 dcurve_handles = []
@@ -140,8 +152,6 @@ for j, (d, col) in enumerate(zip(D, colors)):
     line, = ax_c.plot(b_fine, curve, color=col, linewidth=lw,
                       label=f"$D$ = {d:g}", alpha=0.9)
     dcurve_handles.append(line)
-# Noise-floor lines per SNR; described in the top legend above panel (c)
-# (Stephan 2026-06-10) instead of inline text labels.
 snr_handles = []
 for snr_val, ls in zip([50, 100, 303], [":", "--", "-"]):
     noise_floor = 1.0 / snr_val
@@ -156,25 +166,15 @@ ax_c.set_title("(c) Component Decay Curves vs Noise Floor", fontweight="bold")
 ax_c.set_yscale("log")
 ax_c.set_ylim(5e-4, 0.2)
 ax_c.set_xlim(0, 3.6)
+ax_c.set_box_aspect(1)
 
-# ─── Two legends, each placed above its own panel (Stephan 2026-06-09) ───────
-# The previous single top legend mixed two unrelated keys; split so the CRLB-bar
-# key sits above panel (b) and the diffusivity-component colour key above panel
-# (c). Figure-fraction coordinates keep each legend centred over its panel.
-fig.legend([b1, b2, b3],
-           ["unconstrained CRLB", "Bayesian CRLB (van Trees)",
-            "NUTS posterior std"],
-           loc="center", bbox_to_anchor=(0.73, 0.935), ncol=1,
-           frameon=True, framealpha=0.95, fontsize=15)
-# One merged legend for panel (c): diffusivity-component colours + SNR
-# noise-floor line styles, in TWO rows (ncol=6) so it stays narrow
-# (Stephan/Patrick 2026-06-10). Column-major fill keeps the 8 diffusivity
-# buckets in the left columns and the 3 SNR floors in the right columns.
+# ─── Panel C legend: vertical, in the bottom-right cell (Stephan 2026-06-19) ──
 c_handles = dcurve_handles + snr_handles
 c_labels = [f"$D$ = {d:g}" for d in D] + [f"SNR {s}" for s in [50, 100, 303]]
-fig.legend(c_handles, c_labels,
-           loc="center", bbox_to_anchor=(0.51, 0.46), ncol=6,
-           frameon=True, framealpha=0.95, fontsize=13)
+ax_cleg.legend(c_handles, c_labels, loc="center left", ncol=1,
+               frameon=True, framealpha=0.95, fontsize=14,
+               title="Diffusivity components\n& SNR noise floors",
+               borderaxespad=0.0)
 
 # ── Save ──────────────────────────────────────────────────────────────────
 out_dir = project_root / "paper" / "figures"

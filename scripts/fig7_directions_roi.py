@@ -147,7 +147,8 @@ V4_PATIENTS = [
         "TZ": ("10203-Series9-Slice6-TumorTZ", "tumour"),
     },
 ]
-V4_ZONES = ["PZ", "TZ"]  # column order: PZ left, TZ right
+V4_ZONES = ["PZ", "TZ"]  # the two ROIs per patient; columns are ordered by
+# tissue at plot time (Normal left, Tumor right), not by zone -- see make_figure_v4.
 V4_DIR_LABELS = ["Direction 1", "Direction 2", "Direction 3"]
 
 # Style: match Fig 1 / Fig 2 conventions.
@@ -352,11 +353,11 @@ def _tissue_disp(tissue: str) -> str:
 def make_figure_v4(U, out_stem):
     """4x2 grid of per-direction MAP spectra + trace-averaged reference.
 
-    ROWS = the 4 patients (relabelled 1-4). COLUMNS = zone (left = peripheral
-    zone PZ, right = transition zone TZ), enforcing the manuscript-wide
-    PZ-LEFT / TZ-RIGHT convention (Fig 1 + Fig 3). The tissue (normal/tumour)
-    varies per cell and is reported in the panel title, e.g. "Patient 1 --
-    normal PZ" / "Patient 1 -- tumour TZ".
+    ROWS = the 4 patients (relabelled 1-4). COLUMNS = tissue (left = Normal,
+    right = Tumor; Stephan 2026-06-19), so the normal/tumor comparison reads
+    consistently down the figure. The zone (PZ or TZ) varies per cell and is
+    reported in the panel title, e.g. "Patient 1 -- Normal PZ" /
+    "Patient 1 -- Tumor TZ".
 
     Style follows the shared paper_style contract: no angled tick labels
     (DLABELS), single top legend, DIRECTION_COLORS for the 3 encoding
@@ -373,9 +374,16 @@ def make_figure_v4(U, out_stem):
 
     status = []
     for r, patient in enumerate(V4_PATIENTS):
-        for c, zone in enumerate(V4_ZONES):
+        # Order columns by tissue: Normal on the left, Tumor on the right
+        # (Stephan 2026-06-19). This swaps only patient 3, whose PZ/TZ tissues
+        # are reversed; patients 1/2/4 already have the normal ROI on the left.
+        # Zone is labeled per panel, so PZ/TZ information is preserved.
+        cells = sorted(
+            [(zone, patient[zone][0], patient[zone][1]) for zone in V4_ZONES],
+            key=lambda zst: 0 if _tissue_disp(zst[2]) == "Normal" else 1,
+        )
+        for c, (zone, stem, tissue) in enumerate(cells):
             ax = axes[r, c]
-            stem, tissue = patient[zone]
             path = DAT_DIR / f"{stem}.dat"
             try:
                 _, _, dir_spectra, trace_spectrum = map_spectra_for_roi(path, U)
@@ -750,8 +758,8 @@ def main():
     n_ok = sum(1 for _, _, st in v3_status if st == "ok")
     print(f"[v3] {n_ok}/{len(v3_status)} ROIs decoded successfully.")
 
-    # --- v4 supplementary 4x2 figure (4 patients x 2 zones, PZ-left/TZ-right) ---
-    print("\n[v4] supplementary 4x2 directional figure (PZ-left / TZ-right)")
+    # --- v4 supplementary 4x2 figure (4 patients x 2 ROIs, Normal-left/Tumor-right) ---
+    print("\n[v4] supplementary 4x2 directional figure (Normal-left / Tumor-right)")
     v4_status = make_figure_v4(U, str(OUT_FIG_DIR / "fig_directions_v4"))
     print("[v4] panel decode status:")
     for pat, zone, stem, st in v4_status:

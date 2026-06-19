@@ -35,22 +35,14 @@ $D = 20.0\;\umsmm$  & 0.52 [0.37, 0.66] & 0.55 [0.34, 0.75] \\
 \end{tabular}
 
 \smallskip
+% Stephan 2026-06-19: MRM tables carry NO explanatory paragraph -- only a note
+% that the values are AUCs plus an abbreviation list. The methodology that used
+% to live here (LOOCV / C=1.0 pipeline; ADC raw-rank vs LR; "8 fractions" vs
+% "2 outer fractions"; grade-AUC omission rationale) now lives in Methods/Results.
 {\footnotesize\raggedright
-Values are areas under the ROC curve (AUC) for tumor-versus-normal detection,
-with 95\% bootstrap confidence intervals over patients
-(2000 resamples)~\citep{efron1993bootstrap}. With one exception, AUCs are
-leave-one-out cross-validated through an identical $L_2$-regularized logistic-
-regression pipeline ($C = 1.0$, standardized features), so single- and
-multi-feature models are directly comparable; the fair head-to-head is ADC
-(logistic regression) versus the spectral models. The exception, ADC (raw
-rank), is the conventional in-sample ranking by ADC value (no model fit),
-reported as the hardest reference to beat. ``8 fractions'' uses all spectral
-bins; ``2 outer fractions'' uses only $D = 0.25$ and $3.0\;\umsmm$; individual
-fractions are NUTS single-feature raw-rank AUCs. Grade-classification AUCs are
-omitted (only $n = 29$ graded tumors; 95\% intervals span $\sim$0.5--0.95);
-grading is presented instead as grade-dependent spectral shifts
-(Figure~\ref{fig:spectrum_ggg}) and rank correlations (Results).
-Abbreviations: PZ, peripheral zone; TZ, transition zone; ADC, apparent
-diffusion coefficient; LR, logistic regression; MAP, maximum a posteriori;
-NUTS, no-U-turn sampler.\par}
+Values are areas under the ROC curve (AUC) for tumor-versus-normal detection;
+bracketed values are 95\% bootstrap confidence intervals over patients.
+Abbreviations: ADC, apparent diffusion coefficient; D, spectral diffusion
+coefficient; LR, logistic regression; MAP, maximum a posteriori; NUTS,
+no-U-turn sampler; PZ, peripheral zone; TZ, transition zone.\par}
 \end{table}
