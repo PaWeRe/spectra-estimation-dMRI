@@ -178,7 +178,9 @@ def make_atlas(recs: dict) -> None:
     # height tuned so width-fit to \textwidth stays within one page (5 rows).
     fig, axes = plt.subplots(nrows, 2, figsize=(8.6, 2.0 * nrows + 1.0),
                              sharey=True)
-    fig.subplots_adjust(left=0.095, right=0.985, top=0.905, bottom=0.055,
+    # top lowered (Patrick 2026-06-20) to open the gap between the legend and
+    # the first row of panels.
+    fig.subplots_adjust(left=0.095, right=0.985, top=0.875, bottom=0.055,
                         hspace=0.42, wspace=0.08)
 
     for ri, (n_id, t_id) in enumerate(ATLAS_ROWS):
@@ -243,9 +245,11 @@ def make_convergence(recs: dict, max_lag: int = 15, trace_window: int = 300,
     rois = CONV_ROIS
     nrows = len(rois)
     # Compact (no overarching title; tighter rows) so it fits one Overleaf page.
-    fig, axes = plt.subplots(nrows, 2, figsize=(9.5, 2.2 * nrows + 0.8),
+    fig, axes = plt.subplots(nrows, 2, figsize=(9.5, 2.2 * nrows + 0.9),
                              squeeze=False)
-    fig.subplots_adjust(left=0.09, right=0.975, top=0.945, bottom=0.065,
+    # top lowered (Patrick 2026-06-20) to open the gap between the legend and
+    # the first row of panels.
+    fig.subplots_adjust(left=0.09, right=0.975, top=0.915, bottom=0.06,
                         hspace=0.45, wspace=0.22)
     for r, roi_id in enumerate(rois):
         rec = recs[roi_id]
@@ -291,9 +295,7 @@ def make_convergence(recs: dict, max_lag: int = 15, trace_window: int = 300,
             fontsize=9.5, loc="left")
         ax_tr.tick_params(labelsize=8)
         if r == nrows - 1:
-            ax_tr.set_xlabel(
-                f"Draw (single chain, first {nshow} of 2000; "
-                f"bold = running mean, w={smooth_w})", fontsize=9)
+            ax_tr.set_xlabel(f"Draw (first {nshow} of 2000)", fontsize=9)
 
         # --- autocorrelation: all 8 fractions, uniform intensity (Patrick
         # 2026-06-20), per-chain ACF averaged, zoomed to a short lag window. ---
