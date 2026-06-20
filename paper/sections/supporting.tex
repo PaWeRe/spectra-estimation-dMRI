@@ -117,6 +117,11 @@ autocorrelation decay (within $\sim$10 lags) confirm efficient mixing; the
 dispersion broadens as SNR falls.
 %TC:endignore
 
+% Flush the SI legend text as one block before the SI figure floats, so the
+% three legends are not split apart by deferred full-page [p] figures
+% (Patrick 2026-06-20).
+\clearpage
+
 % --- Fig S1: Direction independence of whole-ROI spectral estimates
 %     (first supplementary figure; demoted from the main text 2026-06-05; keeps
 %     \label{fig:directions} so the in-text references in results/figures

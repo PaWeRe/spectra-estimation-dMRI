@@ -187,17 +187,20 @@ The source code, configuration files, and the de-identified per-ROI signal decay
 \input{sections/table_legends}
 
 % === Figures and Tables ===
+% \clearpage (not \pagebreak) so each block's full-page [p] floats are flushed
+% before the next section, otherwise deferred main figures migrate into the
+% Supporting Information and split its figure-legend text (Patrick 2026-06-20).
 %TC:ignore
-\pagebreak
+\clearpage
 \input{sections/figures}
 
-\pagebreak
+\clearpage
 \input{sections/tables}
 %TC:endignore
 
 % === Supporting Information ===
 %TC:ignore
-\pagebreak
+\clearpage
 \renewcommand{\thefigure}{S\arabic{figure}}
 \setcounter{figure}{0}
 \input{sections/supporting}
