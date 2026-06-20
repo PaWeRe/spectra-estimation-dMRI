@@ -1,29 +1,32 @@
-"""Supplementary subset figures (Stephan 2026-06-19).
+"""Supplementary subset figures (Patrick 2026-06-20 redesign).
 
-A representative 8-ROI subset -- 2 zones x {Normal, GGG1, GGG3, GGG5} -- shown
-two complementary ways, sharing the SAME ROIs so the reader can cross-reference:
+Two complementary, single-page SI figures, each doing the job it is best at:
 
-  (1) figS_subset_atlas.pdf       -- NUTS posterior spectra as box plots (2x4
-                                     grid: rows = zone, cols = grade ladder).
-  (2) figS_subset_convergence.pdf -- NUTS sampler diagnostics per ROI: trace +
-                                     autocorrelation, ALL 8 fractions overlaid
-                                     per panel (the old Gibbs-atlas style), so
-                                     the wandering / "fraction switching" of the
-                                     unidentifiable intermediate bins is visible
-                                     while the well-identified outer bins stay
-                                     pinned. One page per zone (4 ROIs x 2).
+  (1) figS_subset_atlas.pdf       -- NUTS posterior spectra as box plots, PAIRED
+                                     PER PATIENT: portrait grid, 2 cols
+                                     (Normal | Tumor) x 6 rows (one patient each),
+                                     spanning the grade ladder GGG1/3/5 in both
+                                     zones. The reader reads each row left->right
+                                     to see the within-patient tumor-vs-normal
+                                     spectral shift directly. Box colour = per-bin
+                                     posterior CV (identifiability), NO hatch
+                                     (colour-only, like Fig 6).
+  (2) figS_subset_convergence.pdf -- NUTS sampler diagnostics on 3 tumours chosen
+                                     to span the SNR range (low / mid / high), so
+                                     the effect of noise on mixing is visible.
+                                     Per ROI: trace (a single chain, poorly-id
+                                     bins bold / well-id bins faded so the
+                                     "fraction switching" of unidentifiable bins
+                                     stands out) + zoomed autocorrelation. One
+                                     page (3 rows x 2).
 
-This supersedes the full 149-ROI atlas (Patrick 2026-06-19: subsample to a
-representative set rather than publish every case). NUTS only.
-
-Posterior draws (4 chains x 2000) are read from results/inference_bwh_backup/*.nc
-(filename = MD5 spectra_id, via recompute.compute_spectra_id), the same lookup as
-scripts/figS1_all_roi_spectra.py.
+NUTS only. Posterior draws (4 chains x 2000) are read from
+results/inference_bwh_backup/*.nc (filename = MD5 spectra_id, via
+recompute.compute_spectra_id), the same lookup as scripts/figS1_all_roi_spectra.py.
 
 Outputs (paper/figures/):
-    figS_subset_atlas.{pdf,png}
-    figS_subset_convergence.{pdf,png}        (pdf = 2 pages; png = PZ page preview)
-    figS_subset_convergence_tz.png           (TZ page preview)
+    figS_subset_atlas.{pdf,png}              (1 page, portrait)
+    figS_subset_convergence.{pdf,png}        (1 page, portrait)
     figS_subset_key.csv                      (panel -> public data key)
 
 Usage:
@@ -42,12 +45,11 @@ import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.lines import Line2D
 
 from spectra_estimation_dmri.biomarkers.recompute import compute_spectra_id
 from spectra_estimation_dmri.visualization.identifiability import (
-    cv_color, cv_hatch, cv_legend_handles)
+    cv_color, cv_legend_handles)
 
 REPO = Path(__file__).resolve().parents[1]
 FEAT = REPO / "results" / "biomarkers" / "features.csv"
@@ -65,10 +67,21 @@ FRAC_COLORS = ["#1f77b4", "#17becf", "#2ca02c", "#d62728",
                "#9467bd", "#8c564b", "#e377c2", "#bcbd22"]
 MAP_MARK = "#2ca02c"
 
-# Locked subset (Patrick 2026-06-19). Rows = zone; cols = Normal/GGG1/GGG3/GGG5.
-SUBSET_PZ = ["new52_pz_normal", "new61_pz_tumor", "new02_pz_tumor", "new03_pz_tumor"]
-SUBSET_TZ = ["new37_tz_normal", "new20_tz_tumor", "new01_tz_tumor", "new45_tz_tumor"]
-SUBSET = SUBSET_PZ + SUBSET_TZ
+# --- S2 atlas: 6 same-patient pairs, grade ladder x zone (Patrick 2026-06-20) ---
+# Each row = one patient; col 0 = its Normal ROI, col 1 = its Tumor ROI.
+ATLAS_PAIRS = [  # (patient, zone), ordered PZ GGG1/3/5 then TZ GGG1/3/5
+    ("new54", "pz"), ("new02", "pz"), ("new03", "pz"),
+    ("new20", "tz"), ("new01", "tz"), ("new45", "tz"),
+]
+ATLAS_ROWS = [(f"{p}_{z}_normal", f"{p}_{z}_tumor") for p, z in ATLAS_PAIRS]
+
+# --- S3 convergence: 3 tumours spanning SNR (low/mid/high) (Patrick 2026-06-20) ---
+CONV_ROIS = ["new50_pz_tumor",   # SNR 188  (low,  GGG2 3+4)
+             "new44_tz_tumor",   # SNR 467  (mid,  GGG2 3+4)
+             "new55_pz_tumor"]   # SNR 1229 (high, GGG4 4+4)
+
+# Union of all ROIs that must be loaded (atlas pairs + convergence tumours).
+SUBSET = list(dict.fromkeys([r for row in ATLAS_ROWS for r in row] + CONV_ROIS))
 
 mpl.rcParams.update({
     "font.family": "DejaVu Sans",
@@ -83,13 +96,18 @@ def disp_pid(pid: str) -> str:
     return ("P" + pid[3:]) if pid.startswith("new") else pid
 
 
-def panel_label(rec: dict) -> str:
+def panel_label(rec: dict, with_grade: bool = True) -> str:
+    """One-line subtitle, '|'-separated (Patrick 2026-06-20), e.g.
+    'P02 | PZ Tumor | GGG3 (4+3) | SNR 369'."""
     pid = disp_pid(rec["patient"])
     tissue = "Tumor" if rec["is_tumor"] else "Normal"
-    base = f"{pid} · {rec['zone'].upper()} {tissue}"
-    if rec["is_tumor"] and rec["ggg"]:
-        base += f" · GGG {rec['ggg']}"
-    return base
+    parts = [pid, f"{rec['zone'].upper()} {tissue}"]
+    if with_grade and rec["is_tumor"] and rec["ggg"]:
+        gs = rec.get("gs")
+        gs_txt = f" ({gs})" if isinstance(gs, str) and gs and gs != "nan" else ""
+        parts.append(f"GGG{rec['ggg']}{gs_txt}")
+    parts.append(f"SNR {rec['snr']:.0f}")
+    return "  |  ".join(parts)
 
 
 def load_subset() -> dict:
@@ -143,16 +161,21 @@ def load_subset() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Figure 1: subset spectral atlas (2x4 box plots).
+# Figure S2: patient-paired spectral atlas (portrait, 2 cols x 6 rows).
+# col 0 = Normal, col 1 = Tumor, both from the same patient (direct comparison).
 # ---------------------------------------------------------------------------
 def make_atlas(recs: dict) -> None:
     pos = np.arange(1, len(D) + 1)
-    fig, axes = plt.subplots(2, 4, figsize=(13.5, 7.4), sharey=True)
-    fig.subplots_adjust(left=0.065, right=0.985, top=0.80, bottom=0.115,
-                        hspace=0.50, wspace=0.10)
+    nrows = len(ATLAS_ROWS)
+    # Narrower than tall so the panels are less elongated (Patrick 2026-06-20);
+    # width-fit to \textwidth in LaTeX still leaves it within one page.
+    fig, axes = plt.subplots(nrows, 2, figsize=(8.6, 2.15 * nrows + 1.2),
+                             sharey=True)
+    fig.subplots_adjust(left=0.095, right=0.985, top=0.905, bottom=0.05,
+                        hspace=0.42, wspace=0.08)
 
-    for ri, row_ids in enumerate([SUBSET_PZ, SUBSET_TZ]):
-        for ci, roi_id in enumerate(row_ids):
+    for ri, (n_id, t_id) in enumerate(ATLAS_ROWS):
+        for ci, roi_id in enumerate((n_id, t_id)):
             rec = recs[roi_id]
             ax = axes[ri][ci]
             samp = rec["samples"]
@@ -166,33 +189,34 @@ def make_atlas(recs: dict) -> None:
                 whiskerprops=dict(color="0.4", linewidth=0.8),
                 capprops=dict(color="0.4", linewidth=0.8),
                 boxprops=dict(linewidth=0.5))
+            # Colour-only identifiability encoding (no hatch); matches Fig 6
+            # (Patrick 2026-06-20: drop the "muster" / hatch pattern).
             for patch, c in zip(bp["boxes"], cv):
                 patch.set_facecolor(cv_color(c))
                 patch.set_edgecolor("black")
-                patch.set_hatch(cv_hatch(c))
-            ax.scatter(pos, rec["mapvec"], marker="x", s=22, c=MAP_MARK,
-                       linewidths=1.3, zorder=6)
+            ax.scatter(pos, rec["mapvec"], marker="x", s=20, c=MAP_MARK,
+                       linewidths=1.2, zorder=6)
             ax.set_ylim(0, 0.95)
             ax.set_xlim(0.4, len(D) + 0.6)
             ax.set_xticks(pos)
-            ax.set_xticklabels(DLAB if ri == 1 else [], fontsize=8)
+            ax.set_xticklabels(DLAB if ri == nrows - 1 else [], fontsize=8)
             ax.set_yticks(np.arange(0, 0.96, 0.2))
             ax.grid(axis="y", alpha=0.25, linewidth=0.5)
-            ax.set_title(f"{panel_label(rec)}\nSNR {rec['snr']:.0f}", fontsize=10)
+            ax.set_title(panel_label(rec), fontsize=9.5)
 
-    handles = cv_legend_handles() + [
+    handles = cv_legend_handles(hatch=False) + [
         Line2D([0], [0], color="black", lw=1.3, label="median"),
         Line2D([0], [0], color="0.25", lw=1.0, linestyle="--", label="mean"),
         Line2D([0], [0], marker="x", color=MAP_MARK, linestyle="None",
                markersize=8, markeredgewidth=1.5, label=r"MAP ($\lambda=10^{-3}$)"),
     ]
     fig.legend(handles=handles, loc="upper center", ncol=4, frameon=True,
-               framealpha=0.95, bbox_to_anchor=(0.5, 0.99),
-               title="NUTS posterior   (box = IQR, whiskers = 5–95th pct;  "
-                     "box colour = per-bin CV / identifiability)",
-               title_fontsize=10, fontsize=10)
-    fig.supxlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=13, y=0.02)
-    fig.supylabel(r"Spectral fraction $R_j$", fontsize=13, x=0.02)
+               framealpha=0.95, bbox_to_anchor=(0.5, 0.995),
+               title="NUTS posterior   ·   box = IQR, whiskers 5–95th pct   ·   "
+                     "box colour = per-bin CV (identifiability)",
+               title_fontsize=9.5, fontsize=9.5)
+    fig.supxlabel(r"Diffusivity $D$ ($\mu$m$^2$/ms)", fontsize=12, y=0.018)
+    fig.supylabel(r"Spectral fraction $R_j$", fontsize=12, x=0.018)
     OUT.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT / "figS_subset_atlas.pdf", bbox_inches="tight")
     fig.savefig(OUT / "figS_subset_atlas.png", dpi=160, bbox_inches="tight")
@@ -201,76 +225,96 @@ def make_atlas(recs: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Figure 2: subset convergence (trace + autocorrelation), one page per zone.
+# Figure S3: NUTS convergence on 3 tumours spanning SNR (single page, 3 rows x 2).
+# Trace = ONE chain. Highlighted (bold) = the well-determined restricted bin
+# D=0.25 (the stable anchor) + the 2 largest-spread bins (the anti-correlated
+# "switching" pair along the posterior ridge); other bins faded. The ACF panel
+# keeps all 8 fractions at uniform intensity (Patrick 2026-06-20).
 # ---------------------------------------------------------------------------
-def make_convergence(recs: dict, max_lag: int = 120) -> None:
-    pages = [(SUBSET_PZ, "Peripheral Zone", "figS_subset_convergence.png"),
-             (SUBSET_TZ, "Transition Zone", "figS_subset_convergence_tz.png")]
-    with PdfPages(OUT / "figS_subset_convergence.pdf") as pdf:
-        for zone_ids, zlabel, preview in pages:
-            fig, axes = plt.subplots(4, 2, figsize=(8.5, 11.0), squeeze=False)
-            fig.subplots_adjust(left=0.09, right=0.975, top=0.90, bottom=0.06,
-                                hspace=0.62, wspace=0.24)
-            for r, roi_id in enumerate(zone_ids):
-                rec = recs[roi_id]
-                ch = rec["chains"]               # (chain, draw, 8)
-                nchain, ndraw, _ = ch.shape
-                ax_tr, ax_ac = axes[r][0], axes[r][1]
+def make_convergence(recs: dict, max_lag: int = 15,
+                     trace_window: int = 300) -> None:
+    rois = CONV_ROIS
+    nrows = len(rois)
+    # Compact (no overarching title; tighter rows) so it fits one Overleaf page.
+    fig, axes = plt.subplots(nrows, 2, figsize=(9.5, 2.4 * nrows + 0.9),
+                             squeeze=False)
+    fig.subplots_adjust(left=0.09, right=0.975, top=0.93, bottom=0.085,
+                        hspace=0.42, wspace=0.22)
+    for r, roi_id in enumerate(rois):
+        rec = recs[roi_id]
+        ch = rec["chains"]                       # (chain, draw, 8)
+        nchain, ndraw, _ = ch.shape
+        ax_tr, ax_ac = axes[r][0], axes[r][1]
 
-                # --- trace: 4 chains concatenated, all 8 fractions overlaid ---
-                concat = ch.reshape(-1, len(D))
-                xs = np.arange(concat.shape[0])
-                for j in range(len(D)):
-                    ax_tr.plot(xs, concat[:, j], color=FRAC_COLORS[j], lw=0.35,
-                               alpha=0.8)
-                for bnd in range(1, nchain):
-                    ax_tr.axvline(bnd * ndraw, color="0.7", lw=0.6, ls=":")
-                ax_tr.set_xlim(0, concat.shape[0])
-                ax_tr.set_ylim(0, max(0.6, float(concat.max()) * 1.05))
-                ax_tr.set_ylabel("Fraction", fontsize=9)
-                ax_tr.set_title(
-                    f"{panel_label(rec)}   ·   SNR {rec['snr']:.0f}   ·   "
-                    rf"$\hat{{R}}_{{\max}}$ {rec['rhat']:.3f}",
-                    fontsize=9.5, loc="left")
-                ax_tr.tick_params(labelsize=8)
-                if r == len(zone_ids) - 1:
-                    ax_tr.set_xlabel("Draw (4 chains concatenated)", fontsize=9)
+        # Highlight set: D=0.25 (index 0, the well-determined anchor -- show its
+        # stability) + the 2 bins with the largest absolute posterior spread (the
+        # anti-correlated pair that trades weight along the collinear ridge).
+        std = rec["samples"].std(0)
+        wanderers = [j for j in np.argsort(-std) if j != 0][:2]
+        bold = np.zeros(len(D), dtype=bool)
+        bold[0] = True
+        bold[wanderers] = True
 
-                # --- autocorrelation: per-chain ACF averaged, all 8 overlaid ---
-                for j in range(len(D)):
-                    acf = np.mean([az.autocorr(ch[c, :, j])[:max_lag]
-                                   for c in range(nchain)], axis=0)
-                    ax_ac.plot(np.arange(max_lag), acf, color=FRAC_COLORS[j],
-                               lw=1.0, alpha=0.85)
-                ax_ac.axhline(0, color="0.6", lw=0.6)
-                ax_ac.set_xlim(0, max_lag)
-                ax_ac.set_ylim(-0.15, 1.02)
-                ax_ac.set_ylabel("Autocorr.", fontsize=9)
-                ax_ac.set_title("Autocorrelation", fontsize=9.5, loc="left")
-                ax_ac.tick_params(labelsize=8)
-                if r == len(zone_ids) - 1:
-                    ax_ac.set_xlabel("Lag (draws)", fontsize=9)
+        # --- trace: a SINGLE chain, first `trace_window` draws so individual
+        # excursions and the weight-swapping are legible (full-chain mixing is
+        # certified by the ACF + R-hat). Faded bins first, bold on top.
+        nshow = min(trace_window, ndraw)
+        chain0 = ch[0, :nshow]                    # (nshow, 8)
+        xs = np.arange(nshow)
+        for j in np.argsort(bold.astype(int)):    # False (faded) then True (bold)
+            ax_tr.plot(xs, chain0[:, j], color=FRAC_COLORS[j],
+                       lw=1.0 if bold[j] else 0.4,
+                       alpha=0.9 if bold[j] else 0.18,
+                       zorder=3 if bold[j] else 1)
+        ax_tr.set_xlim(0, nshow)
+        ax_tr.set_ylim(0, max(0.6, float(chain0.max()) * 1.05))
+        ax_tr.set_ylabel(r"Spectral fraction $R_j$", fontsize=9)
+        ax_tr.set_title(
+            panel_label(rec) + rf"   |   $\hat{{R}}_{{\max}}$ {rec['rhat']:.3f}",
+            fontsize=9.5, loc="left")
+        ax_tr.tick_params(labelsize=8)
+        if r == nrows - 1:
+            ax_tr.set_xlabel(f"Draw (single chain, first {nshow} of 2000)",
+                             fontsize=9)
 
-            handles = [Line2D([0], [0], color=FRAC_COLORS[j], lw=2.2,
-                              label=rf"$D$ = {DLAB[j]}") for j in range(len(D))]
-            fig.legend(handles=handles, loc="upper center", ncol=8, frameon=True,
-                       framealpha=0.95, bbox_to_anchor=(0.5, 0.955), fontsize=9,
-                       columnspacing=1.0, handletextpad=0.4)
-            fig.suptitle(f"NUTS convergence — {zlabel} subset "
-                         "(trace + autocorrelation, all 8 fractions)",
-                         y=0.992, fontsize=12)
-            pdf.savefig(fig)
-            fig.savefig(OUT / preview, dpi=150, bbox_inches="tight")
-            plt.close(fig)
-    print("wrote figS_subset_convergence.pdf (2 pages) + previews")
+        # --- autocorrelation: all 8 fractions, uniform intensity (Patrick
+        # 2026-06-20), per-chain ACF averaged, zoomed to a short lag window. ---
+        for j in range(len(D)):
+            acf = np.mean([az.autocorr(ch[c, :, j])[:max_lag]
+                           for c in range(nchain)], axis=0)
+            ax_ac.plot(np.arange(max_lag), acf, color=FRAC_COLORS[j],
+                       lw=1.0, alpha=0.85)
+        ax_ac.axhline(0, color="0.6", lw=0.6)
+        ax_ac.set_xlim(0, max_lag - 1)
+        ax_ac.set_ylim(-0.15, 1.02)
+        ax_ac.set_ylabel("Autocorrelation", fontsize=9)   # no repeating title
+        ax_ac.tick_params(labelsize=8)
+        if r == nrows - 1:
+            ax_ac.set_xlabel("Sample Lag", fontsize=9)
+
+    handles = [Line2D([0], [0], color=FRAC_COLORS[j], lw=2.2,
+                      label=rf"$D$ = {DLAB[j]}") for j in range(len(D))]
+    fig.legend(handles=handles, loc="upper center", ncol=8, frameon=True,
+               framealpha=0.95, bbox_to_anchor=(0.5, 0.995), fontsize=9,
+               columnspacing=1.0, handletextpad=0.4)
+    OUT.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT / "figS_subset_convergence.pdf", bbox_inches="tight")
+    fig.savefig(OUT / "figS_subset_convergence.png", dpi=160, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote figS_subset_convergence.{pdf,png} (1 page)")
 
 
 def write_key(recs: dict) -> None:
+    atlas_ids = {r for row in ATLAS_ROWS for r in row}
     rows = []
     for roi_id in SUBSET:
         r = recs[roi_id]
+        used = [tag for tag, ids in (("S2_atlas", atlas_ids),
+                                     ("S3_convergence", set(CONV_ROIS)))
+                if roi_id in ids]
         rows.append(dict(
-            panel=panel_label(r), display_id=disp_pid(r["patient"]),
+            panel=panel_label(r), used_in="+".join(used),
+            display_id=disp_pid(r["patient"]),
             roi_id=roi_id, raw_patient_id=r["patient"],
             anatomical_region=r["anat"], zone=r["zone"],
             tissue="tumor" if r["is_tumor"] else "normal",

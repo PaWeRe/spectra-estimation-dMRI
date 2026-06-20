@@ -169,11 +169,14 @@ ax_c.set_xlim(0, 3.6)
 ax_c.set_box_aspect(1)
 
 # ─── Panel C legend: vertical, in the bottom-right cell (Stephan 2026-06-19) ──
+# Patrick 2026-06-20: pulled left (bbox x < 0) to sit closer to panel (c), and
+# the "Diffusivity components & SNR noise floors" title dropped (it is small and
+# not very legible — the content is stated in the caption instead).
 c_handles = dcurve_handles + snr_handles
 c_labels = [f"$D$ = {d:g}" for d in D] + [f"SNR {s}" for s in [50, 100, 303]]
 ax_cleg.legend(c_handles, c_labels, loc="center left", ncol=1,
+               bbox_to_anchor=(-0.18, 0.5),
                frameon=True, framealpha=0.95, fontsize=14,
-               title="Diffusivity components\n& SNR noise floors",
                borderaxespad=0.0)
 
 # ── Save ──────────────────────────────────────────────────────────────────
