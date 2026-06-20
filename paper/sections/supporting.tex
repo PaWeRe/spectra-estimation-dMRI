@@ -68,11 +68,12 @@ equivalent on realistic spectra (Figure~\ref{fig:validation}).
 
 \medskip\noindent\textbf{Figure~\ref{fig:atlas}.}
 Representative per-ROI NUTS posterior spectra, paired within patient across
-anatomical zone and Gleason Grade Group. Six patients are shown (rows), each
+anatomical zone and Gleason Grade Group. Five patients are shown (rows), each
 contributing a same-patient normal (left column) and tumor (right column) ROI
 from a single zone, so the within-patient spectral shift can be read directly;
-the six span Grade Group 1, 3, and 5 in both the peripheral and transition
-zones. Each panel is the full NUTS posterior over the eight-bin diffusivity
+they span Grade Group 1, 3, and 5 in the peripheral zone and Grade Group 1 and 5
+in the transition zone. Each panel is the full NUTS posterior over the eight-bin
+diffusivity
 spectrum ($D = 0.25$--$20\;\umsmm$, left to right) drawn as box plots: box $=$
 interquartile range, solid line $=$ posterior median, dashed line $=$ posterior
 mean, whiskers $=$ 5th--95th percentiles (fliers suppressed; the per-bin
@@ -92,15 +93,18 @@ This representative subset stands in for a full per-ROI atlas; the complete
 149-ROI inference is reproducible from the released pipeline.
 
 \medskip\noindent\textbf{Figure~\ref{fig:convergence}.}
-NUTS sampler convergence for three representative tumor ROIs chosen to span the
-cohort SNR range (low, intermediate, and high; rows). For each ROI the left
-panel traces a single chain (first 300 of 2000 post-warmup draws, shown for
-legibility) of the eight normalized spectral fractions (colours); the
-well-determined restricted bin ($D = 0.25\;\umsmm$) and the two largest-spread
-intermediate bins are drawn bold and the rest faded, contrasting the stable
-anchor against the bins that trade weight. The right panel is the corresponding
-per-fraction autocorrelation (all eight bins, averaged over the four chains)
-versus sample lag. The restricted-diffusion fraction ($D = 0.25\;\umsmm$) is
+NUTS sampler convergence for five representative ROIs (rows): three tumors
+spanning the cohort SNR range (low, intermediate, high) and one normal
+peripheral-zone and one normal transition-zone ROI, so convergence behaviour can
+be compared across both SNR and tissue type. For each ROI the left panel traces
+a single chain (first 300 of 2000 post-warmup draws, shown for legibility) of the
+eight normalized spectral fractions (colours): the well-determined restricted bin
+($D = 0.25\;\umsmm$) and the two largest-spread intermediate bins are highlighted,
+each shown as the faded raw draws overlaid with a running mean (window 11 draws,
+bold) that suppresses the uncorrelated high-frequency noise and exposes the
+slower anti-correlated weight-swapping; the remaining bins are faint. The right
+panel is the corresponding per-fraction autocorrelation (all eight bins, averaged
+over the four chains) versus sample lag. The restricted-diffusion fraction ($D = 0.25\;\umsmm$) is
 tightly pinned (posterior std $\approx 0.02$ at every SNR), whereas the collinear
 intermediate fractions ($D = 1.5$--$3.0\;\umsmm$) explore a wider range and
 trade weight against one another (pairwise posterior correlations $\approx -0.5$
@@ -130,11 +134,11 @@ dispersion broadens as SNR falls.
 \end{figure}
 
 % --- Fig S2: representative subset atlas (single page) ---
-% Generator: scripts/fig_si_subset.py. A representative subset of 6 same-patient
-% normal/tumor pairs (rows), spanning GGG 1/3/5 in both zones (Patrick
-% 2026-06-20), supersedes the full 149-ROI atlas (Stephan 2026-06-19: "I would
-% not publish each case"). The full-atlas script (figS1_all_roi_spectra.py)
-% remains in the repo for authors/reviewers.
+% Generator: scripts/fig_si_subset.py. A representative subset of 5 same-patient
+% normal/tumor pairs (rows) -- full PZ GGG1/3/5 ladder + TZ GGG1/5 endpoints
+% (Patrick 2026-06-20: 5 rows so it fits one page) -- supersedes the full
+% 149-ROI atlas (Stephan 2026-06-19: "I would not publish each case"). The
+% full-atlas script (figS1_all_roi_spectra.py) remains in the repo.
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/figS_subset_atlas.pdf}
@@ -142,12 +146,13 @@ dispersion broadens as SNR falls.
 \label{fig:atlas}
 \end{figure}
 
-% --- Fig S3: NUTS convergence for 3 SNR-spanning tumor ROIs (single page) ---
+% --- Fig S3: NUTS convergence, 5 ROIs (3 SNR-spanning tumors + normal PZ/TZ) ---
 % Generator: scripts/fig_si_subset.py. Restores the "computation progression"
 % diagnostic Stephan asked about (formerly the dropped fig_trace_simulation.pdf),
 % redesigned NUTS-only and selective (Patrick 2026-06-20): trace (single chain,
-% first 120 draws; 3 least-constrained bins bold) + zoomed autocorrelation per
-% ROI, on one page so it embeds as a normal float like the other figures.
+% first 300 draws; D=0.25 anchor + 2 largest-spread bins shown as faded raw +
+% running-mean overlay) + zoomed autocorrelation per ROI, on one page so it
+% embeds as a normal float like the other figures.
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/figS_subset_convergence.pdf}

@@ -1,15 +1,13 @@
 panel,used_in,display_id,roi_id,raw_patient_id,anatomical_region,zone,tissue,gs,ggg,snr,adc,rhat_max,n_draws
 P54  |  PZ Normal  |  SNR 265,S2_atlas,P54,new54_pz_normal,new54,normal_pz_s2,pz,normal,3+3,1,265.2,0.0014,1.0014,8000
 P54  |  PZ Tumor  |  GGG1 (3+3)  |  SNR 191,S2_atlas,P54,new54_pz_tumor,new54,tumor_pz_s1,pz,tumor,3+3,1,191.2,0.0013,1.0026,8000
-P02  |  PZ Normal  |  SNR 257,S2_atlas,P02,new02_pz_normal,new02,normal_pz_s2,pz,normal,4+3,3,257.1,0.00155,1.0032,8000
+P02  |  PZ Normal  |  SNR 257,S2_atlas+S3_convergence,P02,new02_pz_normal,new02,normal_pz_s2,pz,normal,4+3,3,257.1,0.00155,1.0032,8000
 P02  |  PZ Tumor  |  GGG3 (4+3)  |  SNR 369,S2_atlas,P02,new02_pz_tumor,new02,tumor_pz_s1,pz,tumor,4+3,3,369.3,0.0011,1.0028,8000
 P03  |  PZ Normal  |  SNR 642,S2_atlas,P03,new03_pz_normal,new03,normal_pz_s2,pz,normal,4+3+5,5,641.9,0.00217,1.0022,8000
 P03  |  PZ Tumor  |  GGG5 (4+3+5)  |  SNR 566,S2_atlas,P03,new03_pz_tumor,new03,tumor_pz_s1,pz,tumor,4+3+5,5,566.2,0.00104,1.0011,8000
 P20  |  TZ Normal  |  SNR 695,S2_atlas,P20,new20_tz_normal,new20,normal_tz_s3,tz,normal,3+3,1,694.5,0.00199,1.0026,8000
 P20  |  TZ Tumor  |  GGG1 (3+3)  |  SNR 344,S2_atlas,P20,new20_tz_tumor,new20,tumor_tz_s1,tz,tumor,3+3,1,343.7,0.00108,1.0018,8000
-P01  |  TZ Normal  |  SNR 549,S2_atlas,P01,new01_tz_normal,new01,normal_tz_s3,tz,normal,4+3,3,548.6,0.00164,1.0012,8000
-P01  |  TZ Tumor  |  GGG3 (4+3)  |  SNR 434,S2_atlas,P01,new01_tz_tumor,new01,tumor_tz_s1,tz,tumor,4+3,3,434.1,0.00095,1.0011,8000
-P45  |  TZ Normal  |  SNR 318,S2_atlas,P45,new45_tz_normal,new45,normal_tz_s3,tz,normal,4+3+5,5,318.2,0.00147,1.0033,8000
+P45  |  TZ Normal  |  SNR 318,S2_atlas+S3_convergence,P45,new45_tz_normal,new45,normal_tz_s3,tz,normal,4+3+5,5,318.2,0.00147,1.0033,8000
 P45  |  TZ Tumor  |  GGG5 (4+3+5)  |  SNR 477,S2_atlas,P45,new45_tz_tumor,new45,tumor_tz_s1,tz,tumor,4+3+5,5,477.3,0.00095,1.002,8000
 P50  |  PZ Tumor  |  GGG2 (3+4)  |  SNR 188,S3_convergence,P50,new50_pz_tumor,new50,tumor_pz_s1,pz,tumor,3+4,2,187.5,0.00104,1.0038,8000
 P44  |  TZ Tumor  |  GGG2 (3+4)  |  SNR 467,S3_convergence,P44,new44_tz_tumor,new44,tumor_tz_s1,tz,tumor,3+4,2,466.9,0.00104,1.0029,8000

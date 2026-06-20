@@ -46,6 +46,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
+from scipy.ndimage import uniform_filter1d
 
 from spectra_estimation_dmri.biomarkers.recompute import compute_spectra_id
 from spectra_estimation_dmri.visualization.identifiability import (
@@ -67,18 +68,24 @@ FRAC_COLORS = ["#1f77b4", "#17becf", "#2ca02c", "#d62728",
                "#9467bd", "#8c564b", "#e377c2", "#bcbd22"]
 MAP_MARK = "#2ca02c"
 
-# --- S2 atlas: 6 same-patient pairs, grade ladder x zone (Patrick 2026-06-20) ---
+# --- S2 atlas: 5 same-patient pairs, grade ladder x zone (Patrick 2026-06-20) ---
 # Each row = one patient; col 0 = its Normal ROI, col 1 = its Tumor ROI.
-ATLAS_PAIRS = [  # (patient, zone), ordered PZ GGG1/3/5 then TZ GGG1/3/5
+# 5 rows (was 6) so the figure fits one Overleaf page; the full PZ ladder is
+# kept and the TZ ladder shows its GGG1/GGG5 endpoints.
+ATLAS_PAIRS = [  # (patient, zone), PZ GGG1/3/5 then TZ GGG1/5
     ("new54", "pz"), ("new02", "pz"), ("new03", "pz"),
-    ("new20", "tz"), ("new01", "tz"), ("new45", "tz"),
+    ("new20", "tz"), ("new45", "tz"),
 ]
 ATLAS_ROWS = [(f"{p}_{z}_normal", f"{p}_{z}_tumor") for p, z in ATLAS_PAIRS]
 
-# --- S3 convergence: 3 tumours spanning SNR (low/mid/high) (Patrick 2026-06-20) ---
-CONV_ROIS = ["new50_pz_tumor",   # SNR 188  (low,  GGG2 3+4)
-             "new44_tz_tumor",   # SNR 467  (mid,  GGG2 3+4)
-             "new55_pz_tumor"]   # SNR 1229 (high, GGG4 4+4)
+# --- S3 convergence: 3 tumours spanning SNR (low/mid/high) + 1 normal PZ and
+# 1 normal TZ, so convergence behaviour can be compared across SNR AND tissue
+# type (Patrick 2026-06-20). The two normals are S2 patients (cross-reference).
+CONV_ROIS = ["new50_pz_tumor",    # SNR 188  (tumor, low,  GGG2 3+4)
+             "new44_tz_tumor",    # SNR 467  (tumor, mid,  GGG2 3+4)
+             "new55_pz_tumor",    # SNR 1229 (tumor, high, GGG4 4+4)
+             "new02_pz_normal",   # SNR 257  (normal PZ; pairs with S2 row P02)
+             "new45_tz_normal"]   # SNR 318  (normal TZ; pairs with S2 row P45)
 
 # Union of all ROIs that must be loaded (atlas pairs + convergence tumours).
 SUBSET = list(dict.fromkeys([r for row in ATLAS_ROWS for r in row] + CONV_ROIS))
@@ -168,10 +175,10 @@ def make_atlas(recs: dict) -> None:
     pos = np.arange(1, len(D) + 1)
     nrows = len(ATLAS_ROWS)
     # Narrower than tall so the panels are less elongated (Patrick 2026-06-20);
-    # width-fit to \textwidth in LaTeX still leaves it within one page.
-    fig, axes = plt.subplots(nrows, 2, figsize=(8.6, 2.15 * nrows + 1.2),
+    # height tuned so width-fit to \textwidth stays within one page (5 rows).
+    fig, axes = plt.subplots(nrows, 2, figsize=(8.6, 2.0 * nrows + 1.0),
                              sharey=True)
-    fig.subplots_adjust(left=0.095, right=0.985, top=0.905, bottom=0.05,
+    fig.subplots_adjust(left=0.095, right=0.985, top=0.905, bottom=0.055,
                         hspace=0.42, wspace=0.08)
 
     for ri, (n_id, t_id) in enumerate(ATLAS_ROWS):
@@ -231,15 +238,15 @@ def make_atlas(recs: dict) -> None:
 # "switching" pair along the posterior ridge); other bins faded. The ACF panel
 # keeps all 8 fractions at uniform intensity (Patrick 2026-06-20).
 # ---------------------------------------------------------------------------
-def make_convergence(recs: dict, max_lag: int = 15,
-                     trace_window: int = 300) -> None:
+def make_convergence(recs: dict, max_lag: int = 15, trace_window: int = 300,
+                     smooth_w: int = 11) -> None:
     rois = CONV_ROIS
     nrows = len(rois)
     # Compact (no overarching title; tighter rows) so it fits one Overleaf page.
-    fig, axes = plt.subplots(nrows, 2, figsize=(9.5, 2.4 * nrows + 0.9),
+    fig, axes = plt.subplots(nrows, 2, figsize=(9.5, 2.2 * nrows + 0.8),
                              squeeze=False)
-    fig.subplots_adjust(left=0.09, right=0.975, top=0.93, bottom=0.085,
-                        hspace=0.42, wspace=0.22)
+    fig.subplots_adjust(left=0.09, right=0.975, top=0.945, bottom=0.065,
+                        hspace=0.45, wspace=0.22)
     for r, roi_id in enumerate(rois):
         rec = recs[roi_id]
         ch = rec["chains"]                       # (chain, draw, 8)
@@ -255,27 +262,38 @@ def make_convergence(recs: dict, max_lag: int = 15,
         bold[0] = True
         bold[wanderers] = True
 
-        # --- trace: a SINGLE chain, first `trace_window` draws so individual
-        # excursions and the weight-swapping are legible (full-chain mixing is
-        # certified by the ACF + R-hat). Faded bins first, bold on top.
+        # --- trace: a SINGLE chain, first `trace_window` draws. For the
+        # highlighted bins we draw the RAW draws faded (honest: the true
+        # trajectory is shown) PLUS a running-mean overlay (window `smooth_w`)
+        # that strips the uncorrelated high-frequency noise and exposes the
+        # slower anti-correlated weight-swapping (verified: smoothing preserves
+        # / sharpens the pairwise correlation, 2026-06-20). Full-chain mixing is
+        # certified by the ACF + R-hat. Non-highlighted bins: faint raw only.
+        ch0 = ch[0]                               # (ndraw, 8) full chain
         nshow = min(trace_window, ndraw)
-        chain0 = ch[0, :nshow]                    # (nshow, 8)
         xs = np.arange(nshow)
-        for j in np.argsort(bold.astype(int)):    # False (faded) then True (bold)
-            ax_tr.plot(xs, chain0[:, j], color=FRAC_COLORS[j],
-                       lw=1.0 if bold[j] else 0.4,
-                       alpha=0.9 if bold[j] else 0.18,
-                       zorder=3 if bold[j] else 1)
+        for j in np.argsort(bold.astype(int)):    # faded first, bold on top
+            raw = ch0[:nshow, j]
+            if bold[j]:
+                ax_tr.plot(xs, raw, color=FRAC_COLORS[j], lw=0.5, alpha=0.25,
+                           zorder=2)
+                sm = uniform_filter1d(ch0[:, j], smooth_w, mode="nearest")[:nshow]
+                ax_tr.plot(xs, sm, color=FRAC_COLORS[j], lw=1.7, alpha=0.95,
+                           zorder=4)
+            else:
+                ax_tr.plot(xs, raw, color=FRAC_COLORS[j], lw=0.4, alpha=0.10,
+                           zorder=1)
         ax_tr.set_xlim(0, nshow)
-        ax_tr.set_ylim(0, max(0.6, float(chain0.max()) * 1.05))
+        ax_tr.set_ylim(0, max(0.6, float(ch0[:nshow].max()) * 1.05))
         ax_tr.set_ylabel(r"Spectral fraction $R_j$", fontsize=9)
         ax_tr.set_title(
             panel_label(rec) + rf"   |   $\hat{{R}}_{{\max}}$ {rec['rhat']:.3f}",
             fontsize=9.5, loc="left")
         ax_tr.tick_params(labelsize=8)
         if r == nrows - 1:
-            ax_tr.set_xlabel(f"Draw (single chain, first {nshow} of 2000)",
-                             fontsize=9)
+            ax_tr.set_xlabel(
+                f"Draw (single chain, first {nshow} of 2000; "
+                f"bold = running mean, w={smooth_w})", fontsize=9)
 
         # --- autocorrelation: all 8 fractions, uniform intensity (Patrick
         # 2026-06-20), per-chain ACF averaged, zoomed to a short lag window. ---
