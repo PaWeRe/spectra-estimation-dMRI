@@ -83,11 +83,12 @@ Tumor detection collapses onto the two outer diffusivity compartments, and the
 spectral classifier is equivalent to ADC.
 Leave-one-out cross-validated ROC for tumor-versus-normal detection in the
 peripheral zone (PZ, left; $n = 81$) and transition zone (TZ, right;
-$n = 68$). The three thick reference curves---ADC (black), the spectral
-classifier on all eight fractions (orange solid) and on only the two outer
-fractions $\{D = 0.25,\,3.0\;\umsmm\}$ (orange dashed)---pass through the
-identical NUTS-feature leave-one-out logistic-regression pipeline ($C = 1.0$)
-for an apples-to-apples comparison.
+$n = 68$). The four thick reference curves---ADC (black) and the same spectral
+classifier on three bin subsets: all eight fractions (orange solid), only the
+two outer fractions $\{D = 0.25,\,3.0\;\umsmm\}$ (orange dashed), and only the
+six inner fractions with the two outer compartments removed (orange
+dotted)---pass through the identical NUTS-feature leave-one-out
+logistic-regression pipeline ($C = 1.0$) for an apples-to-apples comparison.
 The thin single-component curves are each a raw single-feature ROC in the
 tumor-positive orientation (not the LOOCV pipeline): the strong outer
 components $D = 0.25\;\umsmm$ (restricted, teal) and $D = 3.0\;\umsmm$
@@ -95,9 +96,11 @@ components $D = 0.25\;\umsmm$ (restricted, teal) and $D = 3.0\;\umsmm$
 $D = 2.0\;\umsmm$ (goldenrod, near chance in PZ), $D = 1.5\;\umsmm$ (indigo,
 near chance in TZ), and $D = 20\;\umsmm$ (magenta, near chance in both); and
 the remaining intermediate bins as a faint grey bundle.
-The three thick curves are statistically indistinguishable and the
-two-fraction classifier matches the full eight-fraction one: the intermediate
-and free-water fractions add nothing to detection.
+The two-fraction classifier matches the full eight-fraction one and both track
+ADC, whereas the six-inner-fraction classifier falls well below (NUTS PZ
+$0.817$, TZ $0.775$): detection is carried by the two outer compartments, and
+the intermediate fractions are individually informative but redundant once
+those are present.
 AUC values with 95\% confidence intervals are reported in
 Table~\ref{tab:auc}.
 
@@ -123,9 +126,11 @@ identically to the spectral classifier, independent of estimator.
 The spectral discriminant is statistically a two-compartment detector, and its
 two stable bins coincide with where ADC is most sensitive.
 For each zone (PZ, TZ), bars give the standardized tumor-versus-normal
-logistic-regression coefficient per diffusivity bin (NUTS features, $C = 1.0$,
-the same fit as Figure~\ref{fig:adc_discriminant}), normalized to
-$\max|w| = 1$, with 95\% bootstrap confidence intervals.
+logistic-regression coefficient per diffusivity bin---the change in tumor
+log-odds per standard deviation of that fraction, so heights are comparable
+across bins of differing scale (Methods)---using NUTS features, $C = 1.0$, the
+same fit as Figure~\ref{fig:adc_discriminant}, normalized to $\max|w| = 1$,
+with 95\% bootstrap confidence intervals.
 Charcoal diamonds give the ADC sensitivity $-\partial\text{ADC}/\partial R_j$
 at the average tumor spectrum (normalized, sign-aligned to the tumor
 direction).
@@ -137,10 +142,13 @@ In both zones only the two outer bins carry stable weight ($D = 0.25\;\umsmm$
 positive, $D = 3.0\;\umsmm$ negative); the intermediate coefficients are
 individually unstable from inter-bin collinearity and poor identifiability, so
 their separate detection weights are not attributable.
-The profile anti-correlates with $\partial\text{ADC}/\partial R_j$
-($r = -0.79$ PZ, $-0.88$ TZ), carried by the two outer bins; the moderate
-whole-profile value reflects the noisy intermediate coefficients, which carry
-little weight either way.
+The coefficients and $-\partial\text{ADC}/\partial R_j$ anti-correlate
+($r = -0.79$ PZ, $-0.88$ TZ), an agreement carried by the two outer bins.
+The profiles diverge over the intermediate bins---ADC stays sensitive there
+while the classifier does not---but because those fractions carry little
+tumor--normal contrast and are poorly identified, the divergence shifts
+neither summary's ROI ranking (Figure~\ref{fig:adc_discriminant}); it does not
+imply that ADC and the classifier estimate different quantities.
 
 \medskip\noindent\textbf{Figure~\ref{fig:spectrum_ggg}.}
 The diffusivity spectrum shifts systematically across Gleason Grade Groups.

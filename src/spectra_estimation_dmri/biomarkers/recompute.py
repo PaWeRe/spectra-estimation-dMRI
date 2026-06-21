@@ -350,12 +350,17 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
 
     Tasks: PZ tumor detection, TZ tumor detection, GGG grading.
     Methods: ADC (raw rank), ADC (LR), MAP Full LR, NUTS Full LR,
-             MAP 2-feat {D=0.25,3.0}, NUTS 2-feat {D=0.25,3.0}.
+             MAP 2-feat {D=0.25,3.0}, NUTS 2-feat {D=0.25,3.0},
+             MAP 6-inner, NUTS 6-inner.
 
     The 2-feature rows use only the two outer compartments (restricted
     D=0.25 + free-water D=3.0); they test the "collapse" claim (Fig 2) that
-    detection needs only these two bins. AUCs carry percentile bootstrap 95%
-    CIs (auc_lo, auc_hi).
+    detection needs only these two bins. The 6-inner rows are the MIRROR
+    ablation: the six intermediate/dump fractions with the two outer bins
+    REMOVED -- they show the intermediate bins remain individually informative
+    (AUC ~0.78-0.82) yet redundant once the outer bins are present, i.e.
+    "redundancy, not uselessness". AUCs carry percentile bootstrap 95% CIs
+    (auc_lo, auc_hi).
     """
     map_cols = [f"map_{c}" for c in D_COLS]
     nuts_cols = [f"nuts_{c}" for c in D_COLS]
@@ -363,6 +368,18 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
     outer_idx = [0, 6]
     map_outer = [map_cols[i] for i in outer_idx]
     nuts_outer = [nuts_cols[i] for i in outer_idx]
+    # Mirror ablation: the six inner fractions (everything EXCEPT the two outer
+    # compartments) -> D in {0.50, 0.75, 1.00, 1.50, 2.00, 20.00}.
+    inner_idx = [1, 2, 3, 4, 5, 7]
+    map_inner = [map_cols[i] for i in inner_idx]
+    nuts_inner = [nuts_cols[i] for i in inner_idx]
+    # "Redundancy, not uselessness" probe: the four MOST poorly-identified bins
+    # (within-ROI posterior CV > 0.7) -> D in {0.50, 0.75, 1.00, 1.50}. Used
+    # alone they still detect tumor at AUC ~0.81-0.82 (cited in Results; not a
+    # Table 1 row). Confirms the inner bins are individually informative.
+    poorid_idx = [1, 2, 3, 4]
+    map_poorid = [map_cols[i] for i in poorid_idx]
+    nuts_poorid = [nuts_cols[i] for i in poorid_idx]
 
     results = []
 
@@ -454,9 +471,35 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
                             "C": C, "auc": auc_nuts2,
                             "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
+            # MAP 6-inner (mirror ablation: drop the two outer compartments)
+            auc_map6, pred_map6, _, _, _ = loocv_auc(task_df[map_inner].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_map6)
+            results.append({"task": task_name, "method": "MAP 6-inner",
+                            "C": C, "auc": auc_map6,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
+
+            # NUTS 6-inner (mirror ablation)
+            auc_nuts6, pred_nuts6, _, _, _ = loocv_auc(task_df[nuts_inner].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_nuts6)
+            results.append({"task": task_name, "method": "NUTS 6-inner",
+                            "C": C, "auc": auc_nuts6,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
+
+            # 4 most poorly-identified bins (CV>0.7) used alone -- redundancy probe
+            auc_mapP, pred_mapP, _, _, _ = loocv_auc(task_df[map_poorid].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_mapP)
+            results.append({"task": task_name, "method": "MAP 4-poorly-id (CV>0.7)",
+                            "C": C, "auc": auc_mapP,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
+            auc_nutsP, pred_nutsP, _, _, _ = loocv_auc(task_df[nuts_poorid].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_nutsP)
+            results.append({"task": task_name, "method": "NUTS 4-poorly-id (CV>0.7)",
+                            "C": C, "auc": auc_nutsP,
+                            "auc_lo": lo, "auc_hi": hi, "n": len(y)})
+
             print(f"    C={C:5.1f}  ADC LR={auc_adc:.4f}  "
-                  f"MAP={auc_map:.4f} (2f {auc_map2:.4f})  "
-                  f"NUTS={auc_nuts:.4f} (2f {auc_nuts2:.4f})")
+                  f"MAP={auc_map:.4f} (2f {auc_map2:.4f} / 6in {auc_map6:.4f})  "
+                  f"NUTS={auc_nuts:.4f} (2f {auc_nuts2:.4f} / 6in {auc_nuts6:.4f})")
 
     return pd.DataFrame(results)
 

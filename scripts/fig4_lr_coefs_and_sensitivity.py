@@ -25,9 +25,13 @@ review):
     coefficient is the weight on standardised features (per-bin SD-normalised
     importance). This is Fig. 3's exact fit.
   - RAW (fig4_raw_v4): LR fit on the un-standardised fractions directly, so the
-    coefficient is the weight on raw R_j. Standardising shrinks the
-    intermediate bins (they have larger SDs); the raw version keeps the middle
-    bins comparatively larger.
+    coefficient is the weight on raw R_j. The intermediate bins have the
+    SMALLEST cross-ROI SD (PZ D=0.5-1.0 ~0.02; they barely vary between ROIs),
+    while the outer bins have the largest (D=3.0 ~0.18, D=0.25 ~0.08). A raw fit
+    therefore inflates the middle bins' per-unit coefficients (a bin that never
+    moves needs a big coefficient to have any effect); standardising (weight per
+    SD) rescales each coefficient to its true discriminative contribution,
+    shrinking the middle bins and emphasising the high-variance outer bins.
 
 Both are normalised to max|w| = 1 for display only.
 

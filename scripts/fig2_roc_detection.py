@@ -6,6 +6,12 @@ outer compartments (D=0.25 restricted, D=3.0 free-water).
 Narrative (Pillar 1 -- "the collapse"):
   - The 2-feature {D=0.25, D=3.0} spectral LR is as good as, or better than,
     the full 8-feature LR, and lands on ADC.
+  - The MIRROR ablation -- a 6-feature LR on the inner bins with the two outer
+    compartments REMOVED -- drops well below (AUC ~0.78-0.82). The inner bins
+    are individually informative but redundant once the outer pair is present
+    ("redundancy, not uselessness"). The three orange curves are the SAME
+    spectral classifier on different bin subsets: solid = all 8, dashed = 2
+    outer (sits on ADC), dotted = 6 inner (sits low).
   - The single outer components (D=0.25 alone, D=3.0 alone) are already strong;
     intermediate components help only a little; the degenerate free-water dump
     bin (D=20) sits on the chance diagonal -- it is irrelevant to detection.
@@ -72,6 +78,7 @@ DIFFUSIVITIES = [0.25, 0.50, 0.75, 1.00, 1.50, 2.00, 3.00, 20.00]
 D_LABELS = ["0.25", "0.50", "0.75", "1.00", "1.50", "2.00", "3.00", "20.0"]
 NUTS_COLS = [f"nuts_D_{d:.2f}" for d in DIFFUSIVITIES]
 OUTER_IDX = [0, 6]  # D=0.25 and D=3.00 -> the "collapse" pair
+INNER_IDX = [1, 2, 3, 4, 5, 7]  # the six inner bins -> the mirror ablation
 D20_IDX = len(DIFFUSIVITIES) - 1  # index 7 -> D=20 free-water dump bin
 # Zone-dependent weak single bins shown explicitly in BOTH panels so the reader
 # can see WHICH bins are near-random in EACH zone (Patrick 2026-06-05). The
@@ -175,6 +182,7 @@ def build_zone(df_zone):
     y = df_zone["is_tumor"].astype(int).values
     X_all = df_zone[NUTS_COLS].values
     X_2 = df_zone[[NUTS_COLS[i] for i in OUTER_IDX]].values
+    X_6 = df_zone[[NUTS_COLS[i] for i in INNER_IDX]].values
     adc = df_zone["adc"].values
 
     out = {
@@ -182,6 +190,7 @@ def build_zone(df_zone):
         "adc": curve_for(adc, y),
         "lr8": curve_for(X_all, y),
         "lr2": curve_for(X_2, y),
+        "lr6": curve_for(X_6, y),   # mirror ablation: inner bins, outer removed
         "comp": [raw_curve_for(df_zone[NUTS_COLS[i]].values, y)
                  for i in range(len(DIFFUSIVITIES))],
     }
@@ -230,8 +239,13 @@ def plot_panel(ax, res, title, show_ylabel=True):
             linewidth=2.0, alpha=0.95, zorder=4)
 
     # --- thick reference curves (LOOCV-LR; NUTS features) ---
+    # Three orange curves = the SAME spectral classifier on different bin
+    # subsets: solid = all 8, dashed = 2 outer (sits on ADC), dotted = 6 inner
+    # (mirror ablation -- sits well below: redundancy, not uselessness).
+    ax.plot(res["lr6"]["fpr"], res["lr6"]["tpr"], color=COLOR_NUTS,
+            linewidth=2.6, linestyle=":", zorder=5)
     ax.plot(res["lr8"]["fpr"], res["lr8"]["tpr"], color=COLOR_NUTS,
-            linewidth=2.8, linestyle="-", zorder=5)
+            linewidth=2.8, linestyle="-", zorder=5.5)
     ax.plot(res["lr2"]["fpr"], res["lr2"]["tpr"], color=COLOR_NUTS,
             linewidth=2.8, linestyle="--", zorder=6)
     ax.plot(res["adc"]["fpr"], res["adc"]["tpr"], color=COLOR_ADC,
@@ -267,7 +281,8 @@ def main():
         r = results[zkey]
         rows = [("ADC (LOOCV-LR)", r["adc"], ""),
                 ("8-bin LR (LOOCV)", r["lr8"], ""),
-                ("2-bin {0.25,3.0} LR (LOOCV)", r["lr2"], "")]
+                ("2-bin {0.25,3.0} LR (LOOCV)", r["lr2"], ""),
+                ("6-inner LR (LOOCV)", r["lr6"], "")]
         rows += [(f"single D={D_LABELS[i]} (raw)", r["comp"][i],
                   " [tumor LOW]" if r["comp"][i].get("flipped") else "")
                  for i in range(len(DIFFUSIVITIES))]
@@ -307,12 +322,17 @@ def main():
     # the legend width close to the two side-by-side panels (Patrick
     # 2026-06-05). The two zone-specific weak bins are annotated so the reader
     # sees the zone-dependence at a glance.
+    # Ten entries laid out as two rows of five (ncol=5). The three spectral
+    # entries are consecutive (8 / 2-outer / 6-inner) so the reader reads them
+    # as one classifier on three bin subsets.
     legend_handles = [
         Line2D([0], [0], color=COLOR_ADC, lw=3.0, label="ADC"),
         Line2D([0], [0], color=COLOR_NUTS, lw=2.8, ls="-",
                label="Spectral, 8 bins"),
         Line2D([0], [0], color=COLOR_NUTS, lw=2.8, ls="--",
-               label="Spectral, 2 bins"),
+               label="Spectral, 2 outer bins"),
+        Line2D([0], [0], color=COLOR_NUTS, lw=2.6, ls=":",
+               label="Spectral, 6 inner bins"),
         Line2D([0], [0], color=COLOR_D025, lw=2.0, label="D = 0.25"),
         Line2D([0], [0], color=COLOR_D300, lw=2.0, label="D = 3.0"),
         Line2D([0], [0], color=COLOR_WEAK_PZ, lw=2.0,
@@ -324,12 +344,12 @@ def main():
         Line2D([0], [0], color=COLOR_OTHER, lw=1.6, alpha=0.7,
                label="Other single bins"),
     ]
-    fig.legend(handles=legend_handles, loc="upper center", ncol=3,
+    fig.legend(handles=legend_handles, loc="upper center", ncol=5,
                frameon=True, framealpha=0.95, bbox_to_anchor=(0.5, 1.0),
                columnspacing=1.3, handlelength=1.9, handletextpad=0.5)
 
-    # Three legend rows (was two) need a touch more headroom above the panels.
-    fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.82])
+    # Two legend rows above the panels.
+    fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.85])
     png = os.path.join(OUT_DIR, "fig2_v3.png")
     pdf = os.path.join(OUT_DIR, "fig2_v3.pdf")
     fig.savefig(png, dpi=300, bbox_inches="tight")
