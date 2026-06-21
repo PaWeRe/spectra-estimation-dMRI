@@ -2,7 +2,8 @@
 
 **Single source of truth for the manuscript state. Read this file first every session. `notes/archive/MEETING_PREP_2026-05-25.md` is the archived Q&A from the 2026-05-25 coauthor meeting.**
 
-- **Last update:** 2026-06-07 — **Manuscript pass + figure reorder. Detailed progress log, decision record, and outstanding items now live in `paper/drafting/manuscript_blueprint.md` (committed) — read it alongside this file.** Highlights: (1) **Uncertainty story RESOLVED** — posterior uncertainty adds NO downstream diagnostic value, triangulated 3 ways (logit-space propagation p=0.42 / CI incl. 0; whole-spectrum spread dies under distance-to-boundary control; uncertainty-as-features ΔAUC≈0). The 2.4× "wider for misclassified" is sigmoid geometry, not the spectral posterior. Reframed honestly; Fig (uncertainty) → "prediction confidence"; "uncertainty-aware biomarker" framing dropped; Bayesian value is upstream (identifiability + joint noise). (2) **Figures REORDERED to the narrative arc — this SUPERSEDES §11's renumbering**: now **Fisher=1**, spectra=2, validation=3, ROC=4, ADC-discriminant=5, sensitivity=6, GGG=7, uncertainty=8, pixel-wise=9 (verified mention-order compliant). (3) **Fisher (now Fig 1) reworked** — 2+1 layout, improvement factors on bars, inline SNR labels; **panel (b) van-Trees numbers STILL Sandy-gated**. (4) Abstract rewritten (passive, 247 words, no formulae, two-axis grading claim dropped); Theory cleaned (all 18 inline comments cleared, κ verified); Results/Discussion de-redundified; Methods classification rewritten (**DeLong dropped** → orphaned cite); **λ=0.1 smearing-artifact narrative purged throughout**. (5) Per-bin AUCs added to Table 1 + recompute.py; MRM compliance (IRB statement, Data Availability Statement w/ Zenodo-DOI+SHA-1 placeholders, keywords 7→6, title fixed). Committed **f0476cc**, pushed, Overleaf synced (resolved an Overleaf-branch conflict that was only a stray space). **OUTSTANDING (see blueprint):** Sandy CRLB validation (Fig 1b); **grading PARKED** — abandoned "detection vs grading axis" framing still in Fig 7 caption / Results-GGG / Discussion-histology, reconcile as one unit w/ Stephan + literature; ~24 inline `@patrick` comments left (Methods, Results spectra/pixel-wise, Intro); ~~recompute uncertainty-stat wiring~~ **DONE 2026-06-07** (`uncertainty_propagation()` in recompute.py → `results/biomarkers/uncertainty_propagation.csv`; reproduces 2.41×/1.27×/controlled-p=0.45/ΔAUC≈0 exactly; gold CSVs byte-identical); references pass (orphaned `delong` cite); Zenodo DOI + SHA-1 + ORCID + body word count (texcount on Overleaf); Fig 3/8 caption-sizing.
+- **Last update:** 2026-06-21 — **Reviewer-feedback round on the sensitivity figure (Fig 6) + new §0 manuscript-finalization tracker.** A non-domain ML reviewer read Fig 6 as ADC and the spectral classifier being two *different* estimators (ADC sensitive to the middle bins; classifier ignores them). Resolved as a communication issue, not a results issue: (1) added the **mirror ablation** — inner-6 LR with the two outer bins removed drops to NUTS PZ 0.817 / TZ 0.775, vs outer-2 ≈ full ≈ ADC — to Table 1, the ROC (Fig 4, `fig2_v3`, new orange dotted curve), and `recompute.py`; also a **4-poorly-id (CV>0.7) probe** → AUC 0.82/0.81 cited in Results as the "redundancy not uselessness" punchline. (2) Reframed Results "Why ADC works" around **sensitivity × contrast** (ADC *is* sensitive to the mid bins, but that sensitivity is diagnostically inert there because the mid bins carry little tumor–normal contrast and are poorly identified) — replaces the inaccurate "carry little weight in either method" line; ROC + Fig 6 captions updated. (3) Expanded **Methods → Classification** standardization rationale (z-scoring how + why; Stephan had been confused) — **FINALIZED** this pass. Commits 66ca436 + 002f36b, pushed; Overleaf sync pending (Patrick). **New §0 below** tracks per-subsection finalization going forward.
+- **2026-06-07** — **Manuscript pass + figure reorder. Detailed progress log, decision record, and outstanding items now live in `paper/drafting/manuscript_blueprint.md` (committed) — read it alongside this file.** Highlights: (1) **Uncertainty story RESOLVED** — posterior uncertainty adds NO downstream diagnostic value, triangulated 3 ways (logit-space propagation p=0.42 / CI incl. 0; whole-spectrum spread dies under distance-to-boundary control; uncertainty-as-features ΔAUC≈0). The 2.4× "wider for misclassified" is sigmoid geometry, not the spectral posterior. Reframed honestly; Fig (uncertainty) → "prediction confidence"; "uncertainty-aware biomarker" framing dropped; Bayesian value is upstream (identifiability + joint noise). (2) **Figures REORDERED to the narrative arc — this SUPERSEDES §11's renumbering**: now **Fisher=1**, spectra=2, validation=3, ROC=4, ADC-discriminant=5, sensitivity=6, GGG=7, uncertainty=8, pixel-wise=9 (verified mention-order compliant). (3) **Fisher (now Fig 1) reworked** — 2+1 layout, improvement factors on bars, inline SNR labels; **panel (b) van-Trees numbers STILL Sandy-gated**. (4) Abstract rewritten (passive, 247 words, no formulae, two-axis grading claim dropped); Theory cleaned (all 18 inline comments cleared, κ verified); Results/Discussion de-redundified; Methods classification rewritten (**DeLong dropped** → orphaned cite); **λ=0.1 smearing-artifact narrative purged throughout**. (5) Per-bin AUCs added to Table 1 + recompute.py; MRM compliance (IRB statement, Data Availability Statement w/ Zenodo-DOI+SHA-1 placeholders, keywords 7→6, title fixed). Committed **f0476cc**, pushed, Overleaf synced (resolved an Overleaf-branch conflict that was only a stray space). **OUTSTANDING (see blueprint):** Sandy CRLB validation (Fig 1b); **grading PARKED** — abandoned "detection vs grading axis" framing still in Fig 7 caption / Results-GGG / Discussion-histology, reconcile as one unit w/ Stephan + literature; ~24 inline `@patrick` comments left (Methods, Results spectra/pixel-wise, Intro); ~~recompute uncertainty-stat wiring~~ **DONE 2026-06-07** (`uncertainty_propagation()` in recompute.py → `results/biomarkers/uncertainty_propagation.csv`; reproduces 2.41×/1.27×/controlled-p=0.45/ΔAUC≈0 exactly; gold CSVs byte-identical); references pass (orphaned `delong` cite); Zenodo DOI + SHA-1 + ORCID + body word count (texcount on Overleaf); Fig 3/8 caption-sizing.
 - **2026-06-04** — **Stefan figure-overhaul meeting (2026-06-03) digested → new §11.** 3-hour review of every figure ahead of the **hard Saturday 2026-06-06 submission deadline**. §11 holds: the per-figure change list, the **main-figure renumbering** (promote Fisher/CRLB → Fig 7, swap the simulation battery → Fig 8, demote the directional figure → SI as a new 2×4), a **shared-style spec** (build `visualization/paper_style.py` — fonts/legends/colours/bins are currently inconsistent across scripts), the **open decisions Patrick must lock before fan-out**, and the **Sandy dependencies** (CRLB van-Trees validity, Gibbs-vs-NUTS justification scope). Plan stays at the 10-item cap (9 figs + Table 1). **Nothing rebuilt yet** — this entry records the plan; figure fan-out begins once Patrick answers the §11 open decisions.
 - **Update 2026-06-02:** **Pre-submission convergence session** (Stephan 06-01 email steer: don't over-rework figures, fix fonts). Done: captions drastically shortened across all figures (detail → text); **Fig 8 trimmed → `fig8_v3`** (recovery+noise 2×2, Gibbs boxes + ESS panel dropped, no WIP todo); **Fig 5 → `fig5_v4`** single grade ladder Normal/GGG1/GGG2/GGG≥3 (the two-boundary version was redundant — right panel reused left's ROIs); **Fig 2 → `fig2_v2`** (degenerate D=20 curve dropped → kills the AUC=0.000/0.224 red flags); **Fig 7 → `fig_directions_v2`** whole-ROI patient 9283 PZ via new `scripts/fig7_directions_roi.py` (decoded Stephan's .dat export, validated r=0.977; D=0.25 most direction-stable at 9% CV); Fig 9 → PZ (Stephan's 8640 answer); trace + robustness SI figs dropped; atlas confirmed correct (149/149, 20pp — the "not shown" was a stale Overleaf PDF + 1..17 comment, now 1..20). Theory Gibbs sentence corrected (Gibbs *works* — truncated-normal + conjugate inv-gamma σ²; NUTS chosen for mixing). Results ADC-sensitivity subsection reconciled to honest NUTS r=−0.79/−0.88 (the r≈−0.98 is a λ=0.1 regularizer property); direction aggregate stats added; Methods MAP λ corrected 0.1→1e-3 + zone rationale sharpened (Stephan: zonal contrast is a *normal*-tissue property); pixel/direction provenance split. Abstract reframed to 4-pillar "why ADC works" (dropped 100–8000× CRLB, |r|>0.93 sensitivity-vector, and MAP-acinar-underestimation claims). All inline @Stephan markers cleared. **Agenda → `notes/MEETING_PREP_2026-06-02.md`.** OPEN for meeting: Gibbs cut-vs-SI panel (Sandy), CRLB van Trees reframe (Sandy), Fig 7 zone/NUTS confirm, abstract sign-off. OPEN to write: Methods λ-sweep paragraph, Results 4-pillar restructure, ridge.yaml/CLAUDE.md λ drift (still say 0.1). **Overleaf NOT yet synced (repo only).**
 - **Prior update:** 2026-06-01 — Fig 8 (method-validation) session: `fig8_v2` built via `scripts/fig8_validation.py` using the REAL pipeline classes + exact configs (no drift), style Patrick-approved. **BUT the Gibbs-vs-NUTS story is UNRESOLVED**: at 100k iters Gibbs converges and the recovery comparison is confounded (Gibbs handed true σ, NUTS infers it). Theory rewrite + figures.tex wiring are ON HOLD pending two experiments — (a) implement Sandy's inverse-gamma σ² Gibbs for a fair joint comparison, (b) reproduce Gibbs trapping on a bimodal config. See §6 Fig 8 row + §8 item 2. Prior entry: 2026-05-31 figure session — Fig 4 `fig4_v3` (bootstrap CIs; two-bin-detector finding F4c; DONE/Patrick-approved — `*` significance stars kept, caption clarifies star=cohort-coef-stability vs colour=per-ROI-identifiability as distinct axes, no sub-legends), S1 atlas colourblind-safe+hatch.
@@ -15,6 +16,82 @@
   - F9 (NEW) — MAP ridge branch in prob_model.py was projecting unconstrained Gaussian MAP onto non-negative orthant rather than solving constrained QP. Bug active on 58% of ROIs, p99 bin diff 0.37. Fixed 2026-05-26 to NNLS on augmented [U; √λI] system. Cohort re-fitted; ROI-scalar ADC-vs-discriminant r ≈ −0.97 robust.
 
 **The manuscript narrative is reshaped around what NUTS uniquely contributes:** per-bin posterior uncertainty (with F6 coverage caveat). Tuned MAP is the point-estimate workhorse.
+
+---
+
+## 0. Manuscript finalization tracker (added 2026-06-21)
+
+**Process.** Walk every prose unit below in document order; polish one, then mark it. Statuses: ☐ pending · 🔶 revised this session, needs a final pass · ✅ reviewed + finalized (the bar: like Methods→Classification, 2026-06-21). Captions in `figure_legends.tex` / `table_legends.tex` get polished alongside their parent float, not separately. Manuscript figure numbering (PROJECT_STATE reorder): 1 Fisher · 2 spectra · 3 validation · 4 ROC · 5 ADC-discriminant · 6 sensitivity · 7 GGG · 8 uncertainty · 9 pixel-wise.
+
+**Progress: 1 ✅ / 33 body units** (+2 🔶 awaiting final pass).
+
+### Abstract — `abstract.tex` (structured, 4 parts)
+| St | Unit |
+|----|------|
+| ☐ | Purpose |
+| ☐ | Methods |
+| ☐ | Results |
+| ☐ | Conclusion |
+
+### Introduction — `introduction.tex` (4 paragraphs)
+| St | Unit |
+|----|------|
+| ☐ | ¶1 ADC as PI-RADS cornerstone biomarker |
+| ☐ | ¶2 ADC discards microstructure → multi-compartment models (IVIM/biexp/VERDICT, Langkilde) |
+| ☐ | ¶3 Ill-posed inverse Laplace → Bayesian per-component uncertainty motivation |
+| ☐ | ¶4 This work: contributions (1) identifiability (2) spectral-vs-ADC (3) sensitivity-alignment + pixel demo |
+
+### Theory — `theory.tex` (5 subsections)
+| St | Unit |
+|----|------|
+| ☐ | Signal Model |
+| ☐ | Identifiability and Discretization |
+| ☐ | MAP Estimation |
+| ☐ | Bayesian Formulation |
+| ☐ | ADC as a Spectral Functional |
+
+### Methods — `methods.tex` (6 subsections)
+| St | Unit |
+|----|------|
+| ☐ | Patient Cohort and MRI Acquisition |
+| ☐ | Spectral Estimation |
+| ☐ | ADC Computation |
+| ✅ | Classification — finalized 2026-06-21 (standardization how+why; inner-6 representation added) |
+| ☐ | ADC Sensitivity Analysis |
+| ☐ | Pixel-wise and Direction-wise Spectral Estimation |
+
+### Results — `results.tex` (6 subsections)
+| St | Unit |
+|----|------|
+| ☐ | Diffusivity spectra and identifiability |
+| 🔶 | Tumor detection — added mirror ablation + redundancy framing 2026-06-21; needs final pass |
+| 🔶 | Why ADC works — rewrote the "two estimators" / sensitivity×contrast para 2026-06-21; needs final pass |
+| ☐ | Spectral Decomposition by Gleason Grade Group |
+| ☐ | Prediction confidence |
+| ☐ | Pixel-wise Spectral Decomposition |
+
+### Discussion — `discussion.tex` (7 paragraphs)
+| St | Unit |
+|----|------|
+| ☐ | ¶1 Central finding: ADC ≈ optimal spectral discriminant |
+| ☐ | ¶2 ADC explained not obsoleted; 3 added-value areas |
+| ☐ | ¶3 Histology interpretation of grade-dependent shifts **[Stephan-gated]** |
+| ☐ | ¶4 MAP vs NUTS complementary; posterior value is upstream |
+| ☐ | ¶5 Fisher/CRLB identifiability; van-Trees decomposition **[Sandy-gated]** |
+| ☐ | ¶6 Limitations (circularity, n=29, fixed bins, fixed TE/TD, single pixel-wise patient) |
+| ☐ | ¶7 Future directions (other organs, amortized inference, T2 integration) |
+
+### Conclusion — `conclusion.tex` (1 paragraph, 6 sentences)
+| St | Unit |
+|----|------|
+| ☐ | Whole conclusion |
+
+### Back matter (lower priority; polish with the parent float)
+| St | Unit |
+|----|------|
+| ☐ | Figure legends — `figure_legends.tex` (9 figs) |
+| ☐ | Table legend — `table_legends.tex` (Table 1) |
+| ☐ | Supporting Information — `supporting.tex` |
 
 ---
 
