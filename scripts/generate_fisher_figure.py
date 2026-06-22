@@ -19,8 +19,12 @@ figures.
 
 Outputs paper/figures/fig_fisher_v2.{pdf,png}.
 
-CAVEAT: the van-Trees Bayesian-CRLB derivation (panel b) is PENDING SANDY'S
-VALIDATION (see notes/CRLB_NOTE_FOR_SANDY.txt, PROJECT_STATE.md F10).
+NAMING (decided 2026-06-22): bar 2 is the van-Trees bound under a GAUSSIAN
+approximation of the half-normal prior (precision lambda=0.1) -- NOT the
+half-normal bound itself. This is why the empirical NUTS posterior SD (bar 3,
+true half-normal + non-negativity) legitimately sits below it; that gap is the
+"constraint gain". Derivation write-up for Sandy's optional review:
+notes/CRLB_NOTE_FOR_SANDY_v2_2026-06-21.md.
 """
 
 import numpy as np
@@ -119,7 +123,7 @@ width = 0.27
 # panel (van-Trees attribution is in the caption).
 b1 = ax_b.bar(x - width, crlb_unc, width, label="Unconstrained CRLB",
               color=COLORS["crlb"], edgecolor="black", linewidth=0.5)
-b2 = ax_b.bar(x, crlb_bay, width, label="Bayesian CRLB",
+b2 = ax_b.bar(x, crlb_bay, width, label="Bayesian CRLB (Gaussian prior)",
               color=COLORS["crlb_bayes"], edgecolor="black", linewidth=0.5)
 b3 = ax_b.bar(x + width, nuts_std, width, label="NUTS posterior SD",
               color=COLORS["nuts"], edgecolor="black", linewidth=0.5)
@@ -200,4 +204,6 @@ for j in range(len(D)):
     print(f"{D[j]:6.2f} {crlb_unc[j]:10.4f} {crlb_bay[j]:11.4f} {nuts_std[j]:10.4f} "
           f"{crlb_unc[j]/crlb_bay[j]:7.0f}x {crlb_bay[j]/nuts_std[j]:8.1f}x")
 print()
-print("CAVEAT: van-Trees Bayesian-CRLB derivation (panel b) PENDING SANDY'S VALIDATION.")
+print("NOTE: bar 2 is the van-Trees bound under a Gaussian approximation of the")
+print("half-normal prior (lambda=0.1); the prior/constraint split is lambda-dependent")
+print("and the two gains are not orthogonal. See PROJECT_STATE.md F8/F10.")
