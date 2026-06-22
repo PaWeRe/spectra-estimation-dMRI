@@ -49,7 +49,7 @@ Requiring constant estimation precision across the spectrum therefore implies a 
   \label{eq:spacing_scaling}
 \end{equation}
 %
-We use this scaling as a heuristic guide for the discretization: our grid spacing increases from $\Delta D = 0.25\;\umsmm$ at the slow-diffusion end to $1.0\;\umsmm$ at $D = 2.0$, placing denser bins where most b-values contribute informative signal.
+This scaling motivates a non-uniform grid with denser bins at low diffusivity, where most b-values contribute informative signal.
 Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of bin placement: the $D^{3/2}$ redistribution only trades resolution between the two ends, and the ill-posedness is intrinsic to the Laplace inversion.
 
 \subsection{MAP Estimation}

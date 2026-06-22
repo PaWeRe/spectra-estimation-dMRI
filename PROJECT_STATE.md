@@ -47,7 +47,7 @@
 | St | Unit |
 |----|------|
 | ☐ | Signal Model |
-| 🔶 | Identifiability and Discretization — CRLB ¶ reworked 2026-06-22 (Gaussian-prior van-Trees naming; λ-dependent, non-orthogonal split; tightened; Sandy gate removed); needs final pass |
+| ✅ | Identifiability and Discretization — finalized 2026-06-22 (tool-only: Fisher + CRLB + ΔD∝D^{3/2}; decomposition moved to Results/Discussion; σ_R/λ split; line-52 forward-design implication softened) |
 | ☐ | MAP Estimation |
 | ☐ | Bayesian Formulation |
 | ☐ | ADC as a Spectral Functional |
@@ -65,7 +65,7 @@
 ### Results — `results.tex` (6 subsections)
 | St | Unit |
 |----|------|
-| 🔶 | Diffusivity spectra and identifiability — reworked 2026-06-22 (Fig 1 findings + bin-rule adherence test + regrid robustness; data-limit conclusion moved to Discussion); needs final pass |
+| ✅ | Diffusivity spectra and identifiability — finalized 2026-06-22 (Fig 1 findings + bin-rule adherence test + regrid robustness; data-limit conclusion moved to Discussion) |
 | 🔶 | Tumor detection — added mirror ablation + redundancy framing 2026-06-21; needs final pass |
 | 🔶 | Why ADC works — rewrote the "two estimators" / sensitivity×contrast para 2026-06-21; needs final pass |
 | ☐ | Spectral Decomposition by Gleason Grade Group |
@@ -79,7 +79,7 @@
 | ☐ | ¶2 ADC explained not obsoleted; 3 added-value areas |
 | ☐ | ¶3 Histology interpretation of grade-dependent shifts **[Stephan-gated]** |
 | ☐ | ¶4 MAP vs NUTS complementary; posterior value is upstream |
-| 🔶 | ¶5 Fisher/CRLB identifiability; van-Trees decomposition — reworked 2026-06-22 (Gaussian-prior naming + λ-dependent/non-orthogonal note; Sandy now reviews, no longer gating); needs final pass |
+| ✅ | ¶5 Fisher/CRLB identifiability — finalized 2026-06-22 (interpretation-only; Gaussian-prior van-Trees naming; ill-conditioning cite Jalnefjord 2019; Sandy reviews, not gating) |
 | ☐ | ¶6 Limitations (circularity, n=29, fixed bins, fixed TE/TD, single pixel-wise patient) |
 | ☐ | ¶7 Future directions (other organs, amortized inference, T2 integration) |
 
