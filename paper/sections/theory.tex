@@ -14,7 +14,7 @@ where $R_j \geq 0$ are the spectral fractions (volume fractions of each diffusio
 In matrix notation, $\svec / S_0 = \Umat \Rvec + \boldsymbol{\varepsilon}$, where the design matrix $\Umat \in \mathbb{R}^{M \times K}$ has entries $U_{ij} = \exp(-b_i D_j)$.
 For this study, $M = 15$ b-values span $0$--$3500\;\text{s/mm}^2$ in steps of $250\;\text{s/mm}^2$ and $K = 8$ diffusivity bins at $D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$.
 
-The conditioning of the design matrix can guide the choice of grid.
+The conditioning of the design matrix can guide the choice of the diffusivity grid.
 Assuming known noise $\sigma$, the Fisher information matrix for the fractions $\Rvec$ is
 %
 \begin{equation}
@@ -43,11 +43,11 @@ so holding precision constant across the spectrum would require a bin spacing th
 \end{equation}
 %
 that is, finer bins at low diffusivity.
-We use this analytic rule as a loose design guide, combined with physiological knowledge of the relevant water compartments, to arrive at the eight-bin grid above.
+We treat this analytic rule as a heuristic and combine it with biological knowledge of the relevant water compartments to set the eight-bin grid above.
 
-\subsection{Estimation}
+\subsection{Bayesian Spectrum Estimation}
 
-Both estimators we use follow from the same non-negative model: the Gaussian likelihood of (\ref{eq:signal_model}) under the physical constraint $R_j \geq 0$, regularized to counter the ill-conditioning. The maximum a posteriori (MAP) estimate is the posterior mode---a single point estimate---whereas sampling the full Bayesian posterior additionally quantifies how reliably each component is determined.
+We treat spectrum recovery as Bayesian inference. The Gaussian observation model (\ref{eq:signal_model}), the physical constraint $R_j \geq 0$, and a regularizing prior on the fractions together define a posterior over the spectrum (and, in the full treatment, the noise level $\sigma$). Two estimators follow from this single posterior: its mode---the maximum a posteriori (MAP) point estimate---and the full posterior itself, sampled to additionally quantify how reliably each component is determined.
 
 Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together with non-negativity, the MAP estimate solves the constrained quadratic program
 %
@@ -74,8 +74,8 @@ We specify a hierarchical model,
 \end{align}
 %
 in which the half-normal prior enforces non-negativity with smooth gradients---the Bayesian analogue of the ridge penalty, though the prior scale $\sigma_R$ and the ridge weight $\lambda$ are separate hyperparameters tuned independently (Methods)---and the half-Cauchy is a robust weakly informative prior that lets the noise be inferred jointly \citep{gelman2006prior}.
-We sample $p(\Rvec, \sigma \mid \svec, \Umat)$ with the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}: a coordinate-wise Gibbs sampler targets the same posterior, but the strong correlations between adjacent components make such updates mix slowly, whereas NUTS \citep{neal2011mcmc} proposes joint moves across all components and adapts to the local curvature.
-Each posterior summary then provides both a point estimate and a per-component coefficient of variation (CV = posterior std / posterior mean) that measures identifiability: components with CV $\ll 1$ are well constrained, those with CV near or above one effectively undetermined by the data.
+We sample the posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ with Hamiltonian Monte Carlo \citep{neal2011mcmc}, which augments the parameters with auxiliary momenta and simulates gradient-driven trajectories of the log-posterior to propose distant, jointly-updated states that retain a high acceptance probability; the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts} removes the need to hand-tune the trajectory length. We also implemented a coordinate-wise Gibbs sampler with conjugate full conditionals, but the strong correlations between adjacent components made it mix too slowly, so all results use NUTS.
+Each posterior summary then provides both a point estimate and a per-component coefficient of variation (CV = posterior std / posterior mean) as a measure of identifiability: the smaller the CV, the more tightly the data constrain that fraction, whereas a CV approaching one marks a fraction the data barely determine.
 
 Together, the regularization and the non-negativity constraint are what render this classically ill-posed inversion tractable. At a representative SNR the unconstrained CRLB is large---for the intermediate bins it exceeds the $[0,1]$ range a fraction can occupy---whereas approximating the half-normal prior by a Gaussian (the van Trees bound) tightens the achievable variance by up to two orders of magnitude, and enforcing non-negativity tightens it by a further $2$--$74\times$ (Figure~\ref{fig:fisher}b).
 
