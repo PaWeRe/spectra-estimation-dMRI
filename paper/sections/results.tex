@@ -1,16 +1,10 @@
 \section{Results}
 
-\subsection{Diffusivity spectra and identifiability}
+\subsection{Diffusivity spectra}
 
 The trace-decay signal-to-noise ratio ($S_0/\sigma$ from the per-ROI NUTS posterior) had a cohort median of 303 (interquartile range 176--478; full range 25--1548), the spread reflecting tissue composition and distance from the endorectal coil.
-At this SNR the eight components are constrained very unequally.
-The Fisher correlation matrix (Figure~\ref{fig:fisher}a) shows the low- and intermediate-diffusivity components ($D = 0.50$--$1.00\;\umsmm$) mutually correlated above $0.99$, and the single-component decay curves (Figure~\ref{fig:fisher}c) show that $D = 0.25\;\umsmm$ contributes signal across all 15 b-values whereas components with $D \geq 3.0\;\umsmm$ fall below the noise floor within the first few steps.
-
-The per-ROI posterior coefficient of variation (CV; per-ROI values in the supplementary atlas, Figure~\ref{fig:atlas}) follows this structure.
-Restricted diffusion ($D = 0.25\;\umsmm$), free water ($D = 3.0\;\umsmm$), and the perfusion proxy ($D = 20.0\;\umsmm$) were well constrained (cohort-mean CV $0.20$, $0.32$, $0.36$); $D = 1.5$ and $2.0\;\umsmm$ were intermediate ($0.74$, $0.52$); and $D = 0.50$, $0.75$, and $1.00\;\umsmm$ were poorly constrained ($0.81$--$0.83$), these three carrying the smallest fractions so that their posterior standard deviation approached their mean.
-Figure~\ref{fig:fisher}b places the achievable precision on an absolute scale at the cohort-median SNR and shows it recovered in two steps: the unconstrained CRLB is large---for the intermediate bins it exceeds the $[0,1]$ range a fraction can occupy---approximating the half-normal prior by a Gaussian (the van Trees bound) tightens the variance by up to two orders of magnitude, and enforcing non-negativity (the NUTS posterior, under the true half-normal prior) tightens it by a further $2$--$74\times$, together rendering a classically ill-posed problem tractable.
-
-Figure~\ref{fig:spectra} shows the resulting cohort-averaged MAP and NUTS spectra by tissue type and zone.
+Figure~\ref{fig:spectra} shows the cohort-averaged MAP and NUTS spectra by tissue type and zone, with per-ROI spectra in the supplementary atlas (Figure~\ref{fig:atlas}).
+Most of the spectral mass sat in the two outer compartments---restricted diffusion ($D = 0.25\;\umsmm$) and free water ($D = 3.0\;\umsmm$)---which also showed the clearest tumor--normal difference, whereas the intermediate bins ($D = 0.5$--$1.0\;\umsmm$) sat near zero with little mass to estimate.
 Relative to normal tissue, tumor carried a larger restricted-diffusion fraction ($D = 0.25\;\umsmm$: PZ $16.6\%$ vs.\ $5.7\%$, TZ $25.0\%$ vs.\ $8.5\%$; NUTS) and a smaller free-water fraction ($D = 3.0\;\umsmm$: PZ $21.0\%$ vs.\ $47.5\%$, TZ $14.5\%$ vs.\ $29.9\%$), with MAP and NUTS in close agreement.
 
 \subsection{Tumor detection}

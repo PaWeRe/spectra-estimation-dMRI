@@ -1,8 +1,8 @@
 \section{Theory}
 
-\subsection{Signal Model}
+\subsection{Signal Model and Discretization}
 
-In multi-b diffusion MRI the signal decay is modeled as a superposition of exponential decays from distinct diffusion compartments. One can either estimate the diffusivities $D_j$ and their fractions jointly---highly nonlinear and severely non-unique---or fix the diffusivities on a predefined grid and estimate only the fractions, reducing the problem to linear estimation at the cost of discretization. We adopt the latter: normalizing by the $b = 0$ signal, the discrete spectral model is
+In multi-b diffusion MRI the signal decay can be modeled as a superposition of exponential decays from distinct diffusion compartments. One can either estimate the diffusivities $D_j$ and their fractions jointly---highly nonlinear and severely non-unique---or fix the diffusivities on a predefined grid and estimate only the fractions, reducing the problem to linear estimation at the cost of discretization. We adopt the latter: normalizing by the $b = 0$ signal, the discrete spectral model is
 %
 \begin{equation}
   \frac{S(b_i)}{S_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
@@ -12,13 +12,9 @@ In multi-b diffusion MRI the signal decay is modeled as a superposition of expon
 %
 where $R_j \geq 0$ are the spectral fractions (volume fractions of each diffusion compartment), $D_j$ are the diffusivity bin centers, and $\varepsilon_i \sim \mathcal{N}(0, \sigma^2)$ is additive Gaussian noise.
 In matrix notation, $\svec / S_0 = \Umat \Rvec + \boldsymbol{\varepsilon}$, where the design matrix $\Umat \in \mathbb{R}^{M \times K}$ has entries $U_{ij} = \exp(-b_i D_j)$.
+For this study, $M = 15$ b-values span $0$--$3500\;\text{s/mm}^2$ in steps of $250\;\text{s/mm}^2$ and $K = 8$ diffusivity bins at $D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$.
 
-For this study, $M = 15$ b-values spanning $0$--$3500\;\text{s/mm}^2$ in steps of $250\;\text{s/mm}^2$ and $K = 8$ diffusivity bins at $D \in \{0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 20.0\}\;\umsmm$.
-The design matrix $\Umat$ has condition number $\kappa(\Umat) \approx 2.8 \times 10^5$, reflecting the inherent ill-posedness of the inverse problem.
-
-\subsection{Identifiability and Discretization}
-
-The diffusivity grid must be chosen against the conditioning of the inverse problem.
+The conditioning of the design matrix can guide the choice of grid.
 Assuming known noise $\sigma$, the Fisher information matrix for the fractions $\Rvec$ is
 %
 \begin{equation}
@@ -28,8 +24,8 @@ Assuming known noise $\sigma$, the Fisher information matrix for the fractions $
 \end{equation}
 %
 and the Cram\'er--Rao lower bound (CRLB) sets the minimum variance of any unbiased estimator, $\text{Var}(\hat{R}_j) \geq [\mathbf{F}^{-1}]_{jj}$.
-Because $\mathbf{F} = \Umat^T\Umat/\sigma^2$, its condition number is the square of the design matrix's, $\kappa(\mathbf{F}) = \kappa(\Umat)^2 \approx 8 \times 10^{10}$---the ill-posedness of the signal model expressed in estimation-variance terms.
-The large off-diagonal entries of $\mathbf{F}$ reflect that adjacent diffusivities produce nearly identical signal decays, so neighboring fractions trade off against one another almost freely.
+The design matrix is ill-conditioned ($\kappa(\Umat) \approx 2.8 \times 10^5$), and because $\mathbf{F} = \Umat^T\Umat/\sigma^2$ this becomes its square in estimation-variance terms ($\kappa(\mathbf{F}) = \kappa(\Umat)^2 \approx 8 \times 10^{10}$).
+The large off-diagonal entries of $\mathbf{F}$ reflect that adjacent diffusivities produce nearly identical signal decays: the low- and intermediate-diffusivity components ($D = 0.5$--$1.0\;\umsmm$) are mutually correlated above $0.99$ (Figure~\ref{fig:fisher}a) and trade off against one another almost freely, whereas $D = 0.25\;\umsmm$ contributes signal across all 15 b-values and components with $D \geq 3.0\;\umsmm$ fall below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
 
 A two-compartment analysis indicates where on the grid this trade-off is least severe.
 For adjacent diffusivities $D$ and $D + \Delta D$ carrying fractions $p$ and $1-p$, in the regime $\Delta D \ll D$ and $b_{\max} D \gg 1$ the Fisher information for $p$ scales as
@@ -47,11 +43,13 @@ so holding precision constant across the spectrum would require a bin spacing th
 \end{equation}
 %
 that is, finer bins at low diffusivity.
-We take this only as a loose design guide; the grid itself is fixed a priori on physiological grounds (Methods).
+We use this analytic rule as a loose design guide, combined with physiological knowledge of the relevant water compartments, to arrive at the eight-bin grid above.
 
-\subsection{MAP Estimation}
+\subsection{Estimation}
 
-The maximum a posteriori estimate under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ combined with the physical non-negativity of compartment fractions is the solution of the constrained quadratic program
+Both estimators we use follow from the same non-negative model: the Gaussian likelihood of (\ref{eq:signal_model}) under the physical constraint $R_j \geq 0$, regularized to counter the ill-conditioning. The maximum a posteriori (MAP) estimate is the posterior mode---a single point estimate---whereas sampling the full Bayesian posterior additionally quantifies how reliably each component is determined.
+
+Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together with non-negativity, the MAP estimate solves the constrained quadratic program
 %
 \begin{equation}
   \hat{\Rvec}_{\text{MAP}} \;=\; \argmin_{\Rvec \,\in\, \mathbb{R}_{\geq 0}^{K}}
@@ -60,33 +58,26 @@ The maximum a posteriori estimate under a Gaussian (ridge) prior $R_j \sim \math
   \label{eq:map}
 \end{equation}
 %
-where $\lambda > 0$ controls the regularization strength and the feasible set $\mathbb{R}_{\geq 0}^{K}$ enforces non-negativity of the compartment fractions.
-For this ill-conditioned design matrix, the unconstrained Gaussian MAP $(\Umat^{T}\Umat + \lambda \mathbf{I})^{-1}\Umat^{T}(\svec/S_0)$ can lie outside the feasible orthant, and projecting that closed-form solution onto $\mathbb{R}_{\geq 0}^{K}$ does not in general recover the constrained MAP in (\ref{eq:map}).
-We therefore solve (\ref{eq:map}) directly as non-negative least squares on the augmented system $[\Umat;\, \sqrt{\lambda}\,\mathbf{I}]\,\Rvec = [\svec/S_0;\, \mathbf{0}]$, which is equivalent to the original ridge-NNLS objective and is solved with an active-set algorithm.
-The MAP estimate is a point estimate and does not quantify how reliably each component $R_j$ is determined by the data.
+where $\lambda > 0$ sets the regularization strength.
+For this ill-conditioned design matrix the unconstrained Gaussian MAP $(\Umat^{T}\Umat + \lambda \mathbf{I})^{-1}\Umat^{T}(\svec/S_0)$ can lie outside the feasible orthant, so projecting it onto $\mathbb{R}_{\geq 0}^{K}$ does not in general recover the constrained solution; we instead solve (\ref{eq:map}) directly as non-negative least squares on the augmented system $[\Umat;\, \sqrt{\lambda}\,\mathbf{I}]\,\Rvec = [\svec/S_0;\, \mathbf{0}]$ with an active-set algorithm.
+The MAP estimate requires no noise level ($\lambda$, not $\sigma$, governs the bias--variance trade-off) but gives no measure of per-component reliability: a value at a poorly conditioned component may appear precise while being largely set by the regularization rather than the data.
 
-\subsection{Bayesian Formulation}
-
-The MAP objective in (\ref{eq:map}) is solved without reference to the noise level---the regularization weight $\lambda$, not $\sigma$, governs the bias--variance trade-off, so MAP does not require $\sigma$ to be specified---but it remains a point estimate with no measure of per-component reliability: a value at an intermediate component may appear precise while being largely determined by the regularization rather than the data.
-A fully Bayesian approach characterizes the joint posterior over $(\Rvec, \sigma)$, inferring the spectrum and per-ROI noise level together and making the ill-posedness explicit through the marginal posterior widths.
-
-We specify a hierarchical model with explicit priors on both the spectrum and the noise level:
+The full Bayesian treatment infers the spectrum and per-ROI noise level jointly, making the ill-posedness explicit through the marginal posterior widths.
+We specify a hierarchical model,
 %
 \begin{align}
   R_j &\sim \text{HalfNormal}\!\left(\sigma_R\right),
   \quad j = 1, \ldots, K \label{eq:prior_R} \\
   \sigma &\sim \text{HalfCauchy}(\beta = 0.01) \label{eq:prior_sigma} \\
-  \svec / S_0 \mid \Rvec, \sigma &\sim \mathcal{N}(\Umat \Rvec,\; \sigma^2 \mathbf{I}).
+  \svec / S_0 \mid \Rvec, \sigma &\sim \mathcal{N}(\Umat \Rvec,\; \sigma^2 \mathbf{I}),
   \label{eq:likelihood}
 \end{align}
 %
-The half-normal prior on $\Rvec$ enforces non-negativity with smooth gradients for Hamiltonian Monte Carlo (HMC). It is the Bayesian analogue of the ridge penalty---both shrink $\Rvec$ toward zero---but the prior scale $\sigma_R$ and the MAP ridge weight $\lambda$ are separate hyperparameters, tuned independently for their respective estimators (Methods). The half-Cauchy prior on $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that lets the noise be inferred jointly rather than fixed a priori.
+in which the half-normal prior enforces non-negativity with smooth gradients---the Bayesian analogue of the ridge penalty, though the prior scale $\sigma_R$ and the ridge weight $\lambda$ are separate hyperparameters tuned independently (Methods)---and the half-Cauchy is a robust weakly informative prior that lets the noise be inferred jointly \citep{gelman2006prior}.
+We sample $p(\Rvec, \sigma \mid \svec, \Umat)$ with the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}: a coordinate-wise Gibbs sampler targets the same posterior, but the strong correlations between adjacent components make such updates mix slowly, whereas NUTS \citep{neal2011mcmc} proposes joint moves across all components and adapts to the local curvature.
+Each posterior summary then provides both a point estimate and a per-component coefficient of variation (CV = posterior std / posterior mean) that measures identifiability: components with CV $\ll 1$ are well constrained, those with CV near or above one effectively undetermined by the data.
 
-The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
-A coordinate-wise Gibbs sampler with conjugate full conditionals targets the same posterior, but the strong correlations between adjacent spectral components create a posterior geometry in which such coordinate-wise updates mix slowly; we therefore use NUTS.
-NUTS, as an adaptive variant of HMC \citep{neal2011mcmc}, exploits gradient information to propose joint moves across all components simultaneously and adapts the trajectory length to the local curvature of the posterior, making it well suited to the correlated, constrained geometry of this problem.
-
-Posterior summaries for each $R_j$ provide both a point estimate and a measure of identifiability via the coefficient of variation (CV = posterior std / posterior mean): components with CV $\ll 1$ are well constrained, those with CV near or above one effectively undetermined by the data.
+Together, the regularization and the non-negativity constraint are what render this classically ill-posed inversion tractable. At a representative SNR the unconstrained CRLB is large---for the intermediate bins it exceeds the $[0,1]$ range a fraction can occupy---whereas approximating the half-normal prior by a Gaussian (the van Trees bound) tightens the achievable variance by up to two orders of magnitude, and enforcing non-negativity tightens it by a further $2$--$74\times$ (Figure~\ref{fig:fisher}b).
 
 \subsection{ADC as a Spectral Functional}
 
