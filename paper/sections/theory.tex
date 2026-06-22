@@ -52,8 +52,6 @@ Requiring constant estimation precision across the spectrum therefore implies a 
 We use this scaling as a heuristic guide for the discretization: our grid spacing increases from $\Delta D = 0.25\;\umsmm$ at the slow-diffusion end to $1.0\;\umsmm$ at $D = 2.0$, placing denser bins where most b-values contribute informative signal.
 Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of bin placement: the $D^{3/2}$ redistribution only trades resolution between the two ends, and the ill-posedness is intrinsic to the Laplace inversion.
 
-The unconstrained CRLB vastly overestimates the realized estimation error because it ignores both the prior and the non-negativity of the fractions: for intermediate components it predicts standard deviations exceeding the $[0,1]$ range of a volume fraction (Figure~\ref{fig:fisher}b). Approximating the half-normal prior by a Gaussian of matching scale (precision $\lambda$) yields the Bayesian (van Trees) CRLB, which tightens the unconstrained bound by up to two orders of magnitude; the empirical NUTS posterior standard deviation---sampled under the true half-normal prior with the constraint $R_j \geq 0$---is smaller still, by a further $2$--$74\times$, because the one-sided prior and non-negativity restrict the feasible region beyond what a Gaussian prior encodes. The improvement thus arises from two mechanisms rather than a single ratio: prior regularization and the non-negativity constraint. Their split is not unique---it depends on $\lambda$ and the two mechanisms are not independent---but both are substantial and act in the same direction, which is what makes the spectral decomposition tractable.
-
 \subsection{MAP Estimation}
 
 The maximum a posteriori estimate under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ combined with the physical non-negativity of compartment fractions is the solution of the constrained quadratic program
@@ -78,14 +76,14 @@ A fully Bayesian approach characterizes the joint posterior over $(\Rvec, \sigma
 We specify a hierarchical model with explicit priors on both the spectrum and the noise level:
 %
 \begin{align}
-  R_j &\sim \text{HalfNormal}\!\left(\sigma_R = 1/\sqrt{\lambda}\right),
+  R_j &\sim \text{HalfNormal}\!\left(\sigma_R\right),
   \quad j = 1, \ldots, K \label{eq:prior_R} \\
   \sigma &\sim \text{HalfCauchy}(\beta = 0.01) \label{eq:prior_sigma} \\
   \svec / S_0 \mid \Rvec, \sigma &\sim \mathcal{N}(\Umat \Rvec,\; \sigma^2 \mathbf{I}).
   \label{eq:likelihood}
 \end{align}
 %
-The half-normal prior on $\Rvec$ enforces non-negativity with smooth gradients for Hamiltonian Monte Carlo (HMC), and its variance $1/\lambda$ matches the ridge penalty, linking the MAP and Bayesian formulations. The half-Cauchy prior on $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that lets the noise be inferred jointly rather than fixed a priori.
+The half-normal prior on $\Rvec$ enforces non-negativity with smooth gradients for Hamiltonian Monte Carlo (HMC). It is the Bayesian analogue of the ridge penalty---both shrink $\Rvec$ toward zero---but the prior scale $\sigma_R$ and the MAP ridge weight $\lambda$ are separate hyperparameters, tuned independently for their respective estimators (Methods). The half-Cauchy prior on $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that lets the noise be inferred jointly rather than fixed a priori.
 
 The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
 A coordinate-wise Gibbs sampler with conjugate full conditionals targets the same posterior, but the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry in which such coordinate-wise updates mix slowly; we therefore use NUTS.

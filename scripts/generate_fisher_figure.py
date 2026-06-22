@@ -53,7 +53,7 @@ b_values = np.array([0, 250, 500, 750, 1000, 1250, 1500, 1750,
 D = DIFFUSIVITIES                       # 8 diffusivity bins (shared contract)
 D_labels = DLABELS
 SNR = 303                               # cohort median (IQR 176-478)
-LAMBDA_PRIOR = 0.1                      # HalfNormal prior precision (lambda)
+LAMBDA_PRIOR = 0.1                      # half-normal prior precision = 1/sigma_R^2 (sigma_R = 3.16)
 
 # ── Design matrix ───────────────────────────────────────────────────────────
 U = np.exp(-np.outer(b_values, D))      # shape (15, 8)
