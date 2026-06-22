@@ -18,39 +18,36 @@ The design matrix $\Umat$ has condition number $\kappa(\Umat) \approx 2.8 \times
 
 \subsection{Identifiability and Discretization}
 
-The choice of diffusivity bins $D_j$ determines which spectral components can be resolved. The Fisher information matrix for the fractions $\Rvec$ (assuming known noise $\sigma$) is:
+The diffusivity grid must be chosen against the conditioning of the inverse problem.
+Assuming known noise $\sigma$, the Fisher information matrix for the fractions $\Rvec$ is
 %
 \begin{equation}
   \mathbf{F} = \frac{1}{\sigma^2} \Umat^T \Umat,
-  \quad F_{jk} = \frac{1}{\sigma^2} \sum_{i=1}^{M} \exp\!\big(-b_i(D_j + D_k)\big).
+  \quad F_{jk} = \frac{1}{\sigma^2} \sum_{i=1}^{M} \exp\!\big(-b_i(D_j + D_k)\big),
   \label{eq:fisher}
 \end{equation}
 %
-The Cram\'er-Rao lower bound (CRLB) provides the minimum achievable variance for any unbiased estimator: $\text{Var}(\hat{R}_j) \geq [\mathbf{F}^{-1}]_{jj}$.
-Because $\mathbf{F} = \Umat^T\Umat/\sigma^2$, its condition number is the square of the design matrix's, $\kappa(\mathbf{F}) = \kappa(\Umat)^2 \approx 8 \times 10^{10}$---the same ill-posedness expressed in estimation-variance terms.
+and the Cram\'er--Rao lower bound (CRLB) sets the minimum variance of any unbiased estimator, $\text{Var}(\hat{R}_j) \geq [\mathbf{F}^{-1}]_{jj}$.
+Because $\mathbf{F} = \Umat^T\Umat/\sigma^2$, its condition number is the square of the design matrix's, $\kappa(\mathbf{F}) = \kappa(\Umat)^2 \approx 8 \times 10^{10}$---the ill-posedness of the signal model expressed in estimation-variance terms.
+The large off-diagonal entries of $\mathbf{F}$ reflect that adjacent diffusivities produce nearly identical signal decays, so neighboring fractions trade off against one another almost freely.
 
-The off-diagonal structure of $\mathbf{F}$ reveals why: adjacent diffusivity components produce nearly identical signal contributions.
-The Fisher correlation matrix $C_{jk} = F_{jk} / \sqrt{F_{jj} F_{kk}}$ shows that components at $D = 0.50$, $0.75$, and $1.00\;\umsmm$ are correlated above $r = 0.99$ (Figure~\ref{fig:fisher}a), making them fundamentally indistinguishable from the 15 b-value measurements considered here.
-In contrast, $D = 0.25\;\umsmm$ (restricted diffusion) contributes detectable signal across all 15 b-values, while fast-diffusing components ($D \geq 3.0$) decay below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
-
-This resolving limitation can be quantified analytically for a two-compartment toy model.
-Consider adjacent diffusivities $D$ and $D + \Delta D$ contributing fractions $p$ and $1-p$.
-In the asymptotic regime $\Delta D \ll D$ and $b_{\max} D \gg 1$, the Fisher information for $p$ scales as
+A two-compartment analysis indicates where on the grid this trade-off is least severe.
+For adjacent diffusivities $D$ and $D + \Delta D$ carrying fractions $p$ and $1-p$, in the regime $\Delta D \ll D$ and $b_{\max} D \gg 1$ the Fisher information for $p$ scales as
 %
 \begin{equation}
-  I \propto \frac{(\Delta D)^2}{D^3}.
+  I \propto \frac{(\Delta D)^2}{D^3},
   \label{eq:fisher_scaling}
 \end{equation}
 %
-Requiring constant estimation precision across the spectrum therefore implies a minimum resolvable bin spacing that grows as
+so holding precision constant across the spectrum would require a bin spacing that grows as
 %
 \begin{equation}
-  \Delta D \propto D^{3/2}.
+  \Delta D \propto D^{3/2},
   \label{eq:spacing_scaling}
 \end{equation}
 %
-This scaling motivates a non-uniform grid with denser bins at low diffusivity, where most b-values contribute informative signal.
-Numerical inversion of the full $8 \times 8$ Fisher matrix confirms that intermediate components ($D = 0.50$--$1.50\;\umsmm$) remain poorly conditioned regardless of bin placement: the $D^{3/2}$ redistribution only trades resolution between the two ends, and the ill-posedness is intrinsic to the Laplace inversion.
+that is, finer bins at low diffusivity.
+We take this only as a loose design guide; the grid itself is fixed a priori on physiological grounds (Methods).
 
 \subsection{MAP Estimation}
 
@@ -86,7 +83,7 @@ We specify a hierarchical model with explicit priors on both the spectrum and th
 The half-normal prior on $\Rvec$ enforces non-negativity with smooth gradients for Hamiltonian Monte Carlo (HMC). It is the Bayesian analogue of the ridge penalty---both shrink $\Rvec$ toward zero---but the prior scale $\sigma_R$ and the MAP ridge weight $\lambda$ are separate hyperparameters, tuned independently for their respective estimators (Methods). The half-Cauchy prior on $\sigma$ is a robust weakly informative choice \citep{gelman2006prior} that lets the noise be inferred jointly rather than fixed a priori.
 
 The posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ is sampled using the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
-A coordinate-wise Gibbs sampler with conjugate full conditionals targets the same posterior, but the strong correlations between adjacent spectral components (Figure~\ref{fig:fisher}a) create a posterior geometry in which such coordinate-wise updates mix slowly; we therefore use NUTS.
+A coordinate-wise Gibbs sampler with conjugate full conditionals targets the same posterior, but the strong correlations between adjacent spectral components create a posterior geometry in which such coordinate-wise updates mix slowly; we therefore use NUTS.
 NUTS, as an adaptive variant of HMC \citep{neal2011mcmc}, exploits gradient information to propose joint moves across all components simultaneously and adapts the trajectory length to the local curvature of the posterior, making it well suited to the correlated, constrained geometry of this problem.
 
 Posterior summaries for each $R_j$ provide both a point estimate and a measure of identifiability via the coefficient of variation (CV = posterior std / posterior mean): components with CV $\ll 1$ are well constrained, those with CV near or above one effectively undetermined by the data.
