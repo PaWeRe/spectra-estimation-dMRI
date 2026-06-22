@@ -39,9 +39,12 @@ from spectra_estimation_dmri.visualization.paper_style import (
 # ── Style ─────────────────────────────────────────────────────────────────────
 apply_style("grid")
 # Larger panels in the 2+1 layout -> fonts match the other figures more closely.
+# Title font bumped 16 -> 19 and de-bolded (Stephan 2026-06-22: panel titles were
+# too small / too close to the graphs / the only bold titles in the manuscript);
+# pad + non-bold are applied per-title below.
 plt.rcParams.update({
     "axes.labelsize": 17,
-    "axes.titlesize": 16,
+    "axes.titlesize": 19,
     "xtick.labelsize": 15,
     "ytick.labelsize": 15,
     "legend.fontsize": 14,
@@ -104,13 +107,15 @@ ax_a.set_yticks(range(len(D)))
 ax_a.set_yticklabels(D_labels)
 ax_a.set_xlabel(DIFF_AXIS_LABEL)
 ax_a.set_ylabel(DIFF_AXIS_LABEL)
-ax_a.set_title("(a) Fisher Correlation Matrix", fontweight="bold")
+ax_a.set_title("(a) Fisher Correlation Matrix", pad=14)
 for i in range(len(D)):
     for j in range(len(D)):
         val = C[i, j]
         color = "white" if abs(val) > 0.7 else "black"
+        # In-cell numbers enlarged 11 -> 14 (Stephan 2026-06-22, ~27%, still
+        # inside each patch -- the widest string "-1.00"/"-0.99" fits the cell).
         ax_a.text(j, i, f"{val:.2f}", ha="center", va="center",
-                  fontsize=11, color=color,
+                  fontsize=14, color=color,
                   fontweight="bold" if i == j else "normal")
 cb = fig.colorbar(im, ax=ax_a, fraction=0.046, pad=0.04)
 cb.set_label("Correlation", fontsize=12)
@@ -135,8 +140,8 @@ ax_b.set_xticks(x)
 ax_b.set_xticklabels(D_labels)
 ax_b.set_xlabel(DIFF_AXIS_LABEL)
 ax_b.set_ylabel("Std of fraction (log scale)")
-ax_b.set_title("(b) Per-Component Estimation Uncertainty at SNR 303",
-               fontweight="bold")
+# Two lines so the enlarged, non-bold title fits the square panel (Stephan).
+ax_b.set_title("(b) Per-Component Estimation\nUncertainty at SNR 303", pad=14)
 ax_b.set_box_aspect(1)
 # Opaque legend over the right portion (left edge ~ D = 3.0, the 7th of 8 bins).
 leg_b = ax_b.legend(loc="upper left", bbox_to_anchor=(0.58, 0.99),
@@ -166,7 +171,7 @@ for bv in b_values:
     ax_c.plot(bv, 0.18, marker="|", color="black", markersize=5, alpha=0.4)
 ax_c.set_xlabel(r"$b$-value (ms/$\mu$m$^2$)")
 ax_c.set_ylabel("Relative signal contribution")
-ax_c.set_title("(c) Component Decay Curves vs Noise Floor", fontweight="bold")
+ax_c.set_title("(c) Component Decay Curves vs Noise Floor", pad=14)
 ax_c.set_yscale("log")
 ax_c.set_ylim(5e-4, 0.2)
 ax_c.set_xlim(0, 3.6)
