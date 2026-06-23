@@ -71,9 +71,9 @@
 ### Results — `results.tex` — ✅ RESTRUCTURED to 3 lean subsections 2026-06-23
 | St | Unit |
 |----|------|
-| ✅ | Diffusivity spectra (Fig 3) — spectra-led + key observations; SNR sentence removed (now in Methods); legend trimmed. |
-| ✅ | Tumor detection (Fig 4 ROC) — ADC≈classifier + mirror ablation + redundancy; one-line grade-AUC-not-reported bridge to Discussion; legend trimmed. |
-| ✅ | ADC equals the spectral discriminant (Fig 5) — the ranking anti-correlation only; sensitivity/mechanism half CUT → staging (Discussion); legend trimmed. |
+| ✅ | Diffusivity spectra (Fig 3) — REWRITTEN 2026-06-23 (Patrick): nuanced tissue-type **and zonal** comparison across the full 8-bin spectrum (PZ-normal D=3.0-dominated wide spread; TZ-normal D=2.0≈3.0≈0.29; TZ-tumor D=0.25 0.25±0.14 vs 0.09±0.03; PZ-tumor retains more D=2.0–3.0), less outer-bin-only narrative; grade reading deferred to Discussion (no `fig:spectrum_ggg` ref → keeps numbering). All numbers verified vs `features.csv`. |
+| ✅ | Tumor detection (Fig 4 ROC) — ADC≈classifier + mirror ablation + redundancy; ADDED weak-single-bin nuance (Patrick): D=20 ≈chance both zones (0.52/0.55); D=2.0/D=1.5 swap by zone (PZ 0.59/0.83, TZ 0.79/0.55, Table 1), framed as the collinear intermediates whose posterior weight trades within-ROI (S3 `fig:convergence`, corr −0.5..−0.7) — observation only, no causal claim. NOTE: cohort-level corr(1.5,2.0)≈0.1 (NOT anti-correlated across ROIs; the inversion is within-ROI posterior). |
+| ✅ | ADC equals the spectral discriminant (Fig 5) — ranking anti-correlation only; sensitivity half parked. NO obs added: TZ-steeper-slope is a per-panel-scaling artifact (discriminant logit scale is per-panel; compare r not slope), normal/tumor separability = restatement of high r (Patrick agreed). |
 | — | ~~GGG / Prediction-confidence / Pixel-wise~~ → CUT from Results → parked verbatim in the `\iffalse` staging area at bottom of `discussion.tex` (2026-06-23), to merge in the Discussion pass. |
 | ⚠️ | **TODO (Discussion pass):** re-reference the SI `fig:directions` figure (its only refs were parked) + reintroduce the trace-averaging/direction-independence point. |
 
