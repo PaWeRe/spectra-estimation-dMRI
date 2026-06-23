@@ -8,25 +8,19 @@
 
 \noindent\textbf{Figure~\ref{fig:fisher}.}
 Fisher-information analysis of the eight-bin spectral discretization.
-(a)~Fisher-information correlation matrix
-$C_{jk} = F_{jk}/\sqrt{F_{jj}F_{kk}}$: adjacent intermediate components
-($D = 0.50$--$1.00\;\umsmm$) are mutually correlated above $0.99$, making them
-nearly indistinguishable from the 15 b-value measurements, whereas
-$D = 0.25$ and $D = 20\;\umsmm$ are the most separable.
-(b)~Per-component estimation uncertainty at the cohort-median SNR $= 303$: the
-unconstrained Cram\'er--Rao lower bound (light gray), the Bayesian (van Trees)
-CRLB under a Gaussian approximation of the half-normal prior with scale
-$\sigma_R = 3.16$ (dark gray), and the empirical NUTS posterior standard
+(a)~Correlation matrix $C_{jk} = F_{jk}/\sqrt{F_{jj}F_{kk}}$ of the Fisher
+information $\mathbf{F} = \Umat^T\Umat/\sigma^2$ (Eq.~\ref{eq:fisher}); off-diagonal
+entries near $\pm 1$ mark pairs of components the b-value sampling cannot separate.
+(b)~Per-component estimation uncertainty at the cohort-median SNR $= 303$
+(log scale): the unconstrained Cram\'er--Rao lower bound (light gray), the
+Bayesian (van Trees) CRLB under a Gaussian approximation of the half-normal
+prior ($\sigma_R = 3.16$; dark gray), and the empirical NUTS posterior standard
 deviation (orange), the last sampled under the true half-normal prior with
-non-negativity.
-Annotated factors give the prior gain (gray, unconstrained\,$\to$\,Bayesian) and
-the constraint gain (orange, Bayesian\,$\to$\,NUTS, up to $74\times$).
+non-negativity. Annotated factors mark the prior gain
+(gray, unconstrained\,$\to$\,Bayesian) and the constraint gain
+(orange, Bayesian\,$\to$\,NUTS).
 (c)~Individual component decay curves $R_j \exp(-bD_j)/K$ at equal fractions,
-with horizontal noise floors at SNR $= 50$, $100$, and $303$: slow components
-($D = 0.25\;\umsmm$) contribute signal across all b-values, whereas fast
-components ($D \geq 3.0\;\umsmm$) fall below the noise floor within the first
-few b-value steps, consistent with the sparser discretization at high
-diffusivities.
+with horizontal noise floors at SNR $= 50$, $100$, and $303$.
 
 \medskip\noindent\textbf{Figure~\ref{fig:spectra}.}
 Cohort diffusivity spectra by tissue type and anatomical zone.
