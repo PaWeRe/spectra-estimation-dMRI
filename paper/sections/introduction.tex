@@ -1,11 +1,11 @@
 \section{Introduction}
 
-Diffusion-weighted magnetic resonance imaging (DWI) is a cornerstone of prostate cancer diagnosis, incorporated into the Prostate Imaging Reporting and Data System (PI-RADS) as a primary determinant of clinical significance \citep{turkbey2019prostate, weinreb2016pirads}.
+Diffusion-weighted magnetic resonance imaging (DWI) is a cornerstone of prostate cancer diagnosis, incorporated into the Prostate Imaging Reporting and Data System (PI-RADS) as a primary determinant of clinical significance \citep{turkbey2019prostate}.
 The apparent diffusion coefficient (ADC), derived from monoexponential fitting of the DWI signal at two or more b-values, has become the most widely used quantitative biomarker for prostate cancer detection and grading \citep{manetta2019correlation, yan2024value}.
 Lower ADC values indicate restricted water diffusion associated with increased cellular density in malignant tissue, and ADC has demonstrated strong discriminative performance for both tumor detection and Gleason grade differentiation \citep{donati2014prostate, rosenkrantz2015whole}.
 
 However, the monoexponential ADC model collapses the multi-b signal decay into a single scalar, discarding information about the heterogeneous tissue microstructure that generates the observed signal \citep{fennessy2023quantitative}.
-Extended b-value protocols spanning $b = 0$ to $3500\;\text{s/mm}^2$ reveal non-monoexponential signal behavior arising from multiple diffusion compartments---including restricted intracellular water, hindered extracellular diffusion, glandular luminal water, and vascular pseudo-diffusion \citep{lebihan1988separation, langkilde2018evaluation}.
+Extended b-value protocols spanning $b = 0$ to $3500\;\text{s/mm}^2$ reveal non-monoexponential signal behavior arising from multiple diffusion compartments---including restricted intracellular water, hindered extracellular diffusion, glandular luminal water, and vascular pseudo-diffusion \citep{langkilde2018evaluation}.
 Multi-compartment models, including intravoxel incoherent motion (IVIM) \citep{lebihan1988separation}, biexponential fitting \citep{mulkern2006biexponential}, multi-exponential fitting \citep{conlin2021improved}, and biophysical models such as VERDICT \citep{panagiotaki2014microstructural} that additionally incorporate diffusion time and relaxation parameters, have been proposed to recover this microstructural detail.
 \citet{langkilde2018evaluation} applied multi-component fitting to extended-range b-value prostate DWI, showing that compartment-specific fractions provide information complementary to ADC for tissue characterization.
 
@@ -13,7 +13,7 @@ A fundamental challenge in multi-compartment diffusivity estimation is the ill-p
 Point estimation methods---including non-negative least squares and regularized regression---yield a single spectrum without quantifying how reliably each component is determined by the data.
 Bayesian approaches address this limitation by sampling from the full posterior distribution, providing per-component uncertainty estimates that distinguish well-constrained spectral features from those that are effectively unconstrained by the measurements \citep{prange2009quantifying}.
 
-In this work, we present a Bayesian spectral decomposition framework for multi-b prostate DWI and apply it to a cohort of 56 patients (149 regions of interest).
+In this work, building on the diffusivity-spectrum estimator of \citet{wells2022estimation}, we present a Bayesian spectral decomposition framework for multi-b prostate DWI and apply it to a cohort of 56 patients (149 regions of interest).
 We estimate diffusivity spectra using both a maximum a~posteriori (MAP) point estimate and full Bayesian inference via the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}.
 We investigate (1)~how well each diffusivity component can be measured, both theoretically (Fisher information and the Cram\'er-Rao bound) and practically (the NUTS posterior); (2)~how spectral classifiers compare with ADC for tumor detection and grading; and (3)~whether their near-equivalence can be explained by an alignment between ADC's spectral sensitivity and the optimal classification direction.
 We additionally demonstrate the framework at the pixel level in a single patient, producing spectral fraction maps, a spectral discriminant score, and per-voxel uncertainty estimates.
