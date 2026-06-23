@@ -4,18 +4,21 @@
 
 Retrospective multi-b DWI data were obtained from the cohort previously described by \citet{langkilde2018evaluation}, acquired under an institutional review board--approved protocol; all analyses used region-of-interest data containing no patient-identifying information.
 For the 56 included patients, age ranged from 43 to 77 years (mean 62 years) and the mean serum prostate-specific antigen (PSA) level was 8.8~ng/mL (range, 0.37--46~ng/mL).
-The cohort included patients with biopsy-confirmed cancer, 7 with benign biopsies, and 1 with high-grade prostatic intraepithelial neoplasia; these latter eight contribute only normal-tissue ROIs to the cohort.
+The cohort spanned the diagnostic spectrum encountered at biopsy, including confirmed adenocarcinoma as well as benign and high-grade prostatic intraepithelial neoplasia (HGPIN) findings.
 
 All patients underwent a standard multiparametric MR examination with an additional diffusion-weighted sequence on a GE 3~T Discovery MR750 scanner (GE Medical Systems, Milwaukee, WI).
 An endorectal coil (Medrad, Pittsburgh, PA) was used in combination with pelvic phased-array coils for signal reception, providing high signal-to-noise ratio at the cost of a non-routine setup.
 The added DWI sequence used a matrix size of $64 \times 64$, field of view $280 \times 280\;\text{mm}^2$, slice thickness 5~mm without gap, TR~4000~ms, and TE~100~ms.
 The relatively long echo time was required to accommodate the high diffusion weighting with gradient times $\delta = 37$~ms and $\Delta = 45$~ms.
-Fifteen b-values were acquired in 250~s/mm$^2$ increments from $b = 0$ to $3500\;\text{s/mm}^2$ along each of three orthogonal diffusion encoding directions; total scan time for the extended-range acquisition was 3~min.
-For the ROI-level analysis, the per-direction signal intensities were combined into a trace decay (geometric mean of the three orthogonal directions per b-value).
+Fifteen b-values were acquired in 250~s/mm$^2$ increments from $b = 0$ to $3500\;\text{s/mm}^2$ along each of three orthogonal diffusion-encoding directions, combined into a trace decay (geometric mean across directions) per b-value; total scan time for the extended-range acquisition was 3~min.
 
-A total of 149 regions of interest (ROIs) were annotated: 40 tumor and 109 normal tissue, spanning peripheral zone (PZ; 81 ROIs: 27 tumor, 54 normal) and transition zone (TZ; 68 ROIs: 13 tumor, 55 normal).
-Gleason Grade Group (GGG) labels from biopsy were available for 29 tumor ROIs (20 low-grade GGG~1--2, 9 high-grade GGG~3--5).
-The per-ROI signal-to-noise ratio (SNR) was estimated from the ROI voxel count $N$ as $\mathrm{SNR} = 150\sqrt{N/16}$, reflecting the $\sqrt{N}$ gain from signal averaging across the ROI; the cohort median was 303 (interquartile range 176--478).
+On the multiparametric images an expert radiologist delineated, for each patient, a focal suspicious lesion (the mpMRI target) where present, together with reference normal-appearing tissue in the peripheral and transition zones; these segmentations defined the regions of interest (ROIs).
+Within each ROI the trace signal was averaged across the segmented voxels at each b-value to yield the ROI signal-decay curve, which was paired with the patient's biopsy Gleason score.
+A total of 149 ROIs were analyzed: 40 mpMRI-defined targets and 109 normal-tissue ROIs, spanning the peripheral zone (PZ; 81 ROIs: 27 target, 54 normal) and transition zone (TZ; 68 ROIs: 13 target, 55 normal).
+The targets form the positive class for tumor detection. Of the 40, 29 were biopsy-confirmed adenocarcinoma with an assigned Gleason Grade Group (GGG); the remaining 11 comprised 7 benign, 1 HGPIN, and 3 without a separately recorded Gleason score.
+Detection thus distinguishes radiologically suspicious lesions from normal tissue rather than histologically confirmed cancer alone, a point we return to in the Discussion.
+Biopsy GGG labels were available for the 29 confirmed-cancer targets (20 low-grade, GGG~1--2; 9 high-grade, GGG~3--5; PZ 21, TZ 8), which form the cohort for the grading analysis.
+A per-ROI SNR was derived from the voxel count $N$ as $\mathrm{SNR} = 150\sqrt{N/16}$ and used only as a descriptive index of ROI reliability (cohort median 303, interquartile range 176--478) and as the representative operating point for the Fisher-information analysis (Figure~\ref{fig:fisher}); it is not a fixed noise level in estimation---NUTS infers the per-ROI noise jointly with the spectrum, and the MAP estimate depends only on the ridge weight (Theory).
 
 \subsection{Spectral Estimation}
 

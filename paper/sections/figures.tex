@@ -1,8 +1,10 @@
 % === FIGURES ===
 % MRM: max 10 items (figures + tables combined)
 % Budget: 9 figures + 1 table = 10 items (FULL)
-% Order = order of first mention in the body (arc): Fisher, spectra, validation,
-% ROC, ADC-discriminant, sensitivity, GGG, uncertainty, pixel-wise.
+% Order = order of first mention in the body (arc, RESTRUCTURED 2026-06-23):
+%   1 Fisher (Theory) · 2 validation/simulation (Methods) · 3 spectra · 4 ROC ·
+%   5 ADC-discriminant (Results) · 6 sensitivity · 7 GGG · 8 uncertainty ·
+%   9 pixel-wise (Discussion).
 % NOTE: includegraphics filenames (figN_*.pdf) still carry the OLD numbering;
 % they are just filenames and do not affect the printed figure number.
 %
@@ -22,21 +24,21 @@
 \label{fig:fisher}
 \end{figure}
 
-% --- Fig 2: Cohort diffusivity spectra by tissue/zone (generator: generate_paper_figures.py) ---
-\begin{figure}[p]
-\centering
-\figbox{figures/fig1_v4.pdf}
-\caption{}
-\label{fig:spectra}
-\end{figure}
-
-% --- Fig 3: Simulation recovery battery, 6 GT x 3 SNR + noise row
-%     (generator: scripts/fig3_recovery_battery.py) ---
+% --- Fig 2: Simulation recovery battery, 6 GT x 3 SNR + noise row
+%     (generator: scripts/fig3_recovery_battery.py) -- MOVED to Methods 2026-06-23 ---
 \begin{figure}[p]
 \centering
 \figbox{figures/fig3_v7.pdf}
 \caption{}
 \label{fig:validation}
+\end{figure}
+
+% --- Fig 3: Cohort diffusivity spectra by tissue/zone (generator: generate_paper_figures.py) ---
+\begin{figure}[p]
+\centering
+\figbox{figures/fig1_v4.pdf}
+\caption{}
+\label{fig:spectra}
 \end{figure}
 
 % --- Fig 4: Tumor-detection ROC (generator: fig2_roc_detection.py) ---
