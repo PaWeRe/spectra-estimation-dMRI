@@ -62,8 +62,8 @@
 | St | Unit |
 |----|------|
 | ✅ | Patient Cohort and MRI Acquisition — finalized 2026-06-23 (added data-pipeline provenance: radiologist mpMRI segmentation → ROI voxel-mean → matched Gleason; honest target/histology breakdown per F12; SNR reframed as descriptive, σ inferred/not-modeled). |
-| 🔶 | Spectral Estimation — keep (Patrick: "makes sense as written"); wire in **validation/simulation = Fig 2** for λ-tuning justification + rewrite its legend. NEXT. |
-| ☐ | ADC Computation **+** Classification (MERGE into one subsection; Classification body already ✅ 2026-06-21 — just merge ADC-computation in). |
+| ✅ | Spectral Estimation — finalized 2026-06-23. Strengthened λ-justification (over-large λ smears outer-bin mass into intermediates; λ=1e-3 chosen by recovery on sims); added validation paragraph that MOVED the recovery observations out of the Fig 2 legend (MAP≈NUTS on smooth + tighten w/ SNR; δ partial+smeared = grid limit not artifact; NUTS σ≈1 vs MAP residual plug-in); stated σ inferred jointly + half-Cauchy(0.01); Fig 2 legend trimmed to "how visualized" + reordered to position 2. **β resolved:** canonical run uses HalfCauchy(β=0.01) generic (sampler_snr=null, bwh.yaml has no snr → sampler never reads per-ROI voxel-SNR) — matches theory.tex, NO change needed. Voxel-SNR is descriptive-only, confirmed. |
+| ☐ | ADC Computation **+** Classification (MERGE into one subsection; Classification body already ✅ 2026-06-21 — just merge ADC-computation in). NEXT. |
 | — | ~~ADC Sensitivity Analysis~~ → REMOVE from Methods (method already in Theory §"ADC as a Spectral Functional"); analysis → Discussion. |
 | — | ~~Pixel-wise and Direction-wise~~ → REMOVE from Methods; method sentences move with the Discussion pixel-wise/direction paragraphs. |
 
@@ -86,7 +86,7 @@
 | ☐ | ¶3 Histology interpretation of grade shifts **[Stephan-gated]** |
 | ☐ | ¶4 MAP vs NUTS complementary; posterior value is upstream |
 | ✅ | ¶5 Fisher/CRLB identifiability — done 2026-06-22 (two-mechanism: regularization gain + non-negativity gain; Jalnefjord 2019). **Resurface here the 3-tier per-bin CV that left Results.** |
-| ☐ | ¶ Sampler validation (Fig 7 = old Fig 3) — MOVED from Results; recovery on simulated truths + λ-tuning; "how well the sampler works", not a result |
+| — | ~~¶ Sampler validation~~ → ABSORBED into Methods §Spectral Estimation (validation is now **Fig 2, a Methods figure**, 2026-06-23). Discussion keeps only the one-line back-reference at discussion.tex:22 (the "data-limit not artifact" point cites Fig 2); NO standalone Discussion validation paragraph. |
 | ☐ | ¶ Uncertainty propagation (Fig 8) — MOVED from Results; **NULL-result framing** (lit check); nuance: outer-bin CV low, 3.0 CV high yet still no classification signal; + LR "confidence for free" as a STANDARD property (calibration/selective-prediction, don't overclaim) |
 | ☐ | ¶6 Limitations (circularity, n=29, fixed bins, fixed TE/TD; **+ radiological-target positives — F12**: 11/40 detection positives not biopsy-confirmed cancer, reinforces circularity) |
 | ☐ | ¶ Pixel-wise feasibility (Fig 9) — MOVED from Results; low-D heatmap ≈ ADC, D=3.0 = its negative; uncertainty map exploratory (doesn't propagate to detection, unclear why, accept for now); still informative re: per-bin reliability |
@@ -104,7 +104,7 @@
 ### Back matter (lower priority; polish with the parent float)
 | St | Unit |
 |----|------|
-| 🔶 | Figure legends — `figure_legends.tex` (9 figs). **Fig 1 (Fisher) DONE 2026-06-23** (trimmed to "how it's visualized", observations deferred to Theory, terminology aligned). Remaining 8 still pending. |
+| 🔶 | Figure legends — `figure_legends.tex` (9 figs). **Fig 1 (Fisher) + Fig 2 (validation) DONE 2026-06-23** (trimmed to "how it's visualized", observations moved to Theory/Methods; legend list reordered to match figures.tex). Remaining 7 pending (finalize each with its parent section). |
 | ☐ | Table legend — `table_legends.tex` (Table 1) |
 | ☐ | Supporting Information — `supporting.tex` |
 

@@ -22,6 +22,22 @@ non-negativity. Annotated factors mark the prior gain
 (c)~Individual component decay curves $R_j \exp(-bD_j)/K$ at equal fractions,
 with horizontal noise floors at SNR $= 50$, $100$, and $303$.
 
+\medskip\noindent\textbf{Figure~\ref{fig:validation}.}
+Validation of the spectral inference on simulated ground truth across spectrum
+shape and noise level.
+Six ground-truth spectra (rows A--F: cohort-mean normal and tumor, a uniform
+spectrum, a concentrated $\delta$ at $D = 0.75\;\umsmm$, a reversed-tumor
+spectrum, and a bimodal spectrum) are each reconstructed at SNR $= 50$, $300$,
+and $1000$ (columns; SNR $300$ is the cohort median).
+In each panel the bars are the ground truth (grey), the tuned-MAP estimate
+($\lambda = 10^{-3}$, green), and the NUTS posterior mean (orange); error bars
+are $\pm 1$ standard deviation across 100 noise realizations (those with
+split-$\hat{R} > 1.05$ excluded, $\geq 81$ retained per condition; the per-panel
+$\hat{R}_{\max}$ annotated).
+The bottom row shows noise recovery, $\hat{\sigma}/\sigma_{\mathrm{true}}$
+(dashed reference $= 1$), for the jointly inferred NUTS $\hat{\sigma}$ and the
+MAP residual plug-in (off-scale values arrowed).
+
 \medskip\noindent\textbf{Figure~\ref{fig:spectra}.}
 Cohort diffusivity spectra by tissue type and anatomical zone.
 For each diffusivity bin, box plots show the cohort distribution of the
@@ -38,37 +54,6 @@ Each box is the cohort distribution of the per-ROI posterior-mean fraction
 (between-ROI spread); within-ROI posterior uncertainty is shown in
 Figure~\ref{fig:sensitivity} and the supplementary atlas
 (Figure~\ref{fig:atlas}).
-
-\medskip\noindent\textbf{Figure~\ref{fig:validation}.}
-Validation of the spectral inference on simulated ground truth across spectrum
-shape and noise level.
-Six ground-truth spectra (rows A--F: normal-like and tumor-like---the
-cohort-mean NUTS spectra---a uniform spectrum, a concentrated $\delta$ at
-$D = 0.75\;\umsmm$, an inverse-tumor (reversed tumor), and a bimodal spectrum)
-are each recovered at SNR $= 50$, $300$, and $1000$ (columns); SNR $300$ is the
-cohort median (the operating point of the real data) and $50$ reflects the
-reduced per-voxel SNR of the pixel-wise analysis.
-In every panel the bars are the ground truth (grey), the tuned-MAP estimate
-($\lambda = 10^{-3}$, green), and the NUTS posterior mean (orange); error bars
-are $\pm 1$ standard deviation across 100 independent noise realizations, each
-fit with the deployed NUTS configuration. Realizations whose split-$\hat{R}$
-exceeded $1.05$ were excluded ($\geq 81$ converged realizations retained per
-condition); the per-panel $\hat{R}_{\max}$ is the worst retained value.
-MAP and NUTS recover the smooth spectra equivalently and tighten with SNR,
-whereas the $\delta$ spike is only partially recovered and smeared into its
-correlated neighboring bins---the identifiability limit of this b-value grid,
-not a sampler artifact; on that concentrated spectrum NUTS recovers more of the
-peak than MAP.
-The bottom row reports noise recovery for each ground truth (A--F) as the ratio
-$\hat{\sigma}/\sigma_{\mathrm{true}}$ (dashed reference $=1$; common scale across
-SNR) for the NUTS posterior-mean $\hat{\sigma}$, inferred jointly with the
-spectrum, and the MAP residual $\hat{\sigma}$, a post-hoc estimate from the
-$\sigma$-free ridge fit. NUTS recovers the noise level to ratio $\approx 1$
-across all ground truths; the MAP residual under-estimates on the smooth spectra
-(the eight-bin fit absorbs noise) and over-estimates on the unrepresentable
-$\delta$-spike (its residual reflects the un-fit spike rather than the noise;
-off-scale, arrow), illustrating that the joint Bayesian inference quantifies the
-noise level more robustly than a residual plug-in.
 
 \medskip\noindent\textbf{Figure~\ref{fig:roc}.}
 Tumor detection collapses onto the two outer diffusivity compartments, and the
