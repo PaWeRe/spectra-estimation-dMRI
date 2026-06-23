@@ -35,3 +35,55 @@ This reinforces our decision to report all quantitative results at the ROI level
 The framework presented here is directly applicable to other organs and tumor types where multi-b DWI is acquired, including breast, liver, and brain tumors.
 Amortized inference---training a neural network to approximate the posterior---could reduce computation from minutes per ROI to milliseconds, enabling real-time deployment, and the Fisher information framework could guide joint optimization of b-value protocols and discretization grids for specific clinical questions.
 Integration with T\textsubscript{2}-weighted imaging could yield multi-parametric spectral biomarkers.
+
+% =====================================================================
+% STAGING AREA --- PARKED CONTENT FOR THE DISCUSSION REWORK (2026-06-23)
+% NOT RENDERED (\iffalse...\fi). Verbatim prose moved here during the Results
+% pass: (a) the sensitivity-mechanism + GGG + prediction-confidence + pixel-wise
+% subsections cut from Results, and (b) the ADC-Sensitivity + Pixel/Direction
+% subsections cut from Methods. To be reshaped/merged into the Discussion
+% paragraphs above (which already cover much of this), then deleted.
+% =====================================================================
+\iffalse
+
+%% ---- (a1) FROM RESULTS: mechanism half of the old "Why ADC works" ----
+The mechanism is visible in the per-bin structure of the discriminant (Figure~\ref{fig:sensitivity}).
+The ADC sensitivity vector $\partial\text{ADC}/\partial R_j$ at the average tumor spectrum is strongly negative for restricted diffusion ($-1.59$: a larger restricted fraction lowers ADC) and positive for free water ($+0.85$); because the logistic-regression coefficients point the opposite way, Figure~\ref{fig:sensitivity} plots the sign-flipped $-\partial\text{ADC}/\partial R_j$ alongside them, so aligned bars indicate matching direction.
+Using NUTS features, the two vectors align well (Pearson $r = -0.79$, PZ, $95\%$ CI $[-0.89,\,-0.50]$; $r = -0.88$, TZ, $[-0.95,\,-0.70]$), and the alignment is carried by the two outer bins: only $D = 0.25$ and $D = 3.0\;\umsmm$ have logistic coefficients whose bootstrap intervals exclude zero.
+This is not because ADC ignores the intermediate compartments: its sensitivity $-\partial\text{ADC}/\partial R_j$ is appreciable there (e.g.\ $D = 0.5\;\umsmm$), since ADC is a smooth, monotonic-in-$D$ weighting of the entire spectrum. The resolution is that discriminative power is sensitivity \emph{times} tumor--normal contrast: the intermediate fractions carry little contrast beyond what the outer bins already capture (Table~\ref{tab:auc}) and are poorly identified (high CV), so ADC's sensitivity to them is spent on a low-contrast, noisy direction that shifts neither score's ranking. Both summaries therefore reduce to the same two outer compartments, which is why the per-ROI scores rank almost identically (Figure~\ref{fig:adc_discriminant}) even though the per-bin profiles diverge in the middle. The divergence is confined to bins that are diagnostically inert for both---it is not evidence that ADC and the spectral classifier estimate different quantities.
+
+%% ---- (a2) FROM RESULTS: Spectral Decomposition by Gleason Grade Group ----
+Figure~\ref{fig:spectrum_ggg} shows the cohort's average NUTS posterior-mean spectrum by Gleason Grade Group, with normal tissue ($n = 109$) as the shared baseline and tumor resolved into GGG\,$=\,1$ ($n = 8$), GGG\,$=\,2$ ($n = 12$), and GGG\,$\geq 3$ ($n = 9$).
+\stephan{exploratory subsection --- please confirm the intermediate-bin interpretation below; the independent grading-axis claim is dropped for now.} These grade-stratified spectra are exploratory: the small, unevenly graded subgroups (down to $n = 8$) do not support a grading axis independent of detection, but the per-bin trends below are suggestive.
+The free-diffusion bin at $D = 3.0\;\umsmm$ (intact gland lumen) is suppressed as soon as tumor is present ($0.39$ normal $\to 0.21$ at GGG\,$=\,1$) and then changes little ($0.16$ at GGG\,$\geq 3$): it saturates at tumor onset, separating tumor from normal but not grade from grade.
+By contrast the restricted-cellular bin ($D = 0.25\;\umsmm$) rises with grade ($0.07$ normal to $0.31$ at GGG\,$\geq 3$) and the glandular-epithelial bin ($D = 2.0\;\umsmm$) is preserved in low-grade tumor then depleted ($0.26$ normal, $0.28$ at GGG\,$=\,1$, $0.17$ at GGG\,$\geq 3$): these bins, where ADC is least sensitive (Figure~\ref{fig:sensitivity}), track aggressiveness.
+Grade-specific sample sizes are small (down to $n = 8$--$9$) and the corresponding confidence bands wide, and 11 of the 40 tumor ROIs (7 with biopsy Gleason Grade Group 0 and 4 ungraded) lack a Grade Group and are excluded from this grade stratification, though they remain tumor ROIs in the detection analysis.
+Method robustness: re-running the same group averaging on tuned-MAP ($\lambda = 10^{-3}$) posterior estimates rather than NUTS posterior means yielded indistinguishable group trajectories on all eight bins.
+
+%% ---- (a3) FROM RESULTS: Prediction confidence ----
+Each classifier returns a probability $P(\mathrm{tumor})$ rather than a hard label, and misclassified ROIs concentrate near the decision boundary ($P \approx 0.5$): ranking predictions by their distance from the boundary separates likely errors from confident, correct calls, so the classifier flags its own least-reliable predictions (Figure~\ref{fig:uncertainty}).
+This confidence is a property of the logistic model, available from the point estimate alone, and is shared by the ADC- and spectrum-based classifiers.
+Propagating the full NUTS posterior through the classifier---applying it to every posterior draw rather than the posterior mean---does not add to this.
+The 90\% credible interval on $P(\mathrm{tumor})$ is on average $2.4\times$ wider for misclassified than for correctly classified ROIs (pooled across zones, mean width $0.39$ vs $0.16$), but this reflects the logistic geometry rather than the spectral posterior: the slope $P(1-P)$ is largest at the boundary, so in logit space the difference falls to $\approx 1.3\times$ and is no longer significant, and the interval width does not predict misclassification once distance to the boundary is accounted for.
+Offering the per-component posterior standard deviations to the classifier as features likewise leaves detection AUC essentially unchanged.
+The posterior therefore quantifies which spectral components are reliably estimated (identifiability), but adds no diagnostic information to the tumor-versus-normal decision beyond the point estimate.
+
+%% ---- (a4) FROM RESULTS: Pixel-wise Spectral Decomposition ----
+Pixel-wise spectral estimation was performed on the manually segmented prostate of the supplementary patient (MAP and NUTS; all NUTS voxels converged, $\hat{R} < 1.05$).
+At the voxel level the restricted-diffusion ($D = 0.25\;\umsmm$) and free-water ($D = 3.0\;\umsmm$) fraction maps were spatially anti-correlated (Figure~\ref{fig:pixelwise}), and the per-voxel spectral discriminant (ROI-level PZ coefficients applied to the pixel spectra) reproduced the ADC pattern (anti-correlation $r = -0.97$).
+The contribution unique to the Bayesian decomposition is the accompanying per-voxel uncertainty map: propagating the NUTS posterior through the classifier flags where a voxel's score is least reliable, and the eight-bin detector is on average $1.8\times$ more uncertain than the two-bin detector because it weights the unidentifiable intermediate compartments---an uncertainty that ADC and point-estimate methods cannot provide.
+As at the ROI level, the discriminant adds no detection signal beyond ADC; its value here is the calibrated, spatially-resolved confidence it carries.
+Direction independence was verified at the whole-ROI level on a separate three-direction acquisition (Figure~\ref{fig:directions}): across all 13 regions the per-direction coefficient of variation of the estimated spectrum was lowest for the diagnostically dominant restricted-diffusion bin ($D = 0.25\;\umsmm$, mean $9\%$) and was large only on the near-empty bins ($D = 20\;\umsmm$), where it reflects a small-denominator effect rather than genuine anisotropy, confirming that trace averaging is appropriate for spectral decomposition.
+
+%% ---- (b1) FROM METHODS: ADC Sensitivity Analysis ----
+The ADC sensitivity vector (Eq.~\ref{eq:sensitivity}) was computed numerically at the average tumor and average normal spectra for each zone, using finite differences with step size $\epsilon = 10^{-4}$.
+For the sensitivity-alignment comparison, the logistic-regression \emph{coefficient vector} was taken from a single full-data fit of the eight-feature model---distinct from the leave-one-out detection pipeline above, which evaluates predictive AUC---since only the coefficient direction, not predictive performance, enters this analysis.
+The Pearson and Spearman rank correlations between the sensitivity vector and the LR coefficient vector were computed to quantify alignment.
+Bootstrap 95\% confidence intervals for ROI-level correlations between ADC and the spectral discriminant were obtained by resampling ROI pairs with replacement (1000 resamples).
+
+%% ---- (b2) FROM METHODS: Pixel-wise and Direction-wise Spectral Estimation ----
+To demonstrate the framework at the voxel level, pixel-wise decomposition was performed on a single axial slice from one patient, with the prostate manually segmented. Each voxel's decay, normalized by its $b = 0$ signal, was decomposed by MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the ROI-level parameters, and a spectral discriminant score was computed by applying the peripheral-zone classifier coefficients to the pixel spectra (the segmented tumor lay in the peripheral zone); for NUTS, discriminant uncertainty was propagated by applying the classifier to each of 500 posterior draws per voxel, yielding a per-voxel distribution of scores.
+To verify the trace-averaging assumption used at the ROI level, a separate acquisition that retained the per-encoding-direction signal---13 ROIs across 7 patients, with the same 15 b-values along three orthogonal directions---was decomposed independently for each direction with the MAP estimator and compared to the trace-averaged spectrum. The aggregate per-direction coefficient-of-variation statistics reported in Results are computed across all 13 ROIs; Figure~\ref{fig:directions} shows a representative subset of four patients (one peripheral-zone and one transition-zone ROI each).
+
+\fi
+% ===================== END STAGING AREA =====================

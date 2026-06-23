@@ -40,64 +40,41 @@ MAP residual plug-in (off-scale values arrowed).
 
 \medskip\noindent\textbf{Figure~\ref{fig:spectra}.}
 Cohort diffusivity spectra by tissue type and anatomical zone.
-For each diffusivity bin, box plots show the cohort distribution of the
-estimated water fraction $R_j$ across ROIs (box: interquartile range; line:
-median; whiskers: $1.5\times$ IQR), with MAP (green) alongside NUTS
-posterior-mean estimates (orange) at the tuned regularization
-$\lambda = 10^{-3}$.
+For each diffusivity bin, box plots show the cohort distribution of the per-ROI
+estimated water fraction $R_j$ (box: interquartile range; line: median;
+whiskers: $1.5\times$ IQR), with MAP (green) alongside NUTS posterior-mean
+estimates (orange) at the tuned regularization $\lambda = 10^{-3}$.
 Top row: normal; bottom row: tumor. Left column: peripheral zone (PZ); right:
-transition zone (TZ).
-Relative to normal tissue, tumor shows an elevated restricted-diffusion
-fraction ($D = 0.25\;\umsmm$) and a reduced free-water fraction
-($D = 3.0\;\umsmm$) in both zones, and MAP and NUTS agree closely.
-Each box is the cohort distribution of the per-ROI posterior-mean fraction
-(between-ROI spread); within-ROI posterior uncertainty is shown in
-Figure~\ref{fig:sensitivity} and the supplementary atlas
+transition zone (TZ). Per-ROI spectra are shown in the supplementary atlas
 (Figure~\ref{fig:atlas}).
 
 \medskip\noindent\textbf{Figure~\ref{fig:roc}.}
-Tumor detection collapses onto the two outer diffusivity compartments, and the
-spectral classifier is equivalent to ADC.
 Leave-one-out cross-validated ROC for tumor-versus-normal detection in the
-peripheral zone (PZ, left; $n = 81$) and transition zone (TZ, right;
-$n = 68$). The four thick reference curves---ADC (black) and the same spectral
-classifier on three bin subsets: all eight fractions (orange solid), only the
-two outer fractions $\{D = 0.25,\,3.0\;\umsmm\}$ (orange dashed), and only the
-six inner fractions with the two outer compartments removed (orange
-dotted)---pass through the identical NUTS-feature leave-one-out
-logistic-regression pipeline ($C = 1.0$) for an apples-to-apples comparison.
-The thin single-component curves are each a raw single-feature ROC in the
-tumor-positive orientation (not the LOOCV pipeline): the strong outer
-components $D = 0.25\;\umsmm$ (restricted, teal) and $D = 3.0\;\umsmm$
-(free water, brown); three weak single bins whose weakness is zone-dependent,
-$D = 2.0\;\umsmm$ (goldenrod, near chance in PZ), $D = 1.5\;\umsmm$ (indigo,
-near chance in TZ), and $D = 20\;\umsmm$ (magenta, near chance in both); and
-the remaining intermediate bins as a faint grey bundle.
-The two-fraction classifier matches the full eight-fraction one and both track
-ADC, whereas the six-inner-fraction classifier falls well below (NUTS PZ
-$0.817$, TZ $0.775$): detection is carried by the two outer compartments, and
-the intermediate fractions are individually informative but redundant once
-those are present.
-AUC values with 95\% confidence intervals are reported in
-Table~\ref{tab:auc}.
+peripheral zone (PZ, left; $n = 81$) and transition zone (TZ, right; $n = 68$).
+The four thick reference curves---ADC (black) and the spectral classifier on
+three bin subsets: all eight fractions (orange solid), the two outer fractions
+$\{D = 0.25,\,3.0\;\umsmm\}$ (orange dashed), and the six inner fractions with
+the two outer compartments removed (orange dotted)---pass through the identical
+NUTS-feature leave-one-out logistic-regression pipeline ($C = 1.0$).
+The thin curves are raw single-feature ROCs (tumor-positive orientation): the
+outer components $D = 0.25\;\umsmm$ (restricted, teal) and $D = 3.0\;\umsmm$
+(free water, brown); $D = 2.0\;\umsmm$ (goldenrod), $D = 1.5\;\umsmm$ (indigo),
+and $D = 20\;\umsmm$ (magenta); and the remaining intermediate bins as a faint
+grey bundle.
+AUCs with 95\% confidence intervals are reported in Table~\ref{tab:auc}.
 
 \medskip\noindent\textbf{Figure~\ref{fig:adc_discriminant}.}
-ADC is a near-optimal spectral discriminant, and the equivalence holds for
-both estimators.
-ADC versus the spectral discriminant score (logistic-regression linear
+ADC versus the spectral discriminant score (the logistic-regression linear
 predictor from the eight spectral fractions) across ROIs, by anatomical zone
 (columns: PZ, $n = 81$, left; TZ, $n = 68$, right) and spectral estimator
-(rows: NUTS posterior-mean, top; constrained-MAP at tuned
-$\lambda = 10^{-3}$, bottom).
+(rows: NUTS posterior-mean, top; constrained-MAP at tuned $\lambda = 10^{-3}$,
+bottom).
 All panels share common axes; the discriminant is fit separately per zone and
-estimator, so its score scale is comparable only within a panel, whereas ADC
+estimator, so its scale is comparable only within a panel, whereas ADC
 ($x$-axis) is the same physical quantity throughout.
-Tumor ROIs (red) cluster at low ADC and high discriminant, normal ROIs (blue)
-the reverse; the black line is the ordinary-least-squares (OLS) fit.
-Per-panel Pearson $r$ with a 95\% percentile-bootstrap confidence interval is
-annotated in each panel (all $|r| > 0.95$).
-The near-perfect anti-correlation shows that ADC rank-orders ROIs almost
-identically to the spectral classifier, independent of estimator.
+Tumor ROIs are red and normal ROIs blue; the black line is the
+ordinary-least-squares fit, and per-panel Pearson $r$ with a 95\% bootstrap
+confidence interval is annotated (all $|r| > 0.95$).
 
 \medskip\noindent\textbf{Figure~\ref{fig:sensitivity}.}
 The spectral discriminant is statistically a two-compartment detector, and its

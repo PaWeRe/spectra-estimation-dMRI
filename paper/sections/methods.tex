@@ -43,17 +43,3 @@ Within each fold, features were standardized to zero mean and unit variance usin
 The classifier ($C = 1.0$) was then fit on the training ROIs and applied to the held-out ROI, with fitting confined to the training fold to prevent leakage; the conventional in-sample ADC raw-rank AUC is additionally reported as a reference baseline (Table~\ref{tab:auc}).
 Performance was the area under the receiver-operating-characteristic curve (AUC), with $95\%$ confidence intervals from patient-level percentile bootstrap (2000 resamples) \citep{efron1993bootstrap}; sensitivity analyses at $C = 0.1$ and $C = 10$ confirmed robustness to regularization strength.
 
-\subsection{ADC Sensitivity Analysis}
-
-The ADC sensitivity vector (Eq.~\ref{eq:sensitivity}) was computed numerically at the average tumor and average normal spectra for each zone, using finite differences with step size $\epsilon = 10^{-4}$.
-For the sensitivity-alignment comparison, the logistic-regression \emph{coefficient vector} was taken from a single full-data fit of the eight-feature model---distinct from the leave-one-out detection pipeline above, which evaluates predictive AUC---since only the coefficient direction, not predictive performance, enters this analysis.
-The Pearson and Spearman rank correlations between the sensitivity vector and the LR coefficient vector were computed to quantify alignment.
-Bootstrap 95\% confidence intervals for ROI-level correlations between ADC and the spectral discriminant were obtained by resampling ROI pairs with replacement (1000 resamples).
-
-% ======================================================================
-\subsection{Pixel-wise and Direction-wise Spectral Estimation}
-
-To demonstrate the framework at the voxel level, pixel-wise decomposition was performed on a single axial slice from one patient\stephan{please confirm whether this patient is inside the 149-ROI cohort and that the segmented tumor is peripheral-zone; if the patient is in-cohort, the ``independent/separate dataset'' framing must be dropped, since the classifier is trained on that cohort.}, with the prostate manually segmented. Each voxel's decay, normalized by its $b = 0$ signal, was decomposed by MAP (Eq.~\ref{eq:map}) and NUTS (Eqs.~\ref{eq:prior_R}--\ref{eq:likelihood}) with the ROI-level parameters, and a spectral discriminant score was computed by applying the peripheral-zone classifier coefficients to the pixel spectra (the segmented tumor lay in the peripheral zone); for NUTS, discriminant uncertainty was propagated by applying the classifier to each of 500 posterior draws per voxel, yielding a per-voxel distribution of scores.
-
-To verify the trace-averaging assumption used at the ROI level, a separate acquisition that retained the per-encoding-direction signal---13 ROIs across 7 patients, with the same 15 b-values along three orthogonal directions---was decomposed independently for each direction with the MAP estimator and compared to the trace-averaged spectrum. The aggregate per-direction coefficient-of-variation statistics reported in Results are computed across all 13 ROIs; Figure~\ref{fig:directions} shows a representative subset of four patients (one peripheral-zone and one transition-zone ROI each).
-
