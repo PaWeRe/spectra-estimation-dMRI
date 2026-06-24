@@ -49,7 +49,7 @@ We treat this analytic rule as a heuristic and combine it with biological knowle
 
 We treat spectrum recovery as Bayesian inference. The Gaussian observation model (\ref{eq:signal_model}), the physical constraint $R_j \geq 0$, and a regularizing prior on the fractions together define a posterior over the spectrum (and, in the full treatment, the noise level $\sigma$). Two estimators follow from this single posterior: its mode---the maximum a posteriori (MAP) point estimate---and the full posterior itself, sampled to additionally quantify how reliably each component is determined.
 
-Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together with non-negativity, the MAP estimate solves the constrained quadratic program (@Stephan: equation rather than program?, @patrick: I am not sure program is actually the better term here, as this is what the approach is called or not?)
+Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together with non-negativity, the MAP estimate solves the constrained quadratic program
 %
 \begin{equation}
   \hat{\Rvec}_{\text{MAP}} \;=\; \argmin_{\Rvec \,\in\, \mathbb{R}_{\geq 0}^{K}}

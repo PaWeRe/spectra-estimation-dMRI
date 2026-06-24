@@ -4,9 +4,9 @@
 % in the main document; the supplementary figures (direction independence and
 % the per-ROI spectral atlas) follow.
 %
-% Order (Patrick 2026-06-08): directional figure FIRST, then the multi-page
-% per-ROI atlas LAST (its \includepdf injects ~20 pages, so it must come last
-% or it splits the supplement).
+% Order (Stephan 2026-06-24): supplementary figures are numbered by order of
+% first mention in the main text -- atlas (Results) = S1, convergence
+% (Results) = S2, directional figure (Discussion, last mention) = S3.
 
 \section*{Appendix: Cram\'er-Rao Scaling of Bin Spacing}
 
@@ -46,26 +46,7 @@ full multi-compartment problem is treated numerically in the main text.
 %TC:ignore
 \section*{Supporting Information Figure Legends}
 
-\noindent\textbf{Figure~\ref{fig:directions}.}
-Direction independence of whole-ROI spectral estimates validates trace
-averaging.
-Per-encoding-direction MAP spectra (three encoding directions, colored) versus
-the trace-averaged spectrum (black) for four representative patients (rows),
-each with one normal (left) and one tumor (right) region of interest; the
-anatomical zone (peripheral or transition) is labeled per panel.
-The three directions agree closely in the diagnostically dominant
-restricted-diffusion bin ($D = 0.25\;\umsmm$; mean direction-wise CV $9\%$
-across all 13 evaluated directional regions); the larger inter-direction spread in the
-intermediate and near-empty bins ($D = 0.5$--$2.0$ and $D = 20\;\umsmm$)
-mirrors their poor identifiability rather than reflecting genuine anisotropy,
-with the per-direction CV tracking each bin's inverse mass.
-Because tumor detection rests on the well-identified outer compartments, trace
-averaging is well justified; aggregate per-bin statistics are reported in
-Results.
-MAP estimates are shown (constrained ridge, $\lambda = 10^{-3}$); these
-directional ROIs lie outside the 149-ROI cohort.
-
-\medskip\noindent\textbf{Figure~\ref{fig:atlas}.}
+\noindent\textbf{Figure~\ref{fig:atlas}.}
 Representative per-ROI NUTS posterior spectra, for different anatomical zones and Gleason Grade Groups. Five patients are shown (rows), each
 contributing a same-patient normal (left column) and tumor (right column) ROI
 from a single zone, so the within-patient spectral shift can be read directly;
@@ -76,10 +57,10 @@ spectrum ($D = 0.25$--$20\;\umsmm$, left to right) drawn as box plots: box $=$
 interquartile range, solid line $=$ posterior median, dashed line $=$ posterior
 mean, whiskers $=$ 5th--95th percentiles (outliers suppressed; the per-bin
 posteriors are continuous and unimodal). Each box face is shaded by the
-within-ROI per-bin coefficient of variation (@Stephan: do you have some quantifiable value for the color setting, or is it simply proportional between 1 and 0?) (CV $=$ posterior std $/$ mean; light $=$ well identified to
-dark $=$ poorly identified; the box
+within-ROI per-bin coefficient of variation (CV $=$ posterior std $/$ mean) in four bands---$< 0.4$, $0.4$--$0.6$, $0.6$--$0.8$, $> 0.8$---from light (well identified) to
+dark (poorly identified); the box
 \emph{width} is the absolute posterior spread and the color the \emph{relative}
-spread, so a low-mass outer bin can show a narrow box yet a dark color. The
+spread, so a low-mass bin can show a narrow box yet a dark color. The
 green $\times$ represents the tuned-MAP ($\lambda = 10^{-3}$) estimate. The
 restricted-diffusion fraction ($D = 0.25\;\umsmm$) rises and the free-water
 fraction ($D = 3.0\;\umsmm$) falls with grade, while the intermediate bins
@@ -107,6 +88,25 @@ Figure~\ref{fig:fisher}), not a failure to converge --- the
 worst per-ROI split-$\hat{R}$ (annotated, all $\leq 1.01$) and the rapid
 autocorrelation decay (within $\sim$10 lags) confirm efficient mixing; the
 dispersion broadens as SNR falls.
+
+\medskip\noindent\textbf{Figure~\ref{fig:directions}.}
+Direction independence of whole-ROI spectral estimates validates trace
+averaging.
+Per-encoding-direction MAP spectra (three encoding directions, colored) versus
+the trace-averaged spectrum (black) for four representative patients (rows),
+each with one normal (left) and one tumor (right) region of interest; the
+anatomical zone (peripheral or transition) is labeled per panel.
+The three directions agree closely in the diagnostically dominant
+restricted-diffusion bin ($D = 0.25\;\umsmm$; mean direction-wise CV $9\%$
+across all 13 evaluated directional regions); the larger inter-direction spread in the
+intermediate and near-empty bins ($D = 0.5$--$2.0$ and $D = 20\;\umsmm$)
+mirrors their poor identifiability rather than reflecting genuine anisotropy,
+with the per-direction CV tracking each bin's inverse mass.
+Because tumor detection rests on the well-identified restricted and free-water compartments, trace
+averaging is well justified; aggregate per-bin statistics are reported in
+Results.
+MAP estimates are shown (constrained ridge, $\lambda = 10^{-3}$); these
+directional ROIs are from a separate patient cohort acquired earlier, outside the 149-ROI cohort.
 %TC:endignore
 
 % Flush the SI legend text as one block before the SI figure floats, so the
@@ -114,23 +114,7 @@ dispersion broadens as SNR falls.
 % (Patrick 2026-06-20).
 \clearpage
 
-% --- Fig S1: Direction independence of whole-ROI spectral estimates
-%     (first supplementary figure; demoted from the main text 2026-06-05; keeps
-%     \label{fig:directions} so the in-text references in results/figures
-%     resolve to this supplementary figure). ---
-% Generator: scripts/fig7_directions_roi.py (decodes the per-direction ROI .dat
-% export; MAP spectra via recompute.compute_map_spectrum). Four patients x two
-% ROIs (one PZ, one TZ each) drawn from the directional tarball.
-% Tall 4x2 grid + caption: height-capped so figure + caption fit one page
-% (tune the 0.70 fraction on Overleaf if needed).
-\begin{figure}[p]
-\centering
-\figbox{figures/fig_directions_v4.pdf}
-\caption{}  % caption text moved to the SI Figure Legends above
-\label{fig:directions}
-\end{figure}
-
-% --- Fig S2: representative subset atlas (single page) ---
+% --- Fig S1: representative subset atlas (single page) ---
 % Generator: scripts/fig_si_subset.py. A representative subset of 5 same-patient
 % normal/tumor pairs (rows) -- full PZ GGG1/3/5 ladder + TZ GGG1/5 endpoints
 % (Patrick 2026-06-20: 5 rows so it fits one page) -- supersedes the full
@@ -143,7 +127,7 @@ dispersion broadens as SNR falls.
 \label{fig:atlas}
 \end{figure}
 
-% --- Fig S3: NUTS convergence, 5 ROIs (3 SNR-spanning tumors + normal PZ/TZ) ---
+% --- Fig S2: NUTS convergence, 5 ROIs (3 SNR-spanning tumors + normal PZ/TZ) ---
 % Generator: scripts/fig_si_subset.py. Restores the "computation progression"
 % diagnostic Stephan asked about (formerly the dropped fig_trace_simulation.pdf),
 % redesigned NUTS-only and selective (Patrick 2026-06-20): trace (single chain,
@@ -155,4 +139,20 @@ dispersion broadens as SNR falls.
 \includegraphics[width=\textwidth]{figures/figS_subset_convergence.pdf}
 \caption{}  % caption text in the SI Figure Legends above
 \label{fig:convergence}
+\end{figure}
+
+% --- Fig S3: Direction independence of whole-ROI spectral estimates
+%     (demoted from the main text 2026-06-05; renumbered to S3 (last) on
+%     2026-06-24 to match its order of mention in the text; keeps
+%     \label{fig:directions} so the in-text references resolve correctly). ---
+% Generator: scripts/fig7_directions_roi.py (decodes the per-direction ROI .dat
+% export; MAP spectra via recompute.compute_map_spectrum). Four patients x two
+% ROIs (one PZ, one TZ each) drawn from the directional tarball.
+% Tall 4x2 grid + caption: height-capped so figure + caption fit one page
+% (tune the 0.70 fraction on Overleaf if needed).
+\begin{figure}[p]
+\centering
+\figbox{figures/fig_directions_v4.pdf}
+\caption{}  % caption text moved to the SI Figure Legends above
+\label{fig:directions}
 \end{figure}

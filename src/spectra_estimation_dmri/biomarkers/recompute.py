@@ -351,16 +351,16 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
     Tasks: PZ tumor detection, TZ tumor detection, GGG grading.
     Methods: ADC (raw rank), ADC (LR), MAP Full LR, NUTS Full LR,
              MAP 2-feat {D=0.25,3.0}, NUTS 2-feat {D=0.25,3.0},
-             MAP 6-inner, NUTS 6-inner.
+             MAP 5-inner, NUTS 5-inner.
 
     The 2-feature rows use only the two outer compartments (restricted
     D=0.25 + free-water D=3.0); they test the "collapse" claim (Fig 2) that
-    detection needs only these two bins. The 6-inner rows are the MIRROR
-    ablation: the six intermediate/dump fractions with the two outer bins
-    REMOVED -- they show the intermediate bins remain individually informative
-    (AUC ~0.78-0.82) yet redundant once the outer bins are present, i.e.
-    "redundancy, not uselessness". AUCs carry percentile bootstrap 95% CIs
-    (auc_lo, auc_hi).
+    detection needs only these two bins. The 5-inner rows are the MIRROR
+    ablation: the five intermediate fractions (D=0.50-2.00), with BOTH the two
+    outer compartments and the pseudo-diffusion bin (D=20) removed -- they show
+    the intermediate bins remain individually informative (AUC ~0.78-0.82) yet
+    redundant once the outer bins are present, i.e. "redundancy, not
+    uselessness". AUCs carry percentile bootstrap 95% CIs (auc_lo, auc_hi).
     """
     map_cols = [f"map_{c}" for c in D_COLS]
     nuts_cols = [f"nuts_{c}" for c in D_COLS]
@@ -368,9 +368,10 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
     outer_idx = [0, 6]
     map_outer = [map_cols[i] for i in outer_idx]
     nuts_outer = [nuts_cols[i] for i in outer_idx]
-    # Mirror ablation: the six inner fractions (everything EXCEPT the two outer
-    # compartments) -> D in {0.50, 0.75, 1.00, 1.50, 2.00, 20.00}.
-    inner_idx = [1, 2, 3, 4, 5, 7]
+    # Mirror ablation: the five inner (intermediate) fractions -> D in
+    # {0.50, 0.75, 1.00, 1.50, 2.00}. Excludes the two outer compartments
+    # (D=0.25, 3.0) AND the pseudo-diffusion bin (D=20).
+    inner_idx = [1, 2, 3, 4, 5]
     map_inner = [map_cols[i] for i in inner_idx]
     nuts_inner = [nuts_cols[i] for i in inner_idx]
     # "Redundancy, not uselessness" probe: the four MOST poorly-identified bins
@@ -471,18 +472,18 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
                             "C": C, "auc": auc_nuts2,
                             "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
-            # MAP 6-inner (mirror ablation: drop the two outer compartments)
-            auc_map6, pred_map6, _, _, _ = loocv_auc(task_df[map_inner].values, y, C=C)
-            lo, hi = bootstrap_auc_ci(y, pred_map6)
-            results.append({"task": task_name, "method": "MAP 6-inner",
-                            "C": C, "auc": auc_map6,
+            # MAP 5-inner (mirror ablation: drop the two outer + the D=20 bin)
+            auc_map5, pred_map5, _, _, _ = loocv_auc(task_df[map_inner].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_map5)
+            results.append({"task": task_name, "method": "MAP 5-inner",
+                            "C": C, "auc": auc_map5,
                             "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
-            # NUTS 6-inner (mirror ablation)
-            auc_nuts6, pred_nuts6, _, _, _ = loocv_auc(task_df[nuts_inner].values, y, C=C)
-            lo, hi = bootstrap_auc_ci(y, pred_nuts6)
-            results.append({"task": task_name, "method": "NUTS 6-inner",
-                            "C": C, "auc": auc_nuts6,
+            # NUTS 5-inner (mirror ablation)
+            auc_nuts5, pred_nuts5, _, _, _ = loocv_auc(task_df[nuts_inner].values, y, C=C)
+            lo, hi = bootstrap_auc_ci(y, pred_nuts5)
+            results.append({"task": task_name, "method": "NUTS 5-inner",
+                            "C": C, "auc": auc_nuts5,
                             "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
             # 4 most poorly-identified bins (CV>0.7) used alone -- redundancy probe
@@ -498,8 +499,8 @@ def run_classification(df: pd.DataFrame, C_values: list[float] = [0.1, 1.0, 10.0
                             "auc_lo": lo, "auc_hi": hi, "n": len(y)})
 
             print(f"    C={C:5.1f}  ADC LR={auc_adc:.4f}  "
-                  f"MAP={auc_map:.4f} (2f {auc_map2:.4f} / 6in {auc_map6:.4f})  "
-                  f"NUTS={auc_nuts:.4f} (2f {auc_nuts2:.4f} / 6in {auc_nuts6:.4f})")
+                  f"MAP={auc_map:.4f} (2f {auc_map2:.4f} / 5in {auc_map5:.4f})  "
+                  f"NUTS={auc_nuts:.4f} (2f {auc_nuts2:.4f} / 5in {auc_nuts5:.4f})")
 
     return pd.DataFrame(results)
 
