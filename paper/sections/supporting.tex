@@ -25,8 +25,8 @@ The Fisher information for the fraction parameter $p$ is
 \end{equation*}
 %
 Approximating the sum by an integral over $[0,\,b_{\max}]$, expanding the
-square, and evaluating in the regime $b_{\max} D \gg 1$ (so that the
-exponential boundary terms vanish):
+square, and evaluating in the regime $b_{\max} D \gg 1$ so that the
+exponential boundary terms vanish:
 %
 \begin{equation*}
   I(p) \propto \frac{1}{2D} - \frac{2}{2D + \Delta D} + \frac{1}{2(D + \Delta D)}.
@@ -34,7 +34,7 @@ exponential boundary terms vanish):
 %
 For $\Delta D \ll D$, a Taylor expansion yields
 $I(p) \propto (\Delta D)^2 / (4D^3)$.
-Setting $I = \text{const}$ (equal estimation precision for all bin pairs)
+Setting $I = \text{const}$ to attain equal estimation precision for all bin pairs,
 gives $\Delta D \propto D^{3/2}$, Equation~\ref{eq:spacing_scaling} in the
 main text.
 The same scaling is obtained from the full two-parameter model ($p$ and
@@ -55,63 +55,55 @@ each with one normal (left) and one tumor (right) region of interest; the
 anatomical zone (peripheral or transition) is labeled per panel.
 The three directions agree closely in the diagnostically dominant
 restricted-diffusion bin ($D = 0.25\;\umsmm$; mean direction-wise CV $9\%$
-across all 13 directional regions); the larger inter-direction spread in the
+across all 13 evaluated directional regions); the larger inter-direction spread in the
 intermediate and near-empty bins ($D = 0.5$--$2.0$ and $D = 20\;\umsmm$)
 mirrors their poor identifiability rather than reflecting genuine anisotropy,
-the per-direction CV tracking each bin's inverse mass.
+with the per-direction CV tracking each bin's inverse mass.
 Because tumor detection rests on the well-identified outer compartments, trace
 averaging is well justified; aggregate per-bin statistics are reported in
 Results.
 MAP estimates are shown (constrained ridge, $\lambda = 10^{-3}$); these
-directional ROIs lie outside the 149-ROI cohort, and MAP and NUTS are
-equivalent on realistic spectra (Figure~\ref{fig:validation}).
+directional ROIs lie outside the 149-ROI cohort.
 
 \medskip\noindent\textbf{Figure~\ref{fig:atlas}.}
-Representative per-ROI NUTS posterior spectra, paired within patient across
-anatomical zone and Gleason Grade Group. Five patients are shown (rows), each
+Representative per-ROI NUTS posterior spectra, for different anatomical zones and Gleason Grade Groups. Five patients are shown (rows), each
 contributing a same-patient normal (left column) and tumor (right column) ROI
 from a single zone, so the within-patient spectral shift can be read directly;
 they span Grade Group 1, 3, and 5 in the peripheral zone and Grade Group 1 and 5
-in the transition zone. Each panel is the full NUTS posterior over the eight-bin
+in the transition zone. Each panel shows the full NUTS posterior over the eight-bin
 diffusivity
 spectrum ($D = 0.25$--$20\;\umsmm$, left to right) drawn as box plots: box $=$
 interquartile range, solid line $=$ posterior median, dashed line $=$ posterior
-mean, whiskers $=$ 5th--95th percentiles (fliers suppressed; the per-bin
-posteriors are continuous and unimodal). Each box face is coloured by the
-within-ROI per-bin coefficient of variation (CV $=$ posterior std $/$ mean;
-colorblind-safe sequential colour, light $=$ well identified to
-dark $=$ poorly identified, the scheme of Figure~\ref{fig:sensitivity}); the box
-\emph{width} is the absolute posterior spread and the colour the \emph{relative}
-spread, so a low-mass outer bin can show a narrow box yet a dark colour. The
-green $\times$ is the tuned-MAP ($\lambda = 10^{-3}$) estimate. The
+mean, whiskers $=$ 5th--95th percentiles (outliers suppressed; the per-bin
+posteriors are continuous and unimodal). Each box face is shaded by the
+within-ROI per-bin coefficient of variation (@Stephan: do you have some quantifiable value for the color setting, or is it simply proportional between 1 and 0?) (CV $=$ posterior std $/$ mean; light $=$ well identified to
+dark $=$ poorly identified; the box
+\emph{width} is the absolute posterior spread and the color the \emph{relative}
+spread, so a low-mass outer bin can show a narrow box yet a dark color. The
+green $\times$ represents the tuned-MAP ($\lambda = 10^{-3}$) estimate. The
 restricted-diffusion fraction ($D = 0.25\;\umsmm$) rises and the free-water
 fraction ($D = 3.0\;\umsmm$) falls with grade, while the intermediate bins
-remain the least identifiable. Panel titles give the (anonymized) patient
-identifier, zone, tissue, Grade Group, and SNR; a companion key file
-(\texttt{figS\_subset\_key.csv}) lists the exact anatomical region per panel.
-This representative subset stands in for a full per-ROI atlas; the complete
-149-ROI inference is reproducible from the released pipeline.
+remain the least identifiable.
 
 \medskip\noindent\textbf{Figure~\ref{fig:convergence}.}
-NUTS sampler convergence for five representative ROIs (rows): three tumors
+NUTS sampler convergence for five representative ROIs: three tumors
 spanning the cohort SNR range (low, intermediate, high) and one normal
-peripheral-zone and one normal transition-zone ROI, so convergence behaviour can
+peripheral-zone and one normal transition-zone ROI, so convergence behavior can
 be compared across both SNR and tissue type. For each ROI the left panel traces
 a single chain (first 300 of 2000 post-warmup draws, shown for legibility) of the
-eight normalized spectral fractions (colours): the well-determined restricted bin
+eight normalized spectral fractions (colors): the well-determined restricted bin
 ($D = 0.25\;\umsmm$) and the two largest-spread intermediate bins are highlighted,
-each shown as the faded raw draws overlaid with a running mean (window 11 draws,
-bold) that suppresses the uncorrelated high-frequency noise and exposes the
+each shown as the faded raw draws overlaid with a running mean (window of 11 draws shown in bold) that suppresses the uncorrelated high-frequency noise and exposes the
 slower anti-correlated weight-swapping; the remaining bins are faint. The right
-panel is the corresponding per-fraction autocorrelation (all eight bins, averaged
+panel shows the corresponding per-fraction autocorrelation (all eight bins, averaged
 over the four chains) versus sample lag. The restricted-diffusion fraction ($D = 0.25\;\umsmm$) is
-tightly pinned (posterior std $\approx 0.02$ at every SNR), whereas the collinear
+tightly pinned (posterior std $\approx 0.02$ at every SNR), whereas the more collinear
 intermediate fractions ($D = 1.5$--$3.0\;\umsmm$) explore a wider range and
 trade weight against one another (pairwise posterior correlations $\approx -0.5$
 to $-0.7$): the data constrain the total intermediate mass far better than its
 distribution across these bins. This is the sampling signature of the design
-collinearity (the near-$\pm 1$ Fisher correlations of
-Figure~\ref{fig:fisher}/\ref{fig:sensitivity}), not a failure to converge --- the
+collinearity (see the near-$\pm 1$ Fisher correlations of
+Figure~\ref{fig:fisher}), not a failure to converge --- the
 worst per-ROI split-$\hat{R}$ (annotated, all $\leq 1.01$) and the rapid
 autocorrelation decay (within $\sim$10 lags) confirm efficient mixing; the
 dispersion broadens as SNR falls.

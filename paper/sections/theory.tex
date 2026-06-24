@@ -2,7 +2,7 @@
 
 \subsection{Signal Model and Discretization}
 
-In multi-b diffusion MRI the signal decay can be modeled as a superposition of exponential decays from distinct diffusion compartments. One can either estimate the diffusivities $D_j$ and their fractions jointly---highly nonlinear and severely non-unique---or fix the diffusivities on a predefined grid and estimate only the fractions, reducing the problem to linear estimation at the cost of discretization. We adopt the latter: normalizing by the $b = 0$ signal, the discrete spectral model is
+In multi-b diffusion MRI, the signal decay can be modeled as a superposition of exponential decays from distinct diffusion compartments. One can either estimate the diffusivities $D_j$ and their fractions jointly---highly nonlinear and severely non-unique---or fix the diffusivities on a predefined grid and estimate only the fractions, reducing the problem to linear estimation at the cost of discretization. We adopt the latter: normalizing by the $b = 0$ signal, the discrete spectral model is
 %
 \begin{equation}
   \frac{S(b_i)}{S_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
@@ -42,14 +42,14 @@ so holding precision constant across the spectrum would require a bin spacing th
   \label{eq:spacing_scaling}
 \end{equation}
 %
-that is, finer bins at low diffusivity.
+that is, narrower bins are supported at low diffusivity.
 We treat this analytic rule as a heuristic and combine it with biological knowledge of the relevant water compartments to set the eight-bin grid above.
 
 \subsection{Bayesian Spectrum Estimation}
 
 We treat spectrum recovery as Bayesian inference. The Gaussian observation model (\ref{eq:signal_model}), the physical constraint $R_j \geq 0$, and a regularizing prior on the fractions together define a posterior over the spectrum (and, in the full treatment, the noise level $\sigma$). Two estimators follow from this single posterior: its mode---the maximum a posteriori (MAP) point estimate---and the full posterior itself, sampled to additionally quantify how reliably each component is determined.
 
-Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together with non-negativity, the MAP estimate solves the constrained quadratic program
+Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together with non-negativity, the MAP estimate solves the constrained quadratic program (@Stephan: equation rather than program?, @patrick: I am not sure program is actually the better term here, as this is what the approach is called or not?)
 %
 \begin{equation}
   \hat{\Rvec}_{\text{MAP}} \;=\; \argmin_{\Rvec \,\in\, \mathbb{R}_{\geq 0}^{K}}
