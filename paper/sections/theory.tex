@@ -99,3 +99,24 @@ evaluated at a reference spectrum $\bar{\Rvec}$ (e.g., the average tumor or norm
 This sensitivity vector quantifies how a unit increase in each spectral fraction perturbs the ADC value.
 If the sensitivity vector aligns with the optimal classification direction (the logistic-regression coefficient vector), then ranking by ADC approximates ranking by the optimal spectral classifier; we test this alignment directly (Results).
 We quantify this alignment using the Pearson correlation between the sensitivity vector $\partial \text{ADC}/\partial \Rvec$ and the logistic-regression coefficient vector $\mathbf{w}$ (fit on standardized fractions).
+
+\subsection{Discriminative Power of a Diffusion Scan}
+
+The sensitivity analysis asks which fractions a given readout responds to; we now ask the prior question of how much tumor--normal (or grade) information the scan makes available at all, and how much of it a scalar readout such as ADC can capture. Consider two tissue classes with mean spectra $\bar{\Rvec}_1$ and $\bar{\Rvec}_0$ and \emph{contrast} $\boldsymbol{\Delta} = \bar{\Rvec}_1 - \bar{\Rvec}_0$. An individual ROI departs from its class mean for two reasons: biological heterogeneity---the within-class variation of the true spectra, with covariance $\boldsymbol{\Sigma}_{\mathrm{bio}}$---and estimation error---the per-ROI posterior covariance of the recovered fractions, $\boldsymbol{\Sigma}_{\mathrm{est}} \approx \mathbf{F}^{-1}$, the inverse Fisher information of Eq.~\ref{eq:fisher}. Modeling each class as Gaussian with common covariance $\boldsymbol{\Sigma} = \boldsymbol{\Sigma}_{\mathrm{bio}} + \boldsymbol{\Sigma}_{\mathrm{est}}$, the largest class separation any reader of the spectrum can achieve is the Mahalanobis distance
+%
+\begin{equation}
+  d_{\max}^2 = \boldsymbol{\Delta}^{T}\big(\boldsymbol{\Sigma}_{\mathrm{bio}} + \boldsymbol{\Sigma}_{\mathrm{est}}\big)^{-1}\boldsymbol{\Delta},
+  \qquad \mathrm{AUC}_{\max} = \Phi\!\big(d_{\max}/\sqrt{2}\big),
+  \label{eq:dmax}
+\end{equation}
+%
+with $\Phi$ the standard normal CDF and $d_{\max} = \sqrt{d_{\max}^2}$. A scalar linear readout $m = \mathbf{a}^{T}\Rvec$---of which ADC is approximately one, its direction given by the sensitivity vector of Eq.~\ref{eq:sensitivity}---attains
+%
+\begin{equation}
+  d^2(\mathbf{a}) = d_{\max}^2\,\cos^2\theta,
+  \label{eq:cos}
+\end{equation}
+%
+where $\cos^2\theta$ measures the alignment of the readout direction $\mathbf{a}$ with the optimal direction $\boldsymbol{\Sigma}^{-1}\boldsymbol{\Delta}$---estimated empirically by the logistic-regression coefficient $\mathbf{w}$ above---and equals one exactly when $\mathbf{a} \propto \boldsymbol{\Sigma}^{-1}\boldsymbol{\Delta}$.
+
+Equations~\ref{eq:dmax}--\ref{eq:cos} factor the discriminative power of a scan into four terms with distinct origins: the contrast $\boldsymbol{\Delta}$ is set by \emph{biology} (the class difference); the estimation covariance $\boldsymbol{\Sigma}_{\mathrm{est}} \approx \mathbf{F}^{-1}$ by the \emph{acquisition} (which compartments the b-value set can resolve); the alignment $\cos^2\theta$ by the \emph{readout} (algorithm); and the heterogeneity $\boldsymbol{\Sigma}_{\mathrm{bio}}$ by the \emph{within-class variability of the tissue} itself---the one term a measurement cannot reduce. The decomposition makes three predictions, tested in the sections that follow. (i)~A scalar readout is near-optimal when the contrast lies in a well-identified direction (so $\boldsymbol{\Sigma}_{\mathrm{est}}$ is small there) and the readout is aligned with it; notably, the intermediate, mutually collinear bins to which ADC is insensitive are also the bins the acquisition cannot resolve (Eq.~\ref{eq:fisher}), so a scalar that ignores them forfeits no recoverable information. (ii)~The binding limit is whichever of $\boldsymbol{\Sigma}_{\mathrm{bio}}$ and $\boldsymbol{\Sigma}_{\mathrm{est}}$ dominates along $\boldsymbol{\Delta}$; when the discriminating compartments are well-determined, $\boldsymbol{\Sigma}_{\mathrm{est}}$ is negligible against $\boldsymbol{\Sigma}_{\mathrm{bio}}$ and discrimination is \emph{biology-limited}. (iii)~A richer inversion of the same acquisition can only shrink $\boldsymbol{\Sigma}_{\mathrm{est}}$, and so cannot raise a biology-limited ceiling; doing that requires enlarging $\boldsymbol{\Delta}$ relative to $\boldsymbol{\Sigma}_{\mathrm{bio}}$ through a new contrast mechanism---multiple diffusion times \citep{panagiotaki2014microstructural} or relaxation weighting \citep{domingo2025restriction}---rather than a more elaborate fit to a fixed diffusion-time series \citep{he2025improved}.
