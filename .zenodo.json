@@ -1,0 +1,49 @@
+{
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "mit",
+  "title": "Bayesian diffusivity-spectrum estimation for prostate multi-b diffusion MRI",
+  "creators": [
+    {
+      "name": "Remerscheid, Patrick",
+      "affiliation": "Independent researcher, Switzerland",
+      "orcid": "0000-0002-1329-4955"
+    },
+    {
+      "name": "Wells, William M., III",
+      "affiliation": "Department of Radiology, Brigham and Women's Hospital, Harvard Medical School, Boston, MA, USA; Computer Science and Artificial Intelligence Laboratory (CSAIL), Massachusetts Institute of Technology, Cambridge, MA, USA",
+      "orcid": "0000-0002-4279-8634"
+    },
+    {
+      "name": "Maier, Stephan E.",
+      "affiliation": "Department of Radiology, Brigham and Women's Hospital, Harvard Medical School, Boston, MA, USA",
+      "orcid": "0000-0003-0646-3893"
+    }
+  ],
+  "description": "<p>Code, configuration, and cached posteriors accompanying the manuscript <em>\"Why ADC works: Bayesian spectral decomposition of prostate multi-b diffusion MRI\"</em> by Patrick Remerscheid, William M. Wells III and Stephan E. Maier, submitted to <em>Magnetic Resonance in Medicine</em> (2026).</p><p>Multi-b diffusion MRI signal decays from 149 prostate regions of interest (56 patients) are decomposed into an eight-component diffusivity spectrum, both by constrained-ridge maximum a posteriori estimation and by full Bayesian No-U-Turn Sampler inference that additionally infers the per-region noise level. The posterior establishes which diffusivity compartments an extended-b acquisition can actually resolve, and shows that tumour-versus-normal variation collapses onto a single restricted-to-free-water axis &mdash; which is why the scalar apparent diffusion coefficient is already a near-optimal spectral discriminant for region-of-interest lesion detection.</p><p>Verified from a clean clone: <code>uv sync</code> followed by <code>uv run python -m spectra_estimation_dmri.biomarkers.recompute</code> reproduces every number reported in the manuscript byte-identically. Per-figure scripts are documented in <code>scripts/README.md</code>.</p><p>The region-of-interest signal decays and tissue and Gleason-grade labels are deposited separately at <a href=\"https://doi.org/10.5281/zenodo.20787155\">10.5281/zenodo.20787155</a>.</p>",
+  "keywords": [
+    "diffusion MRI",
+    "prostate cancer",
+    "Bayesian inference",
+    "apparent diffusion coefficient",
+    "diffusivity spectrum",
+    "uncertainty quantification",
+    "inverse Laplace transform",
+    "Markov chain Monte Carlo",
+    "reproducible research"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.20787155",
+      "relation": "isSupplementedBy",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://github.com/PaWeRe/spectra-estimation-dMRI",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ],
+  "notes": "The manuscript results were produced at commit d34e203763e04768ebbde3ceb032564d8dc0350b (release v1.0.0). Later releases differ from that revision only in deposit metadata and documentation."
+}
