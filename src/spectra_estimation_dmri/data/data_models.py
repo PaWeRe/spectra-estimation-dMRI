@@ -13,20 +13,6 @@ import json
 import ast
 
 
-def _repo_plot_dir() -> "Path":
-    """Default plot output directory, resolved relative to this package.
-
-    Replaces a hard-coded developer path so the module works from any checkout.
-    """
-    from pathlib import Path as _Path
-
-    d = _Path(__file__).resolve().parents[3] / "results" / "plots" / "plot"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
-
-
-
-
 class SignalDecay(BaseModel):
     patient: str
     signal_values: list[float]
@@ -1083,7 +1069,7 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"credible_intervals_{group_id}_real{idx+1}": wandb.Image(fig)})
         if local:
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "credible_intervals", spectrum, exp_config
             )
@@ -1185,7 +1171,7 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"posterior_shape_{group_id}_real{idx+1}": wandb.Image(fig)})
         if local:
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "posterior_shape", spectrum, exp_config
             )
@@ -1327,7 +1313,7 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"multi_realization_intervals_{group_id}": wandb.Image(fig)})
         if local:
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "multi_realization_intervals", spectra_list[0], exp_config
             )
@@ -1516,7 +1502,7 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"stability": wandb.Image(fig)})
         if local:
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "stability", spectra[0], exp_config
             )
@@ -1569,7 +1555,7 @@ class DiffusivitySpectraDataset(BaseModel):
                     )
                 if local:
                     variant_name = plot_func.__name__.replace("_plot_trace_", "")
-                    output_pdf_path = f"{_repo_plot_dir()}/traceplot_{variant_name}.pdf"
+                    output_pdf_path = f"/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/traceplot_{variant_name}.pdf"
                     os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
                     with PdfPages(output_pdf_path) as pdf:
                         pdf.savefig(fig)
@@ -1639,14 +1625,14 @@ class DiffusivitySpectraDataset(BaseModel):
         # Save figures to PDF
         if local:
             if last_fig is not None:
-                output_pdf_path = f"{_repo_plot_dir()}/autocorrelation.pdf"
+                output_pdf_path = f"/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/autocorrelation.pdf"
                 os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
                 with PdfPages(output_pdf_path) as pdf:
                     pdf.savefig(last_fig)
                 plt.close(last_fig)
 
             if last_joint_fig is not None:
-                output_pdf_path = f"/results/plots/plot/joint_autocorrelation.pdf"
+                output_pdf_path = f"/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/joint_autocorrelation.pdf"
                 os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
                 with PdfPages(output_pdf_path) as pdf:
                     pdf.savefig(last_joint_fig)
@@ -1928,7 +1914,7 @@ class DiffusivitySpectraDataset(BaseModel):
             wandb.log({f"uncertainty_calibration_{group_id}": wandb.Image(fig)})
         else:
             # Save to local file when in local mode
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "uncertainty_calibration", spectra_list[0], exp_config
             )
@@ -2391,11 +2377,11 @@ class DiffusivitySpectraDataset(BaseModel):
         # Save to CSV if in local mode
         if local:
             # Save detailed results
-            output_path = "/results/plots/plot/uncertainty_metrics.csv"
+            output_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/uncertainty_metrics.csv"
             df_results.to_csv(output_path, index=False)
 
             # Save calibration summary
-            summary_path = "/results/plots/plot/calibration_summary.csv"
+            summary_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/calibration_summary.csv"
             df_summary.to_csv(summary_path, index=False)
 
         return df_results
@@ -2493,7 +2479,7 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"autocorr_ess_per_diff_{group_id}": wandb.Image(fig)})
         if local:
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "autocorrelation_ess_per_diff", spectrum, exp_config
             )
@@ -2578,7 +2564,7 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"multichain_trace_{group_id}": wandb.Image(fig)})
         if local:
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "multichain_trace", spectrum, exp_config
             )
@@ -2643,7 +2629,7 @@ class DiffusivitySpectraDataset(BaseModel):
         if not local:
             wandb.log({f"rank_plot_{group_id}": wandb.Image(fig)})
         if local:
-            base_dir = str(_repo_plot_dir())
+            base_dir = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot"
             filename = self._get_config_specific_filename(
                 "rank_plot", spectrum, exp_config
             )
@@ -2709,7 +2695,7 @@ class DiffusivitySpectraDataset(BaseModel):
 
         # Save to CSV if in local mode
         if local:
-            output_path = "/results/plots/plot/arviz_summary.csv"
+            output_path = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI/results/plots/plot/arviz_summary.csv"
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
             # Append to existing file or create new one
