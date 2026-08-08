@@ -496,12 +496,10 @@ def fig_uncertainty(df):
 # tumor ROI from one demonstration patient, per-direction signal decays
 # and per-direction MAP-estimated spectra agree within noise.
 #
-# Source data: the per-direction ROI export shipped with this repository.
+# Source data: pre-extracted Stephan tarball at /tmp/stephan_directions/.
 # We use one patient/slice/zone pair (anonymized as "Demonstration Patient")
 # with both a NormalPZ and a TumorPZ ROI from the same slice.
-DIRECTIONS_DAT_DIR = (Path(__file__).resolve().parents[1]
-                      / "src" / "spectra_estimation_dmri" / "data"
-                      / "diffusion-spectrum-analysis")
+DIRECTIONS_DAT_DIR = Path("/tmp/stephan_directions/diffusion-spectrum-analysis")
 DIRECTIONS_NORMAL_DAT = DIRECTIONS_DAT_DIR / "9283-Series12-Slice6-NormalPZ.dat"
 DIRECTIONS_TUMOR_DAT = DIRECTIONS_DAT_DIR / "9283-Series12-Slice6-TumorPZ.dat"
 
