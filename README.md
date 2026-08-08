@@ -2,7 +2,59 @@
 
 **End-to-end framework for bayesian estimation of diffusivity spectra in diffusion MRI with systematic parameter optimization for cancer biomarker development**
 
-The core challenge is approximating a non-negative multivariate Gaussian that models the diffusivity spectrum R via inverse Laplace transform (s = UR + ε). This framework addresses: (1) minimizing reconstruction error under noise, (2) achieving stable matrix inversion, (3) estimating uncertainty, and (4) optimizing spectral features for cancer classification. The approach enables systematic testing across all parameter combinations and is validated on 63 prostate cancer patients from Brigham and Women's Hospital with expert annotations and Gleason grading.
+The core challenge is approximating a non-negative multivariate Gaussian that models the diffusivity spectrum R via inverse Laplace transform (s = UR + ε). This framework addresses: (1) minimizing reconstruction error under noise, (2) achieving stable matrix inversion, (3) estimating uncertainty, and (4) optimizing spectral features for cancer classification. The approach enables systematic testing across all parameter combinations and is validated on a Brigham and Women's Hospital prostate cohort with expert annotations and Gleason grading (56 patients / 149 ROIs in the manuscript analysis).
+
+---
+
+## Reproducing the manuscript
+
+*"Why ADC works: Bayesian spectral decomposition of prostate multi-b diffusion MRI"
+(submitted to Magnetic Resonance in Medicine).*
+
+```bash
+# 1. install (Python 3.11; uv manages the venv and the locked dependency set)
+uv sync
+
+# 2. regenerate every number reported in the paper -> results/biomarkers/
+uv run python -m spectra_estimation_dmri.biomarkers.recompute
+
+# 3. regenerate the figures -> paper/figures/
+uv run python scripts/generate_fisher_figure.py       # Figure 1  (Fisher / CRLB)
+uv run python scripts/fig3_recovery_battery.py        # Figure 2  (simulation validation)
+uv run python scripts/generate_paper_figures.py       # Figure 3  (cohort spectra)
+uv run python scripts/fig2_roc_detection.py           # Figure 4  (detection ROC)
+uv run python scripts/fig3_adc_vs_discriminant.py     # Figure 5  (ADC vs discriminant)
+uv run python scripts/fig4_lr_coefs_and_sensitivity.py# Figure 6  (weights + ADC sensitivity)
+uv run python scripts/plot_spectrum_by_ggg.py         # Figure 7  (spectrum by Gleason group)
+uv run python scripts/fig6_uncertainty_classifier.py  # Figure 8  (posterior propagation)
+uv run python scripts/fig9_pixelwise.py               # Figure 9  (pixel-wise maps)
+uv run python scripts/zone_grade_check.py             # Discussion: zone-split grade check
+uv run python scripts/fig_si_subset.py                # Figures S1, S2
+uv run python scripts/fig7_directions_roi.py          # Figure S3
+```
+
+Step 2 reads the deposited ROI signal decays (`src/spectra_estimation_dmri/data/bwh/`)
+and the cached NUTS posteriors (`results/inference_bwh_backup/`, 149 ArviZ `.nc` files)
+and writes the tables the manuscript quotes:
+
+| Output in `results/biomarkers/` | Used for |
+|---|---|
+| `features.csv` | MAP + NUTS fractions, posterior SDs, ADC, labels for all 149 ROIs |
+| `auc_table.csv` | Table 1 (all detection AUCs, C = 0.1/1.0/10) |
+| `identifiability.csv` | per-component posterior CV (Methods, Abstract, Discussion) |
+| `adc_discriminant.csv` | ADC-vs-discriminant correlations (Results §3) |
+| `adc_sensitivity.csv` | ADC sensitivity vector vs LR weights (Figure 6, Discussion) |
+| `map_nuts_comparison.csv` | MAP-vs-NUTS agreement per component |
+| `uncertainty_propagation.csv` | posterior-propagation results (Figure 8, Discussion) |
+
+To re-run the NUTS inference itself from scratch instead of using the cached posteriors
+(~1 h for 149 ROIs on an 8-core M1 Pro), use the Hydra pipeline:
+`uv run python -m spectra_estimation_dmri.main dataset=bwh inference=nuts`.
+
+**Data:** ROI signal decays and labels are deposited at
+[10.5281/zenodo.20787155](https://doi.org/10.5281/zenodo.20787155).
+
+---
 
 ## Quick Setup & Installation
 
@@ -177,8 +229,8 @@ The central hypothesis is that despite increased computational cost and mathemat
 ## Data
 
 ### BWH Patient Dataset
-- **Source**: [Langkilde et al. (2017)](https://pubmed.ncbi.nlm.nih.gov/28718517/) study  
-- **Size**: 63 prostate cancer patients, HIPAA-compliant
+- **Source**: [Langkilde et al. (2018)](https://pubmed.ncbi.nlm.nih.gov/28718517/) study, *Magn Reson Med* 79:2346–2358
+- **Size**: 56 patients / 149 ROIs analysed in the manuscript (40 tumor, 109 normal), HIPAA-compliant and de-identified. `data/bwh/metadata.csv` lists 62 patient records; `data/bwh/signal_decays.json` carries usable multi-b decays for the 56 that enter the analysis.
 - **Regions**: Peripheral zone (PZ) and transitional zone (TZ)
 - **Labels**: Tumor vs normal tissue, Gleason grades (GGG 1-5)
 - **Acquisition**: 15 b-values (0-3500 s/mm²), multi-ROI per patient

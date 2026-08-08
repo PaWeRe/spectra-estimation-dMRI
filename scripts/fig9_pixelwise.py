@@ -271,9 +271,9 @@ def main():
     # 3x3 slot blank, keep H,I in place. Uncertainty maps use plasma
     # (purple->yellow, max contrast) on a SHARED scale (vmax = unc_max).
     ax[2, 0].axis("off")
-    panel(ax[2, 1], b0, M["u2"], CMAP_UNC, "2-Bin Score Uncertainty", "H",
+    panel(ax[2, 1], b0, M["u2"], CMAP_UNC, "2-Bin Score Uncertainty", "G",
           vmin=0, vmax=unc_max, cbar_label="Posterior SD")
-    panel(ax[2, 2], b0, M["u8"], CMAP_UNC, "8-Bin Score Uncertainty", "I",
+    panel(ax[2, 2], b0, M["u8"], CMAP_UNC, "8-Bin Score Uncertainty", "H",
           vmin=0, vmax=unc_max, cbar_label="Posterior SD")
 
     fig.tight_layout()

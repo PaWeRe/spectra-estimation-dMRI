@@ -69,29 +69,34 @@ predictor from the eight spectral fractions) across ROIs, by anatomical zone
 (columns: PZ, $n = 81$, left; TZ, $n = 68$, right) and spectral estimator
 (rows: NUTS posterior-mean, top; constrained-MAP at tuned $\lambda = 10^{-3}$,
 bottom).
-All panels share common axes; the discriminant is fit separately per zone and
-estimator, so its scale is comparable only within a panel (@Stephan: Looks to me as the vertical scale is the same for all panels.), whereas ADC
-($x$-axis) is the same physical quantity throughout.
+All four panels are drawn on identical axes, but the discriminant is fit
+separately per zone and estimator, so equal vertical positions in different
+panels come from different fits and only the within-panel relationship is
+meaningful; ADC ($x$-axis) is the same physical quantity throughout.
 Tumor ROIs are red and normal ROIs blue; the black line is the
 ordinary-least-squares (OLS) fit, and per-panel Pearson $r$ with a 95\% bootstrap
 confidence interval is annotated (all $|r| > 0.95$).
 
 \medskip\noindent\textbf{Figure~\ref{fig:sensitivity}.}
-Per-bin structure of the spectral discriminant and the ADC sensitivity vector,
-by anatomical zone (PZ, TZ).
-Bars give the standardized tumor-versus-normal logistic-regression coefficient
-per diffusivity bin---the change in tumor log-odds per standard deviation of
-that fraction, so heights are comparable across bins of differing scale
-(Methods)---using NUTS features, $C = 1.0$, the same fit as
-Figure~\ref{fig:adc_discriminant}, normalized to $\max|w| = 1$, with 95\%
-bootstrap confidence intervals. (@Stephan: Do you or Sandy understand this? I pass. @Patrick: First I think this should maybe be in main text, considering that we had said to use figure descriptoins primarily for descritpive purposes right, second maybe there is a simpler way we can explain the standardization here ... I think we already have something in the meain text, coordinate here so that people undersatnd)
-Black diamonds give the ADC sensitivity $-\partial\text{ADC}/\partial R_j$
-at the average tumor spectrum (normalized, sign-aligned to the tumor
-direction).
+How much each diffusivity bin contributes to the spectral discriminant (bars)
+and how strongly ADC responds to it (diamonds), by anatomical zone (PZ, TZ).
+Both quantities are read on one axis: positive means ``pushes the readout toward
+tumor.''
+Bars are the tumor-versus-normal logistic-regression weights (NUTS features,
+$C = 1.0$, the same fit as Figure~\ref{fig:adc_discriminant}), obtained after
+rescaling every fraction to unit cohort standard deviation so that bins of very
+different size can be compared directly, with 95\% bootstrap confidence
+intervals; bar heights are then divided by the largest weight, so the tallest
+bar is 1 by construction.
+Black diamonds are the ADC sensitivity $-\partial\text{ADC}/\partial R_j$
+evaluated at the average tumor spectrum, scaled the same way (the minus sign
+orients it toward tumor, because tumor corresponds to low ADC).
 Each bar is colored by the bin's within-ROI posterior CV (light
 $=$ well identified to dark $=$ poorly identified), a per-ROI identifiability
-distinct from the cohort-level coefficient stability shown by the bootstrap
+distinct from the cohort-level weight stability shown by the bootstrap
 intervals.
+The annotated $r$ is the across-bin Pearson correlation between the weights and
+the unflipped $\partial\text{ADC}/\partial\Rvec$, hence negative.
 
 \medskip\noindent\textbf{Figure~\ref{fig:spectrum_ggg}.}
 NUTS posterior-mean diffusivity spectrum averaged across ROIs by Gleason Grade
@@ -122,6 +127,6 @@ free-water ($D = 3.0\;\umsmm$) fractions.
 (E,\,F)~Per-voxel discriminant score for the two-bin
 $\{D = 0.25,\,3.0\;\umsmm\}$ and full eight-bin peripheral-zone classifiers
 (same classification as applied in Figure~\ref{fig:roc}), centered on the decision boundary.
-(H,\,I)~Posterior standard deviation of the score (500 Monte Carlo draws) for
+(G,\,H)~Posterior standard deviation of the score (500 Monte Carlo draws) for
 the two- and eight-bin detectors on a shared scale.
 %TC:endignore
