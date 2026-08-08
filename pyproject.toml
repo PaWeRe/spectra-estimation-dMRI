@@ -13,19 +13,30 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 dependencies = [
+    # core numerics / data
     "numpy",
-    "matplotlib",
     "scipy",
-    "h5py",
     "pandas",
-    "pyyaml",
-    "cvxopt",
-    "tqdm",
-    "hydra-core",
-    "wandb",
-    "arviz",
+    "xarray",
+    # inference
     "pymc>=5.6.1",
-    "nibabel>=5.2.1",
+    "arviz",
+    "scikit-learn",
+    # configuration and experiment tracking
+    "hydra-core",
+    "omegaconf",
+    "pydantic",
+    "pyyaml",
+    "python-dotenv",
+    "wandb",
+    # plotting
+    "matplotlib",
+    "seaborn",
+    "pillow",
+    # image I/O for the pixel-wise demonstration
+    "pynrrd",
+    # misc
+    "tqdm",
 ]
 
 [tool.setuptools.packages.find]

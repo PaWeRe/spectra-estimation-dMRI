@@ -66,7 +66,9 @@ from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import roc_auc_score, roc_curve
 
 
-REPO_ROOT = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI"
+from pathlib import Path
+
+REPO_ROOT = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 from spectra_estimation_dmri.visualization.paper_style import (  # noqa: E402
     apply_style, COLORS,

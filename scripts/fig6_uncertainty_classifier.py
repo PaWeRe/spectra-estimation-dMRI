@@ -63,7 +63,9 @@ from spectra_estimation_dmri.visualization.paper_style import (  # noqa: E402
     apply_style, COLORS,
 )
 
-REPO_ROOT = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI"
+from pathlib import Path
+
+REPO_ROOT = str(Path(__file__).resolve().parents[1])
 FEATURES_CSV = os.path.join(REPO_ROOT, "results/biomarkers/features.csv")
 OUT_DIR = os.path.join(REPO_ROOT, "paper/figures")
 

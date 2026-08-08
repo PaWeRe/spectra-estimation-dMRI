@@ -59,7 +59,9 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import roc_auc_score
 
-REPO_ROOT = "/Users/PWR/Documents/Professional/Papers/Paper3/code/spectra-estimation-dMRI"
+from pathlib import Path
+
+REPO_ROOT = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, REPO_ROOT)
 
 from src.spectra_estimation_dmri.data.loaders import (

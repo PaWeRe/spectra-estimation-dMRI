@@ -60,3 +60,15 @@ results/biomarkers/ismrm/
 
 # Patient image crops (not referenced by the release; kept locally only)
 assets/*.jpeg
+
+# Legacy figure variants that generate_paper_figures.py still emits alongside
+# fig1_v4 (Figure 3); superseded in the manuscript by the dedicated scripts.
+paper/figures/fig_roc.*
+paper/figures/fig_adc_discriminant.*
+paper/figures/fig_map_nuts.*
+paper/figures/fig_sensitivity.*
+paper/figures/fig_uncertainty.*
+paper/figures/fig4_raw_v4.*
+paper/figures/figS_recovery.*
+paper/figures/fig_directions_v2.*
+paper/figures/fig_directions_v3.*
