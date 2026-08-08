@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spectra-estimation-dmri"
-version = "0.1.0"
-description = "Bayesian estimation of diffusion spectra in MRI."
+version = "1.0.0"
+description = "Bayesian diffusivity-spectrum estimation for prostate multi-b diffusion MRI (MRM 2026)."
 authors = [
     { name = "Patrick Remerscheid", email = "patrick.remerscheid@gmail.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
 dependencies = [
     "numpy",
     "matplotlib",

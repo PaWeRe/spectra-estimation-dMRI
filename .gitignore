@@ -1,24 +1,39 @@
+# --- Local environment / build artifacts ---
 .env
 .DS_Store
 __pycache__
 *.egg-info/
+.venv/
+
+# --- Experiment run directories (regenerable; not part of the release) ---
 outputs/
 multirun/
-results/
 wandb/
 
-# Claude Code agent scratch (worktrees, local settings)
+# --- Secrets and credentials (NEVER commit) ---
+secrets/
+.cursor/
+.cursorrules
 .claude/
 
-# Secrets and credentials (NEVER commit)
-secrets/
-.cursor/mcp.json
-
-# Binary imaging data (too large for git)
+# --- Large binary imaging data (distributed via Zenodo, not git) ---
 8640-sl6-bin/
 src/spectra_estimation_dmri/data/8640-sl6-bin/
 
-# LaTeX build artifacts
+# --- Third-party literature PDFs (copyright; local reference only) ---
+assets/*.pdf
+
+# --- Internal working material (not part of the public release) ---
+CLAUDE.md
+PROJECT_STATE.md
+notes/
+paper/drafting/
+paper/PAPER_PLAN.md
+paper/main_old.tex
+_email_draft_*.md
+zenodo_data_release/
+
+# --- LaTeX build artifacts ---
 paper/*.aux
 paper/*.bbl
 paper/*.blg
@@ -30,3 +45,18 @@ paper/*.fdb_latexmk
 paper/*.pdf
 paper/sections/*.aux
 paper/*.wc*
+
+# --- Analysis outputs ---
+# results/biomarkers/ and results/inference_bwh_backup/ ARE tracked: they are
+# the cached NUTS posteriors and the derived tables the manuscript quotes, and
+# the reproduction pipeline reads them. Everything else under results/ is
+# scratch from exploratory runs.
+results/*
+!results/biomarkers/
+!results/inference_bwh_backup/
+
+# Conference-poster outputs (regenerable; not part of the manuscript)
+results/biomarkers/ismrm/
+
+# Patient image crops (not referenced by the release; kept locally only)
+assets/*.jpeg
