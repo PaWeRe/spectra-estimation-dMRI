@@ -73,3 +73,6 @@ paper/figures/figS_recovery.*
 paper/figures/fig_directions_v2.*
 paper/figures/fig_directions_v3.*
 paper/figures/fig_directions.*
+
+# Standalone Overleaf upload bundle (regenerable; not part of the release)
+paper/overleaf_upload.zip
