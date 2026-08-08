@@ -142,13 +142,13 @@ ORCID       & \href{https://orcid.org/0000-0002-1329-4955}{0000-0002-1329-4955} 
 
 \vfill
 
-% Body count = Introduction..Conclusion + Appendix, excluding title page,
-% abstract, legends, tables, references (MRM rule).
-% Local estimate 2026-08-08: 4714 body + 132 appendix = 4846 ("words in text",
-% inline math counted as one token, as texcount does).
-% >>> BEFORE UPLOAD: run texcount on Overleaf and replace 4846 with the
-% >>> reported "Words in text" total. Limit is 5000.
-\wordcount{4846}{249}
+% Body count = Introduction..Conclusion, excluding title page, abstract,
+% legends, tables, references and Supporting Information (MRM rule).
+% Measured 2026-08-08 with scripts/../wordcount.py, which mirrors texcount:
+% 4948 words in text + 20 headers = 4968. Limit 5000.
+% (The CRLB scaling derivation was moved from a counted Appendix into the
+% Supporting Information, which MRM does not count.)
+\wordcount{4968}{246}
 
 \end{titlepage}
 %TC:endignore
