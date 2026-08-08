@@ -1,5 +1,9 @@
 # Bayesian diffusivity-spectrum estimation for prostate multi-b diffusion MRI
 
+[![Software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21851934.svg)](https://doi.org/10.5281/zenodo.21851934)
+[![Data DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20787155.svg)](https://doi.org/10.5281/zenodo.20787155)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Code and data for:
 
 > **Why ADC works: Bayesian spectral decomposition of prostate multi-b diffusion MRI.**
@@ -70,6 +74,17 @@ scripts/                   figure and analysis scripts (see scripts/README.md)
 results/inference_bwh_backup/  149 cached NUTS posteriors (.nc)
 paper/                     LaTeX sources and figures
 ```
+
+## Archived versions
+
+| | DOI |
+|---|---|
+| **Software** (this repository) | [10.5281/zenodo.21851934](https://doi.org/10.5281/zenodo.21851934) — always resolves to the latest release |
+| **Data** (ROI signal decays + labels) | [10.5281/zenodo.20787155](https://doi.org/10.5281/zenodo.20787155) |
+
+The manuscript was prepared from commit
+[`d34e203`](https://github.com/PaWeRe/spectra-estimation-dMRI/tree/d34e203763e04768ebbde3ceb032564d8dc0350b),
+released as `v1.0.0`.
 
 ## Data
 
