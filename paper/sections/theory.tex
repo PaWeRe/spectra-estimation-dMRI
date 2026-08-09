@@ -2,7 +2,7 @@
 
 \subsection{Signal Model and Discretization}
 
-In multi-b diffusion MRI, the signal decay can be modeled as a superposition of exponential decays from distinct diffusion compartments. One can either estimate the diffusivities $D_j$ and their fractions jointly---highly nonlinear and severely non-unique---or fix the diffusivities on a predefined grid and estimate only the fractions, reducing the problem to linear estimation at the cost of discretization. We adopt the latter: normalizing by the $b = 0$ signal, the discrete spectral model is
+In multi-b diffusion MRI, the signal decay can be modeled as a superposition of exponential decays from distinct diffusion compartments. Estimating the diffusivities $D_j$ jointly with their fractions is highly nonlinear and severely non-unique, so we instead fix the diffusivities on a predefined grid and estimate only the fractions, reducing the problem to linear estimation at the cost of discretization. Normalizing by the $b = 0$ signal, the discrete spectral model is
 %
 \begin{equation}
   \frac{S(b_i)}{S_0} = \sum_{j=1}^{K} R_j \exp(-b_i D_j) + \varepsilon_i,
@@ -25,10 +25,9 @@ Assuming known noise $\sigma$, the Fisher information matrix for the fractions $
 %
 and the Cram\'er--Rao lower bound (CRLB) sets the minimum variance of any unbiased estimator, $\text{Var}(\hat{R}_j) \geq [\mathbf{F}^{-1}]_{jj}$.
 The design matrix is ill-conditioned ($\kappa(\Umat) \approx 2.8 \times 10^5$), and because $\mathbf{F} = \Umat^T\Umat/\sigma^2$ this becomes its square in estimation-variance terms ($\kappa(\mathbf{F}) = \kappa(\Umat)^2 = 7.7 \times 10^{10}$).
-The large off-diagonal entries of $\mathbf{F}$ reflect that adjacent diffusivities produce nearly identical signal decays: the low- and intermediate-diffusivity components ($D = 0.5$--$1.0\;\umsmm$) are mutually correlated above $0.99$ (Figure~\ref{fig:fisher}a) and trade off against one another almost freely, whereas $D = 0.25\;\umsmm$ contributes signal across all 15 b-values and components with $D \geq 3.0\;\umsmm$ fall below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
+The large off-diagonal entries of $\mathbf{F}$ reflect that adjacent diffusivities produce nearly identical signal decays. The intermediate components ($D = 0.5$--$1.0\;\umsmm$) are mutually correlated above $0.99$ (Figure~\ref{fig:fisher}a) and trade off almost freely, whereas $D = 0.25\;\umsmm$ contributes signal across all 15 b-values and components with $D \geq 3.0\;\umsmm$ fall below the noise floor within the first few b-value steps (Figure~\ref{fig:fisher}c).
 
-A two-compartment analysis indicates where on the grid this trade-off is least severe.
-For adjacent diffusivities $D$ and $D + \Delta D$ carrying fractions $p$ and $1-p$, in the regime $\Delta D \ll D$ and $b_{\max} D \gg 1$ the Fisher information for $p$ scales as
+A two-compartment analysis indicates where on the grid this trade-off is least severe. For adjacent diffusivities $D$ and $D + \Delta D$ carrying fractions $p$ and $1-p$, in the regime $\Delta D \ll D$ and $b_{\max} D \gg 1$ the Fisher information for $p$ scales as
 %
 \begin{equation}
   I \propto \frac{(\Delta D)^2}{D^3},
@@ -42,12 +41,11 @@ so holding precision constant across the spectrum would require a bin spacing th
   \label{eq:spacing_scaling}
 \end{equation}
 %
-that is, narrower bins are supported at low diffusivity.
-We treat this analytic rule as a heuristic and combine it with biological knowledge of the relevant water compartments to set the eight-bin grid above.
+that is, narrower bins are supported at low diffusivity. We treat this rule as a heuristic and combine it with biological knowledge of the relevant water compartments to set the eight-bin grid above.
 
 \subsection{Bayesian Spectrum Estimation}
 
-We treat spectrum recovery as Bayesian inference. The Gaussian observation model (\ref{eq:signal_model}), the physical constraint $R_j \geq 0$, and a regularizing prior on the fractions together define a posterior over the spectrum (and, in the full treatment, the noise level $\sigma$). Two estimators follow from this single posterior: its mode---the maximum a posteriori (MAP) point estimate---and the full posterior itself, sampled to additionally quantify how reliably each component is determined.
+We treat spectrum recovery as Bayesian inference. The Gaussian observation model (\ref{eq:signal_model}), the constraint $R_j \geq 0$, and a regularizing prior on the fractions define a posterior over the spectrum and, in the full treatment, the noise level $\sigma$. Two estimators follow from it. One is its mode, the maximum a posteriori (MAP) point estimate. The other is the full posterior, sampled to quantify how reliably each component is determined.
 
 Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together with non-negativity, the MAP estimate solves the constrained quadratic program
 %
@@ -59,8 +57,8 @@ Under a Gaussian (ridge) prior $R_j \sim \mathcal{N}(0, \lambda^{-1})$ together 
 \end{equation}
 %
 where $\lambda > 0$ sets the regularization strength.
-For this ill-conditioned design matrix the unconstrained Gaussian MAP $(\Umat^{T}\Umat + \lambda \mathbf{I})^{-1}\Umat^{T}(\svec/S_0)$ can lie outside the feasible orthant, so projecting it onto $\mathbb{R}_{\geq 0}^{K}$ does not in general recover the constrained solution; we instead solve (\ref{eq:map}) directly as non-negative least squares on the augmented system $[\Umat;\, \sqrt{\lambda}\,\mathbf{I}]\,\Rvec = [\svec/S_0;\, \mathbf{0}]$ with an active-set algorithm.
-The MAP estimate requires no noise level ($\lambda$, not $\sigma$, governs the bias--variance trade-off) but gives no measure of per-component reliability: a value at a poorly conditioned component may appear precise while being largely set by the regularization rather than the data.
+For this ill-conditioned design matrix the unconstrained Gaussian MAP $(\Umat^{T}\Umat + \lambda \mathbf{I})^{-1}\Umat^{T}(\svec/S_0)$ can lie outside the feasible orthant, so projecting it onto $\mathbb{R}_{\geq 0}^{K}$ does not in general recover the constrained solution. We instead solve (\ref{eq:map}) directly as non-negative least squares on the augmented system $[\Umat;\, \sqrt{\lambda}\,\mathbf{I}]\,\Rvec = [\svec/S_0;\, \mathbf{0}]$ with an active-set algorithm.
+The MAP estimate requires no noise level ($\lambda$, not $\sigma$, governs the bias--variance trade-off) but gives no measure of per-component reliability. A value at a poorly conditioned component may appear precise while being largely set by the regularization rather than the data.
 
 The full Bayesian treatment infers the spectrum and per-ROI noise level jointly, making the ill-posedness explicit through the marginal posterior widths.
 We specify a hierarchical model,
@@ -74,18 +72,16 @@ We specify a hierarchical model,
 \end{align}
 %
 in which the half-normal prior enforces non-negativity with smooth gradients---the Bayesian analogue of the ridge penalty, though the prior scale $\sigma_R$ and the ridge weight $\lambda$ are separate hyperparameters tuned independently (Methods)---and the half-Cauchy is a weakly informative prior on the noise scale, following \citet{gelman2006prior}.
-We sample the posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ with the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}, a self-tuning variant of Hamiltonian Monte Carlo \citep{neal2011mcmc} whose gradient-driven trajectories update all components jointly---essential here, since the strong correlations between adjacent components make coordinate-wise samplers mix too slowly.
-Each posterior summary then provides both a point estimate and a per-component coefficient of variation (CV = posterior std / posterior mean) as a measure of identifiability: the smaller the CV, the more tightly the data constrain that fraction, whereas a CV approaching one marks a fraction the data barely determine.
+We sample the posterior $p(\Rvec, \sigma \mid \svec, \Umat)$ with the No-U-Turn Sampler (NUTS) \citep{hoffman2014nuts}, a self-tuning variant of Hamiltonian Monte Carlo \citep{neal2011mcmc} whose gradient-driven trajectories update all components jointly, essential here because the strong correlations between adjacent components make coordinate-wise samplers mix too slowly.
+Each posterior summary then provides both a point estimate and a per-component coefficient of variation (CV = posterior std / posterior mean) as a measure of identifiability. The smaller the CV, the more tightly the data constrain that fraction, whereas a CV approaching one marks a fraction the data barely determine.
 
-Together, the regularization and the non-negativity constraint are what render this classically ill-posed inversion tractable. At the cohort-median SNR the unconstrained CRLB is large---for the intermediate bins the bound on the standard deviation of a fraction exceeds the $[0,1]$ range that fraction can occupy---whereas approximating the half-normal prior by a Gaussian of matched precision (the van Trees bound) lowers the attainable standard deviation by $3$--$63\times$ depending on the bin, and the realized posterior spread under the true half-normal prior with non-negativity is a further $1.7$--$74\times$ below that, for a combined $5$--$3800\times$ (Figure~\ref{fig:fisher}b). These two factors are indicative rather than additive: their split depends on the prior scale, and prior and constraint are not independent mechanisms, since both act by pulling the estimate toward the feasible region.
+Together, the regularization and the non-negativity constraint are what render this classically ill-posed inversion tractable. At the cohort-median SNR the unconstrained CRLB is large---for the intermediate bins the bound on the standard deviation of a fraction exceeds the $[0,1]$ range that fraction can occupy. Approximating the half-normal prior by a Gaussian of matched precision (the van Trees bound) lowers the attainable standard deviation by $3$--$63\times$ depending on the bin, and the realized posterior spread under the true half-normal prior with non-negativity is a further $1.7$--$74\times$ below that (Figure~\ref{fig:fisher}b). These two factors are indicative rather than additive. Their split depends on the prior scale, and prior and constraint are not independent mechanisms, since both act by pulling the estimate toward the feasible region. Both are largest at the most collinear bins, where the unconstrained bound is least meaningful, so they measure how far that bound sits from anything attainable rather than how much information the data supply.
 
 \subsection{ADC as a Spectral Functional}
 
-The apparent diffusion coefficient can be viewed as a functional of the spectral fractions.
-Given a spectrum $\Rvec$, the synthesized signal at each b-value is $\hat{S}(b) = \sum_j R_j \exp(-b D_j)$.
-Fitting a monoexponential $\log \hat{S}(b) = \log \hat{S}_0 - b \cdot \text{ADC}$ to b-values below a cutoff $b_{\max}$ yields the apparent diffusion coefficient $\text{ADC}(\Rvec)$.
+The apparent diffusion coefficient can be viewed as a functional of the spectral fractions. Given a spectrum $\Rvec$, the synthesized signal is $\hat{S}(b) = \sum_j R_j \exp(-b D_j)$, and fitting a monoexponential $\log \hat{S}(b) = \log \hat{S}_0 - b \cdot \text{ADC}$ to b-values below a cutoff $b_{\max}$ yields $\text{ADC}(\Rvec)$.
 Log-domain least-squares fitting introduces a known noise-distribution bias at low SNR \citep{kuczera2023truly}, but is the clinical standard and is adopted here for comparability with the conventional ADC pipeline.
-This is a nonlinear, spectrum-dependent mapping: the same diffusivity component $R_j$ contributes differently to ADC depending on the operating point (i.e., the overall spectral composition).
+This is a nonlinear, spectrum-dependent mapping. The same diffusivity component $R_j$ contributes differently to ADC depending on the operating point (i.e., the overall spectral composition).
 
 To understand which spectral components ADC is most sensitive to, we define the sensitivity vector
 %
@@ -96,5 +92,4 @@ To understand which spectral components ADC is most sensitive to, we define the 
 \end{equation}
 %
 evaluated at a reference spectrum $\bar{\Rvec}$ (e.g., the average tumor or normal spectrum).
-This sensitivity vector quantifies how a unit increase in each spectral fraction perturbs the ADC value.
-If this vector aligns with the optimal classification direction, ranking by ADC approximates ranking by the optimal spectral classifier. We test the alignment directly (Results) as the Pearson correlation between $\partial \text{ADC}/\partial \Rvec$ and the logistic-regression coefficient vector $\mathbf{w}$, fit on standardized fractions.
+It quantifies how a unit increase in each spectral fraction perturbs ADC. If it aligns with the optimal classification direction, ranking by ADC approximates ranking by the optimal spectral classifier. We test the alignment directly (Results) as the Pearson correlation between $\partial \text{ADC}/\partial \Rvec$ and the logistic-regression coefficient vector $\mathbf{w}$, fit on standardized fractions.
