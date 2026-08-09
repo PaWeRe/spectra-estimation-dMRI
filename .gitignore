@@ -79,3 +79,6 @@ paper/overleaf_upload.zip
 
 # Generated submission package (rebuild: uv run python scripts/build_submission_package.py)
 paper/submission/
+
+# Overleaf-compiled PDFs, dropped in by hand
+paper/compiled/

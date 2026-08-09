@@ -115,6 +115,64 @@ def coi_rtf(author: str, affil: str) -> str:
             "\\viewkind4\\uc1\\pard\\f0\\fs24\n" + body + "}\n")
 
 
+COMPILED = REPO / "paper" / "compiled"
+PDF_JOBS = [
+    # (source name in paper/compiled, staged name, must contain, must NOT contain)
+    ("main_manuscript.pdf", "01_main_manuscript.pdf",
+     ["Why ADC works", "Discussion", "Data Availability Statement"],
+     ["Supporting Information"]),
+    ("supporting_information.pdf", "02_supporting_information.pdf",
+     ["Supporting Information", "Cram"],
+     []),
+]
+
+
+def pdf_text(path: Path) -> str:
+    return subprocess.run(["pdftotext", "-q", str(path), "-"],
+                          capture_output=True, text=True).stdout
+
+
+def pdf_pages(path: Path) -> int:
+    out = subprocess.run(["pdfinfo", str(path)], capture_output=True, text=True).stdout
+    m = re.search(r"^Pages:\s+(\d+)", out, re.M)
+    return int(m.group(1)) if m else -1
+
+
+def stage_pdfs(out: Path) -> None:
+    """Copy hand-dropped Overleaf PDFs into the package and sanity-check them.
+
+    Nothing here can be produced locally (no TeX), so the checks stand in for a
+    build: right document, Supporting Information genuinely absent from the
+    manuscript, and no unresolved LaTeX references left on the page.
+    """
+    if not COMPILED.exists():
+        return
+    dest = out / "06_compiled_pdf"
+    for src_name, staged_name, must, must_not in PDF_JOBS:
+        src = COMPILED / src_name
+        if not src.exists():
+            print(f"  [pdf] {src_name}: not provided, skipping")
+            continue
+        if src.read_bytes()[:5] != b"%PDF-":
+            raise SystemExit(f"{src} is not a PDF")
+        text = pdf_text(src)
+        for needle in must:
+            if needle not in text:
+                raise SystemExit(f"{src_name}: expected text {needle!r} not found "
+                                 "-- is this the right document?")
+        for needle in must_not:
+            if needle in text:
+                raise SystemExit(f"{src_name}: contains {needle!r}, which must not "
+                                 "appear -- did you compile the pre-split main.tex "
+                                 "instead of 01_main_manuscript.zip?")
+        if "??" in text:
+            raise SystemExit(f"{src_name}: contains '??' -- unresolved LaTeX "
+                             "reference; recompile (LaTeX needs two passes).")
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copy(src, dest / staged_name)
+        print(f"  [pdf] {staged_name}: {pdf_pages(src)} pages, checks passed")
+
+
 SI_PREAMBLE = r"""% ======================================================================
 % Supporting Information for:
 %   "Why ADC works: Bayesian spectral decomposition of prostate multi-b
@@ -220,6 +278,9 @@ def main() -> None:
     coi.mkdir(parents=True)
     for author, affil, stem in AUTHORS:
         (coi / f"{stem}.rtf").write_text(coi_rtf(author, affil))
+
+    # --- 4b. Overleaf-compiled PDFs, if they have been dropped in ------------
+    stage_pdfs(OUT)
 
     # --- 5. Cover letter -----------------------------------------------------
     cl = OUT / "05_cover_letter"
