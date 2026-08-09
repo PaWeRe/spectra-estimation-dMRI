@@ -23,6 +23,7 @@ instead of silently mis-numbering.
 Usage:  uv run python scripts/build_submission_package.py
 """
 
+import json
 import re
 import shutil
 import subprocess
@@ -176,6 +177,60 @@ def stage_pdfs(out: Path) -> None:
 
 
 
+MANIFEST = ".build_manifest.json"
+
+
+def clean_generated(out: Path) -> None:
+    """Remove only what a previous run generated, never anything else.
+
+    An earlier version wiped paper/submission/ wholesale, which destroyed two
+    PDFs a human had dropped in there by hand -- shutil.rmtree does not go to
+    the Trash, so they were unrecoverable. Generated paths are now recorded in
+    a manifest and only those are removed; anything unrecognised is left in
+    place and reported.
+    """
+    if not out.exists():
+        return
+    known = set()
+    mf = out / MANIFEST
+    if mf.exists():
+        try:
+            known = set(json.loads(mf.read_text()))
+        except (json.JSONDecodeError, OSError):
+            known = set()
+    present = {str(q.relative_to(out)) for q in out.rglob("*")
+               if q.is_file() and not q.name.startswith(".")}
+    present.discard(MANIFEST)
+    strangers = sorted(present - known)
+    if strangers and not known:
+        raise SystemExit(
+            f"{out} holds files but no build manifest, so this script cannot "
+            "tell what is safe to delete. Move anything you want to keep out "
+            "of this folder (hand-made files belong in paper/compiled/), then "
+            "re-run.\n  " + "\n  ".join(strangers))
+    for rel in known:
+        f = out / rel
+        if f.is_file():
+            f.unlink()
+    for d in sorted((q for q in out.rglob("*") if q.is_dir()),
+                    key=lambda q: len(q.parts), reverse=True):
+        if not any(d.iterdir()):
+            d.rmdir()
+    mf.unlink(missing_ok=True)
+    if strangers:
+        print(f"  [keep] left {len(strangers)} file(s) this script did not "
+              "generate:")
+        for s in strangers:
+            print(f"         {s}")
+
+
+def write_manifest(out: Path) -> None:
+    files = sorted(str(q.relative_to(out)) for q in out.rglob("*")
+                   if q.is_file() and not q.name.startswith("."))
+    (out / MANIFEST).write_text(json.dumps(files, indent=1))
+
+
+
 CHROME = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
 
 COI_CSS = """
@@ -324,8 +379,7 @@ def main() -> None:
     si_num = {lab: f"S{i}" for i, lab in enumerate(mention, 1)}
     print("SI numbering:", ", ".join(f"{v}={k}" for k, v in si_num.items()))
 
-    if OUT.exists():
-        shutil.rmtree(OUT)
+    clean_generated(OUT)
 
     # --- 1. Main manuscript, Supporting Information removed -----------------
     mm = OUT / "01_main_manuscript"
@@ -422,6 +476,7 @@ def main() -> None:
     assert not cites - bib, f"missing bib keys: {cites - bib}"
     assert not bib - cites, f"uncited bib entries: {bib - cites}"
 
+    write_manifest(OUT)
     print(f"Wrote {OUT.relative_to(REPO)} -- see paper/drafting/SUBMISSION_PACKAGE.md")
 
 
