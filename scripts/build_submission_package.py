@@ -26,6 +26,8 @@ Usage:  uv run python scripts/build_submission_package.py
 import re
 import shutil
 import subprocess
+import tempfile
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -173,6 +175,104 @@ def stage_pdfs(out: Path) -> None:
         print(f"  [pdf] {staged_name}: {pdf_pages(src)} pages, checks passed")
 
 
+
+CHROME = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+COI_CSS = """
+@page { size: letter; margin: 1in; }
+body { font-family: "Times New Roman", Times, serif; font-size: 12pt;
+       line-height: 1.55; color: #000; }
+h1   { font-size: 15pt; margin: 0 0 20pt; }
+h2   { font-size: 12pt; margin: 20pt 0 4pt; }
+table.meta { border-collapse: collapse; margin-bottom: 6pt; }
+table.meta td { padding: 1pt 0; vertical-align: top; }
+table.meta td.k { font-weight: bold; white-space: nowrap; padding-right: 10pt; }
+p { margin: 0 0 10pt; text-align: justify; }
+.sig { margin-top: 46pt; }
+.sig td { padding-top: 26pt; border-bottom: 1px solid #000; }
+.sig td.gap { border-bottom: none; width: 32pt; }
+.sig .lbl { border-bottom: none; padding-top: 3pt; font-size: 10pt; }
+"""
+
+
+def coi_html(author: str, affil: str) -> str:
+    """Signable one-page disclosure. Content identical to the RTF version."""
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Conflict of Interest Disclosure - {esc_html(author)}</title>
+<style>{COI_CSS}</style></head><body>
+<h1>Conflict of Interest Disclosure</h1>
+<table class="meta">
+  <tr><td class="k">Manuscript</td><td>{esc_html(TITLE)}</td></tr>
+  <tr><td class="k">Journal</td><td>Magnetic Resonance in Medicine</td></tr>
+  <tr><td class="k">Author</td><td>{esc_html(author)}</td></tr>
+  <tr><td class="k">Affiliation</td><td>{esc_html(affil)}</td></tr>
+</table>
+
+<h2>Declaration</h2>
+<p>The author named above declares no conflict of interest in connection with this
+manuscript. Specifically, the author has no patents or patent applications, industry
+consulting arrangements, honoraria or speaking fees, equity holdings, advisory or board
+positions, or industry-funded research support that relate to the work described in this
+manuscript.</p>
+
+<h2>Research support</h2>
+<p>This study was supported in part by National Institutes of Health grants P41EB028741
+and R01CA241817. These are non-industry, peer-reviewed public grants; they are disclosed
+in the Acknowledgments of the manuscript and do not constitute a conflict of
+interest.</p>
+
+<table class="sig" width="100%">
+  <tr><td width="55%">&nbsp;</td><td class="gap"></td><td>&nbsp;</td></tr>
+  <tr><td class="lbl">Signature</td><td class="gap"></td><td class="lbl">Date</td></tr>
+</table>
+</body></html>"""
+
+
+def esc_html(s: str) -> str:
+    return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+             .replace("'", "\u2019"))
+
+
+def html_to_pdf(html: Path, pdf: Path, profile: str) -> bool:
+    """Render with headless Chrome.
+
+    Chrome reliably writes the PDF but does not always exit afterwards, so we
+    poll for the finished file and then kill it rather than waiting on the
+    process. `profile` is a throwaway user-data-dir, shared across calls, so a
+    running Chrome session is untouched and first-run setup happens once.
+    """
+    if not CHROME.exists():
+        return False
+    if pdf.exists():
+        pdf.unlink()
+    proc = subprocess.Popen(
+        [str(CHROME), "--headless=new", "--disable-gpu",
+         f"--user-data-dir={profile}", "--no-pdf-header-footer",
+         f"--print-to-pdf={pdf}", html.resolve().as_uri()],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    size, stable, waited = -1, 0, 0.0
+    try:
+        while waited < 90:
+            if pdf.exists():
+                now = pdf.stat().st_size
+                stable = stable + 1 if now == size and now > 1000 else 0
+                size = now
+                if stable >= 2:            # size unchanged across two polls
+                    break
+            if proc.poll() is not None and waited > 1:
+                break
+            time.sleep(0.4)
+            waited += 0.4
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+    if not pdf.exists() or pdf.read_bytes()[:5] != b"%PDF-":
+        raise SystemExit(f"Chrome failed to render {html.name}")
+    return True
+
+
 SI_PREAMBLE = r"""% ======================================================================
 % Supporting Information for:
 %   "Why ADC works: Bayesian spectral decomposition of prostate multi-b
@@ -276,8 +376,20 @@ def main() -> None:
     # --- 4. Conflict of interest, one document per author --------------------
     coi = OUT / "04_conflict_of_interest"
     coi.mkdir(parents=True)
-    for author, affil, stem in AUTHORS:
-        (coi / f"{stem}.rtf").write_text(coi_rtf(author, affil))
+    made = 0
+    with tempfile.TemporaryDirectory() as profile:
+        for author, affil, stem in AUTHORS:
+            (coi / f"{stem}.rtf").write_text(coi_rtf(author, affil))
+            html = coi / f"{stem}.html"
+            html.write_text(coi_html(author, affil))
+            try:
+                if html_to_pdf(html, coi / f"{stem}.pdf", profile):
+                    made += 1
+            finally:
+                html.unlink()
+    print(f"  [coi] {len(AUTHORS)} disclosures as RTF"
+          + (f" and {made} as PDF (upload the PDFs)" if made
+             else " only -- Chrome unavailable, so no PDF"))
 
     # --- 4b. Overleaf-compiled PDFs, if they have been dropped in ------------
     stage_pdfs(OUT)
