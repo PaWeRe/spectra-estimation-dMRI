@@ -76,3 +76,6 @@ paper/figures/fig_directions.*
 
 # Standalone Overleaf upload bundle (regenerable; not part of the release)
 paper/overleaf_upload.zip
+
+# Generated submission package (rebuild: uv run python scripts/build_submission_package.py)
+paper/submission/
